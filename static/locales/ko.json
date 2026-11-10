@@ -3466,6 +3466,7 @@
     "habits.u_steps": "걸음 수",
     "habits.u_words": "단어 수",
     "habits.unit": "단위",
+    "habits.week_over": "이번 주 {done}, 목표 {target}",
     "habits.week_progress": "이번 주 {done}/{target}",
     "habits.weekly": "매주",
     "habits.weight_lb": "파운드",

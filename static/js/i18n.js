@@ -3465,6 +3465,7 @@ const BUILTIN_ENGLISH = {
     "habits.u_steps": "steps",
     "habits.u_words": "words",
     "habits.unit": "unit",
+    "habits.week_over": "{done} this week, goal {target}",
     "habits.week_progress": "{done}/{target} this week",
     "habits.weekly": "weekly",
     "habits.weight_lb": "lb",

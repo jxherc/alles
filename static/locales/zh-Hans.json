@@ -3466,6 +3466,7 @@
     "habits.u_steps": "步数",
     "habits.u_words": "字数",
     "habits.unit": "单位",
+    "habits.week_over": "本周 {done}，目标 {target}",
     "habits.week_progress": "本周 {done}/{target}",
     "habits.weekly": "每周",
     "habits.weight_lb": "磅",

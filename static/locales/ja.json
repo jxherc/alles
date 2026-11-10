@@ -3466,6 +3466,7 @@
     "habits.u_steps": "歩数",
     "habits.u_words": "語数",
     "habits.unit": "単位",
+    "habits.week_over": "今週 {done}、目標 {target}",
     "habits.week_progress": "今週 {done}/{target}",
     "habits.weekly": "毎週",
     "habits.weight_lb": "ポンド",

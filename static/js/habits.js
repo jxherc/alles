@@ -286,7 +286,8 @@ const logs = habit => habit?.kind === 'workout' || hasDayLog(habit);
 function _row(h) {
   const slip = !h.archived && h.risk && h.risk.slipping;
   const today = h.archived ? '' : logSummary(h, h.logs?.[_day]);
-  const week = h.cadence === 'weekly' ? t('habits.week_progress', { done: h.week_done, target: h.target }) : t('habits.days_progress', { done: h.week_done });
+  // done is the days ticked in the last 7; past the goal "4/1" would read as a broken ratio
+  const week = h.cadence === 'weekly' ? t(h.week_done > h.target ? 'habits.week_over' : 'habits.week_progress', { done: h.week_done, target: h.target }) : t('habits.days_progress', { done: h.week_done });
   const sub = [today, slip ? t('habits.slipping') : '', today ? '' : week].filter(Boolean).join(' · ');
   const doneToday = !!h.done_today;
   const label = t(doneToday ? 'habits.day_completed' : 'habits.day_not_completed', { name: h.name, date: t('habits.today') });

@@ -3466,6 +3466,7 @@
     "habits.u_steps": "pasos",
     "habits.u_words": "palabras",
     "habits.unit": "unidad",
+    "habits.week_over": "{done} esta semana, meta {target}",
     "habits.week_progress": "{done}/{target} esta semana",
     "habits.weekly": "semanal",
     "habits.weight_lb": "lb",

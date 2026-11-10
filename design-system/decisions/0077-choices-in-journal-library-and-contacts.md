@@ -33,3 +33,8 @@ pills that never showed which one was picked.
   star and the "..." menu, named by the contact's name and address.
 - health logs with nothing in them are one line, "no entries". the "+ entry" button in the header is the
   action, so the heart icon, the title, the paragraph and the second button are gone.
+- health's overview, logs and habits share one centered column, 1040px (the dashboard width; at 880px the
+  overview's measurement rows left a name no room). the habits list and an opened habit moved from 720px
+  to it. the overview's cards take their own content's height instead of the tallest card's.
+- a weekly habit past its goal reads "4 this week, goal 1", not "4/1 this week"; the count is the days
+  ticked in the last 7 days, so it can pass the goal.
