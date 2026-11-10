@@ -5624,7 +5624,7 @@
     "providers.model_unavailable": "{model} · unavailable",
     "providers.models": "models",
     "providers.needs_replacement": "needs a replacement",
-    "providers.no_endpoints": "connect a local model server or a provider below. then choose your defaults.",
+    "providers.no_endpoints": "no connections yet",
     "providers.no_gpu": "no NVIDIA GPU detected",
     "providers.no_local_models": "no local models yet. pull one by name below.",
     "providers.not_saved": "not saved",

@@ -4601,7 +4601,7 @@ html[dir="rtl"] :where(
 
 #settings-modal[data-kokuen-surface="settings"] .home-settings-move {
   display: flex;
-  gap: 0;
+  gap: var(--k-space-1);
 }
 
 #settings-modal[data-kokuen-surface="settings"] .home-settings-move button {

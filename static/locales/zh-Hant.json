@@ -5624,7 +5624,7 @@
     "providers.model_unavailable": "{model} · 無法使用",
     "providers.models": "模型",
     "providers.needs_replacement": "需要更換",
-    "providers.no_endpoints": "請連接本機模型伺服器或下方的供應商，然後選擇預設值。",
+    "providers.no_endpoints": "還沒有連線",
     "providers.no_gpu": "未偵測到 NVIDIA GPU",
     "providers.no_local_models": "還沒有本機模型。請在下方依名稱拉取一個。",
     "providers.not_saved": "尚未儲存",

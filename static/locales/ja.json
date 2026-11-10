@@ -5624,7 +5624,7 @@
     "providers.model_unavailable": "{model} · 利用不可",
     "providers.models": "モデル",
     "providers.needs_replacement": "置き換えが必要です",
-    "providers.no_endpoints": "ローカルモデルサーバーまたは下のプロバイダーに接続してから、デフォルトを選んでください。",
+    "providers.no_endpoints": "接続はまだありません",
     "providers.no_gpu": "NVIDIA GPU が検出されませんでした",
     "providers.no_local_models": "ローカルモデルはまだありません。下から名前を指定して取得してください。",
     "providers.not_saved": "未保存",

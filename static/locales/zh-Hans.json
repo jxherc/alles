@@ -5624,7 +5624,7 @@
     "providers.model_unavailable": "{model} · 不可用",
     "providers.models": "模型",
     "providers.needs_replacement": "需要替换",
-    "providers.no_endpoints": "连接本地模型服务器或下方的提供商，然后选择默认值。",
+    "providers.no_endpoints": "还没有连接",
     "providers.no_gpu": "未检测到 NVIDIA GPU",
     "providers.no_local_models": "还没有本地模型。请在下方按名称拉取一个。",
     "providers.not_saved": "未保存",

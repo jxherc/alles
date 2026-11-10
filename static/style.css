@@ -1440,7 +1440,7 @@ button.effort-custom-row:focus-visible { color: var(--text); background: var(--b
   color: var(--muted);
   font-family: ui-monospace, 'SFMono-Regular', Menlo, Monaco, Consolas, monospace;
   font-size: 0.8125rem;
-  padding: 0.14rem 0.35rem;
+  padding: var(--k-space-1) var(--k-space-2);
 }
 .agent-run-list {
   display: flex;
@@ -1962,12 +1962,12 @@ body.is-aide.is-incognito .incognito-bar {
   overflow-y: auto;
 }
 :where(#settings-modal) .s-nav-item {
-  display: flex; align-items: center; gap: 0.5rem;
-  padding: 0.42rem 0.85rem;
+  display: flex; align-items: center; gap: var(--k-space-2);
+  padding: var(--k-space-2) var(--k-space-3);
   font-size: 0.8125rem; color: var(--muted);
   cursor: pointer; border-radius: var(--k-radius-control);
-  margin: 0 0.35rem 0.05rem;
-  width: calc(100% - 0.7rem);
+  margin: 0 var(--k-space-1) var(--k-row-gap);
+  width: calc(100% - 2 * var(--k-space-1));
   border: 0; background: transparent; font-family: inherit; text-align: left;
   transition: background 0.12s, color 0.12s;
 }
@@ -2151,10 +2151,11 @@ body.is-aide.is-incognito .incognito-bar {
 
 /* fields */
 .s-field {
-  display: flex; flex-direction: column; gap: 0.28rem;
-  margin-bottom: 0.65rem;
+  display: flex; flex-direction: column; gap: var(--k-space-1);
+  margin-bottom: var(--k-space-3);
 }
 .s-field:last-child { margin-bottom: 0; }
+.s-card-body > .btn + .s-field { margin-top: var(--k-space-3); }
 .s-field label {
   font-size: 0.8125rem; color: var(--muted); font-weight: 500;
 }
@@ -2188,7 +2189,7 @@ body.is-aide.is-incognito .incognito-bar {
 .settings-input {
   background: none; border: none; border-bottom: 1px solid var(--faint);
   color: var(--text); font-family: inherit; font-size: 0.8125rem;
-  padding: 0.3rem 0; outline: none;
+  padding: var(--k-space-1) 0; outline: none;
   transition: border-color 0.2s ease;
   width: 100%; box-sizing: border-box;
 }
@@ -2350,8 +2351,8 @@ html .date-panel input:is(.dp-tv, .dp-year):is(:focus, :focus-visible) { outline
 
 /* toggle rows (appearance) */
 .s-toggle-row {
-  display: flex; align-items: center; justify-content: space-between; gap: 0.75rem;
-  padding: 0.52rem 0;
+  display: flex; align-items: center; justify-content: space-between; gap: var(--k-space-3);
+  padding: var(--k-space-2) 0;
   border-bottom: 1px solid var(--faint);
 }
 .s-toggle-row:last-child { border-bottom: none; }
@@ -6228,8 +6229,8 @@ body.afterlife-aide-projects[data-space="aide"] .aide-scheduled-view {
 .mem-item:hover .mem-actions { opacity: 1; }
 .mem-item:focus-within .mem-actions { opacity: 1; }
 .mem-policy {
-  display: flex; align-items: center; justify-content: space-between; gap: 0.75rem;
-  padding-bottom: 0.7rem; margin-bottom: 0.55rem; border-bottom: 1px solid var(--faint);
+  display: flex; align-items: center; justify-content: space-between; gap: var(--k-space-3);
+  padding-bottom: var(--k-space-3); margin-bottom: var(--k-space-2); border-bottom: 1px solid var(--faint);
 }
 /* bare until picked (decision 0031). right-aligned on desktop, so the box keeps its place there */
 .mem-policy-options { display: flex; flex-wrap: wrap; }
@@ -6252,8 +6253,8 @@ body.afterlife-aide-projects[data-space="aide"] .aide-scheduled-view {
 
 /* ── settings list rows (mcp, personas, webhooks, etc.) ── */
 .settings-list-row {
-  display: flex; align-items: center; gap: 0.5rem;
-  padding: 0.28rem 0; font-size: 0.8125rem;
+  display: flex; align-items: center; gap: var(--k-space-2);
+  padding: var(--k-space-1) 0; font-size: 0.8125rem;
 }
 .settings-row-empty { font-size: 0.8125rem; color: var(--muted); padding: 0.2rem 0 0.4rem; }
 .status-dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
@@ -8992,7 +8993,7 @@ input.cp-swatch-input { width: 44px; min-width: 44px; height: 44px; border: 1px 
 .te-sec { margin-bottom: 1.1rem; }
 .te-sec-h { font-size: 0.8125rem; color: var(--muted); margin-bottom: 0.5rem; }
 .te-presets { display: grid; grid-template-columns: repeat(auto-fill, minmax(74px, 1fr)); gap: 0.5rem; }
-.te-preset { background: none; border: 1px solid transparent; border-radius: var(--k-radius-surface); min-height: 44px; padding: 0.4rem; cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 0.3rem; color: var(--muted); }
+.te-preset { background: none; border: 1px solid transparent; border-radius: var(--k-radius-surface); min-height: 44px; padding: var(--k-space-2); cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: var(--k-space-1); color: var(--muted); }
 .te-preset:hover { background: var(--k-hover, var(--panel)); color: var(--text); }
 .te-preset.active { background: var(--raised); border-color: var(--line-strong); color: var(--text); -webkit-text-stroke: 0.35px currentColor; }
 .te-preset-quad { display: grid; grid-template-columns: 1fr 1fr; width: 38px; height: 38px; border-radius: var(--k-radius-control); overflow: hidden; border: 1px solid var(--faint); }
@@ -11423,11 +11424,11 @@ html[data-kokuen-version="5"] .btn.photos-restore { background: color-mix(in srg
 .cal-rem:hover, .cal-dow-b:hover { color: var(--text); }
 
 /* api token permissions: a list you tick, not a row of tabs */
-.token-scopes { display: grid; gap: 2px; margin-top: 0.55rem; }
+.token-scopes { display: grid; gap: var(--k-row-gap); margin-top: var(--k-space-2); }
 .token-scopes-label { margin-bottom: 4px; color: var(--muted); font-size: 0.8125rem; }
 .token-scope {
   appearance: none; display: grid; grid-template-columns: 16px minmax(0, 1fr); column-gap: 12px; align-items: center;
-  min-height: 44px; padding: 6px 10px; border: 0; border-radius: var(--k-radius-control); background: transparent;
+  min-height: 44px; padding: var(--k-space-2) var(--k-space-3); border: 0; border-radius: var(--k-radius-control); background: transparent;
   color: var(--muted); font: inherit; text-align: left; cursor: pointer;
 }
 .token-scope:hover { background: color-mix(in srgb, var(--k-raised, var(--raised)) 60%, transparent); color: var(--text); }

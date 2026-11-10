@@ -5624,7 +5624,7 @@
     "providers.model_unavailable": "{model} · indisponible",
     "providers.models": "modèles",
     "providers.needs_replacement": "à remplacer",
-    "providers.no_endpoints": "connecte un serveur de modèles local ou un fournisseur ci-dessous. puis choisis tes modèles par défaut.",
+    "providers.no_endpoints": "pas encore de connexions",
     "providers.no_gpu": "aucun GPU NVIDIA détecté",
     "providers.no_local_models": "aucun modèle local. télécharges-en un par son nom ci-dessous.",
     "providers.not_saved": "non enregistré",

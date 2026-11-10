@@ -5624,7 +5624,7 @@
     "providers.model_unavailable": "{model} · غير متاح",
     "providers.models": "النماذج",
     "providers.needs_replacement": "يحتاج إلى بديل",
-    "providers.no_endpoints": "اربط خادم نماذج محليًا أو مزوّدًا أدناه. ثم اختر إعداداتك الافتراضية.",
+    "providers.no_endpoints": "لا توجد اتصالات بعد",
     "providers.no_gpu": "لم يُكتشف معالج رسوميات NVIDIA",
     "providers.no_local_models": "لا نماذج محلية بعد. اسحب واحدًا بالاسم أدناه.",
     "providers.not_saved": "غير محفوظ",
