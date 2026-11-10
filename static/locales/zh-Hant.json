@@ -5394,6 +5394,7 @@
     "photos.restore_failed": "還原失敗；請重試或重新載入以檢查圖片。",
     "photos.restored": "已還原",
     "photos.scan_failed": "掃描失敗：{error}",
+    "photos.select": "選擇",
     "photos.select_named": "選取 {name}",
     "photos.size_larger": "放大照片",
     "photos.size_smaller": "縮小照片",

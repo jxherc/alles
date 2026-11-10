@@ -163,6 +163,11 @@ def run():
                 expect(page.locator("#photos-lightbox")).to_be_visible()
 
             def select(name):
+                # picking is off until the select button turns it on
+                if page.evaluate(
+                    "!document.querySelector('#photos-view').classList.contains('select-mode')"
+                ):
+                    page.locator("#photos-select-btn").click()
                 page.get_by_role("button", name="select " + name, exact=True).click()
 
             def prompt_album(name):

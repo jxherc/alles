@@ -4195,8 +4195,8 @@ body:has(#mail-view[style*="flex"] #mail-undo-stack > .mail-undo-bar + .mail-und
 .photos-zoom .photos-zoom-btn { width: 44px; min-width: 44px; padding: 0; display: inline-grid; place-items: center; }
 .photos-zoom .photos-zoom-btn .ic { width: 16px; height: 16px; }
 .photos-moment-label { position: sticky; top: 0; z-index: 2; background: var(--bg); font-size: 0.8125rem; color: var(--text); font-weight: 500; letter-spacing: 0.01em; padding: 0.5rem 0 0.45rem; }
-.photos-rows { display: flex; flex-direction: column; gap: 3px; }
-.photos-row { display: flex; gap: 3px; }
+.photos-rows { display: flex; flex-direction: column; gap: var(--k-space-1); }
+.photos-row { display: flex; gap: var(--k-space-1); }
 /* trash view keeps a simple square grid */
 .photos-moment-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 4px; }
 .photos-cell { position: relative; aspect-ratio: 1; overflow: hidden; cursor: pointer; background: var(--panel); border-radius: var(--k-radius-small); flex: 0 0 auto; }
@@ -4207,7 +4207,6 @@ body:has(#mail-view[style*="flex"] #mail-undo-stack > .mail-undo-bar + .mail-und
 /* Photo entry and recovery stay reachable without hover. */
 .photos-open { display: block; width: 100%; height: 100%; padding: 0; border: 0; background: transparent; cursor: pointer; }
 .photos-open:focus-visible { outline: 2px solid var(--focus); outline-offset: -3px; }
-.photos-cell:focus-within .photos-check { opacity: 1; }
 .photos-recovery { display: flex; align-items: center; flex-wrap: wrap; gap: 0.5rem; padding: 0.5rem 1rem; }
 .photos-recovery span { flex: 1 1 180px; min-width: 0; overflow-wrap: anywhere; }
 .photos-album-dialog .dialog-card { box-sizing: border-box; min-width: 0; width: min(380px, calc(100vw - 24px)); max-height: calc(100dvh - 24px); overflow: auto; }
@@ -4215,17 +4214,17 @@ body:has(#mail-view[style*="flex"] #mail-undo-stack > .mail-undo-bar + .mail-und
 #photos-meta-status { margin: 0; font-size: 0.8125rem; overflow-wrap: anywhere; }
 .photos-lb-nav:focus-visible { opacity: 1; }
 
-/* multi-select: hover check-circle, selected = inset image + accent ring */
-.photos-check { position: absolute; top: 6px; left: 6px; width: 20px; height: 20px; border-radius: 50%; border: 1.5px solid rgba(255,255,255,0.9); background: rgba(0,0,0,0.28); color: #fff; cursor: pointer; opacity: 0; padding: 0; z-index: 3; display: inline-flex; align-items: center; justify-content: center; transition: opacity 0.12s, background 0.12s, border-color 0.12s; }
+/* multi-select: the ring only exists while the select button is on (it is a mark, the photo's own
+   button takes the tap), selected = inset image + ring */
+.photos-check { position: absolute; top: 6px; left: 6px; width: 20px; height: 20px; border-radius: 50%; border: 1.5px solid rgba(255,255,255,0.9); background: rgba(0,0,0,0.28); color: #fff; pointer-events: none; z-index: 3; display: none; align-items: center; justify-content: center; transition: background 0.12s, border-color 0.12s; }
 .photos-check .ic { width: 12px; height: 12px; opacity: 0; }
-.photos-cell:hover .photos-check { opacity: 1; }
-#photos-view.selecting .photos-check { opacity: 1; }
-.photos-cell.sel .photos-check { opacity: 1; background: var(--text); border-color: var(--line-strong); color: var(--bg); }
+#photos-view.select-mode .photos-check { display: inline-flex; }
+.photos-open { -webkit-touch-callout: none; }
+.photos-cell.sel .photos-check { background: var(--text); border-color: var(--line-strong); color: var(--bg); }
 .photos-cell.sel .photos-check .ic { opacity: 1; }
 .photos-cell.sel img, .photos-cell.sel .photos-cellvid { transform: scale(0.84); }
 .photos-cell.sel:hover img { transform: scale(0.84); }
 .photos-cell.sel::after { content: ''; position: absolute; inset: 0; border: 2px solid var(--text); border-radius: var(--k-radius-small); pointer-events: none; }
-@media (hover: none) { .photos-cell .photos-check { opacity: 0.85; } }
 
 /* selection action bar — replaces the head while photos are selected */
 .photos-selbar { display: none; align-items: center; gap: 0.7rem; padding: 1rem clamp(0.9rem, 3vw, 2rem) 0.7rem; flex-shrink: 0; }

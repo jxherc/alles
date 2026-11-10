@@ -5394,6 +5394,7 @@
     "photos.restore_failed": "échec de la restauration ; réessaie ou recharge pour vérifier l’image.",
     "photos.restored": "restaurée",
     "photos.scan_failed": "échec de l’analyse : {error}",
+    "photos.select": "sélectionner",
     "photos.select_named": "sélectionner {name}",
     "photos.size_larger": "photos plus grandes",
     "photos.size_smaller": "photos plus petites",

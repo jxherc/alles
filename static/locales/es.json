@@ -5394,6 +5394,7 @@
     "photos.restore_failed": "no se pudo restaurar; reintenta o recarga para revisar la imagen.",
     "photos.restored": "restaurada",
     "photos.scan_failed": "falló el análisis: {error}",
+    "photos.select": "seleccionar",
     "photos.select_named": "seleccionar {name}",
     "photos.size_larger": "fotos más grandes",
     "photos.size_smaller": "fotos más pequeñas",

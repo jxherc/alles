@@ -5394,6 +5394,7 @@
     "photos.restore_failed": "فشلت الاستعادة؛ أعد المحاولة أو أعد التحميل للتحقق من الصورة.",
     "photos.restored": "تمت الاستعادة",
     "photos.scan_failed": "فشل المسح: {error}",
+    "photos.select": "تحديد",
     "photos.select_named": "تحديد {name}",
     "photos.size_larger": "صور أكبر",
     "photos.size_smaller": "صور أصغر",

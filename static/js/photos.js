@@ -15,6 +15,8 @@ let _vaultTok = null;  // vault unlock token for the hidden/locked album (7a)
 let _leafletMap = null;  // live Leaflet instance for the map view (7b)
 let _repaint = null;   // re-run the current justified layout on resize; null for map/trash
 const _sel = new Set();  // selected photo ids (multi-select)
+let _selMode = false;    // the select button (or a long press) turned picking on: a tap picks instead of opening
+let _longPressAt = 0;
 let _anchor = null;      // last-clicked id, for shift-range select
 let _curIdx = -1;        // index of _cur within _lbPhotos, for prev/next stepping
 let _lbPhotos = [];      // the set the lightbox steps through (timeline, or a stack's members)
@@ -89,7 +91,7 @@ function rememberPhotoChange(photo, key, value) {
 // a trackpad pinch step through 4 row heights; rows stay justified, so no picture is cropped.
 // the step is remembered in this browser
 const PHOTO_SIZES = [0.7, 1, 1.45, 2];
-const PHOTO_GAP = 3;
+const PHOTO_GAP = 4;
 // each step is a whole number of pictures across, one fewer than the step before, so a step can
 // never land on the layout of its neighbour at any width (a phone has 4, 3, 2, 1 across)
 function _stepCols(cw, step) {
@@ -192,9 +194,9 @@ function _cellHtml(p, w, h, extra = '', interactive = true) {
   const stackBadge = (p.stack_count > 1) ? `<span class="photos-stack-badge">${_si('copy')} ${p.stack_count}</span>` : '';
   const sel = _sel.has(p.id) ? ' sel' : '';
   const name = p.original_name || p.caption || t('photos.photo');
-  const media = interactive ? `<button type="button" class="photos-open" aria-label="${esc(t('photos.open_named', { name }))}">${inner}</button>` : inner;
+  const media = interactive ? `<button type="button" class="photos-open" data-name="${esc(name)}" aria-label="${esc(_selMode ? t('photos.select_named', { name }) : t('photos.open_named', { name }))}"${_selMode ? ` aria-pressed="${_sel.has(p.id)}"` : ''}>${inner}</button>` : inner;
   return `<div class="photos-cell${p.favorite ? ' fav' : ''}${p.is_video ? ' video' : ''}${sel}" data-id="${p.id}"${dim}>`
-    + (interactive ? `<button type="button" class="photos-check" data-id="${p.id}" aria-label="${esc(t('photos.select_named', { name }))}" aria-pressed="${_sel.has(p.id)}">${_si('check')}</button>` : '')
+    + (interactive ? `<span class="photos-check" aria-hidden="true">${_si('check')}</span>` : '')
     + `${media}${favBadge}${stackBadge}${extra}</div>`;
 }
 
@@ -220,9 +222,10 @@ function _paintGroups(groups, emptyMsg) {
   grid.innerHTML = html;
   grid.querySelectorAll('.photos-cell').forEach(c => {
     const id = c.dataset.id;
-    c.querySelector('.photos-check')?.addEventListener('click', e => { e.stopPropagation(); _toggleSel(id, e.shiftKey); });
+    _wireLongPress(c, id);
     c.addEventListener('click', e => {
-      if (_sel.size > 0) { e.preventDefault(); _toggleSel(id, e.shiftKey); return; }   // select mode → toggle
+      if (Date.now() - _longPressAt < 700) { e.preventDefault(); return; }   // the tap that ends a long press
+      if (_selMode) { e.preventDefault(); _toggleSel(id, e.shiftKey); return; }   // select mode → toggle
       const p = _photos.find(x => x.id === id);
       if (p && p.stack_count > 1) _openStack(id);   // a stack cover → step through its members
       else openLightbox(id);
@@ -251,13 +254,44 @@ function _toggleSel(id, shift) {
 
 function _clearSel() { _sel.clear(); _anchor = null; _syncSelUI(); }
 
+function _setSelMode(on) {
+  _selMode = on;
+  if (!on) { _sel.clear(); _anchor = null; }
+  _syncSelUI();
+}
+
+// a finger held on a photo starts picking with that photo chosen. a drag or a lift before the
+// time ends is a scroll or a tap and does nothing here
+function _wireLongPress(cell, id) {
+  let timer = null, x = 0, y = 0;
+  const stop = () => { clearTimeout(timer); timer = null; };
+  cell.addEventListener('pointerdown', e => {
+    if (e.pointerType !== 'touch' || _selMode) return;
+    x = e.clientX; y = e.clientY;
+    timer = setTimeout(() => { timer = null; _longPressAt = Date.now(); _setSelMode(true); _toggleSel(id, false); }, 450);
+  });
+  cell.addEventListener('pointermove', e => { if (timer && Math.hypot(e.clientX - x, e.clientY - y) > 8) stop(); });
+  for (const type of ['pointerup', 'pointercancel', 'pointerleave']) cell.addEventListener(type, stop);
+}
+
 function _syncSelUI() {
   document.querySelectorAll('#photos-grid .photos-cell').forEach(c => {
     c.classList.toggle('sel', _sel.has(c.dataset.id));
-    c.querySelector('.photos-check')?.setAttribute('aria-pressed', String(_sel.has(c.dataset.id)));
+    const open = c.querySelector('.photos-open');
+    if (!open) return;
+    if (_selMode) {
+      open.setAttribute('aria-pressed', String(_sel.has(c.dataset.id)));
+      open.setAttribute('aria-label', t('photos.select_named', { name: open.dataset.name }));
+    } else {
+      open.removeAttribute('aria-pressed');
+      open.setAttribute('aria-label', t('photos.open_named', { name: open.dataset.name }));
+    }
   });
   const n = _sel.size;
   $('photos-view')?.classList.toggle('selecting', n > 0);
+  $('photos-view')?.classList.toggle('select-mode', _selMode);
+  const pick = $('photos-select-btn');
+  if (pick) { pick.textContent = _selMode ? t('common.done') : t('photos.select'); pick.setAttribute('aria-pressed', String(_selMode)); }
   const cnt = $('photos-sel-count'); if (cnt) cnt.textContent = tp('photos.selected', n);
   const ab = $('photos-sel-archive'); if (ab) ab.innerHTML = `${_si('archive')} ${_view === '__archive__' ? t('photos.unarchive') : t('photos.archive')}`;
   const stk = $('photos-sel-stack');
@@ -1159,7 +1193,14 @@ export function initPhotos() {
   $('photos-upload-dismiss')?.addEventListener('click', () => { _uploadFailures = []; _uploadStatus(); });
   $('photos-share-album-btn')?.addEventListener('click', shareAlbum);
   // selection action bar
-  $('photos-sel-clear')?.addEventListener('click', _clearSel);
+  $('photos-sel-clear')?.addEventListener('click', () => _setSelMode(false));
+  $('photos-select-btn')?.addEventListener('click', () => _setSelMode(!_selMode));
+  document.addEventListener('keydown', e => {
+    if (e.key !== 'Escape' || e.defaultPrevented || !_selMode) return;
+    if (!$('photos-view')?.getClientRects().length || $('photos-lightbox')?.style.display === 'flex' || document.querySelector('.dialog-overlay')) return;
+    e.preventDefault();
+    _setSelMode(false);
+  });
   $('photos-sel-fav')?.addEventListener('click', () => _batch('favorite'));
   $('photos-sel-archive')?.addEventListener('click', () => _batch(_view === '__archive__' ? 'unarchive' : 'archive'));
   $('photos-sel-album')?.addEventListener('click', e => _openAlbumMenu(e.currentTarget));

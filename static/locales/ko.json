@@ -5394,6 +5394,7 @@
     "photos.restore_failed": "복원 실패. 다시 시도하거나 새로 고쳐 이미지를 확인하세요.",
     "photos.restored": "복원됨",
     "photos.scan_failed": "스캔 실패: {error}",
+    "photos.select": "선택",
     "photos.select_named": "{name} 선택",
     "photos.size_larger": "사진 크게",
     "photos.size_smaller": "사진 작게",

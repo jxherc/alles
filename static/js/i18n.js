@@ -5393,6 +5393,7 @@ const BUILTIN_ENGLISH = {
     "photos.restore_failed": "restore failed; retry or reload to check the image.",
     "photos.restored": "restored",
     "photos.scan_failed": "scan failed: {error}",
+    "photos.select": "select",
     "photos.select_named": "select {name}",
     "photos.size_larger": "larger photos",
     "photos.size_smaller": "smaller photos",

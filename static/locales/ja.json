@@ -5394,6 +5394,7 @@
     "photos.restore_failed": "復元に失敗しました。再試行するか、再読み込みして画像を確認してください。",
     "photos.restored": "復元しました",
     "photos.scan_failed": "スキャンに失敗しました: {error}",
+    "photos.select": "選択",
     "photos.select_named": "{name} を選択",
     "photos.size_larger": "写真を大きく",
     "photos.size_smaller": "写真を小さく",

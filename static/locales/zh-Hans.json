@@ -5394,6 +5394,7 @@
     "photos.restore_failed": "恢复失败；请重试或重新加载以检查图片。",
     "photos.restored": "已恢复",
     "photos.scan_failed": "扫描失败：{error}",
+    "photos.select": "选择",
     "photos.select_named": "选择 {name}",
     "photos.size_larger": "放大照片",
     "photos.size_smaller": "缩小照片",
