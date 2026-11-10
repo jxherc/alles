@@ -6838,6 +6838,11 @@ button.cal-agenda-ev { width: 100%; margin: 0; border: 0; background: none; font
   .cal-tev-box > b { font-weight: 400; opacity: 0.8; }
   .cal-tev-box > .cal-tev-loc { display: none; }
 }
+/* a one hour block holds the time and one line of title: the title ends in an ellipsis instead of
+   a third line cut through its letters */
+@container (max-height: 3rem) {
+  .cal-tev-title { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+}
 .cal-tev.accent, .cal-allday-ev.accent { background: var(--cat-blue); }
 .cal-tev.green,  .cal-allday-ev.green  { background: var(--green); }
 .cal-tev.error,  .cal-allday-ev.error  { background: var(--error); }

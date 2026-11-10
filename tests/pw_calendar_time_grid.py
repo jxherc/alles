@@ -97,7 +97,7 @@ def main():
 
             # the box is as long as the event (30 minutes at least), not kokuen's 44px
             assert abs(box("GRID_SHORT")["h"] - 20) < 1, box("GRID_SHORT")
-            assert abs(box("GRID_LONG")["h"] - 64) < 1, box("GRID_LONG")
+            assert abs(box("GRID_LONG")["h"] - 68) < 1, box("GRID_LONG")
 
             q1 = box("GRID_Q1")
             assert tap(q1["x"], q1["top"] + 10) == "GRID_Q1", where
@@ -115,7 +115,7 @@ def main():
             assert tap(s["x"], s["top"] + s["h"] + 40) == "new", f"{where}: the slot below creates"
             a = box("GRID_A")
             b = box("GRID_B", scroll=False)
-            assert abs(b["top"] - (a["top"] + a["h"]) - 2) < 1, (a, b)
+            assert abs(b["top"] - (a["top"] + a["h"]) - 4) < 1, (a, b)
             # each box wins over the neighbour's tap area that reaches into it
             assert tap(a["x"], a["top"] + a["h"] - 3) == "GRID_A", where
             b = box("GRID_B")

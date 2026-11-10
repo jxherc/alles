@@ -121,7 +121,9 @@ const _weekdayLabels = (width = 'short') => {
 };
 // leading blanks before the 1st, honoring week-start
 const _lead = (y, m) => (new Date(y, m, 1).getDay() - _weekStart + 7) % 7;
-const HOUR_H = 44;
+// a one hour block is 44px (its touch target) with --k-row-gap (4px) under it
+const HOUR_H = 48;
+const BLOCK_GAP = 4;
 export const CAL_SEARCH_DEBOUNCE_MS = 180;
 const _pad = n => String(n).padStart(2, '0');
 const ymd = d => `${d.getFullYear()}-${_pad(d.getMonth() + 1)}-${_pad(d.getDate())}`;
@@ -1443,7 +1445,7 @@ function renderTimeGrid(el, days, occ) {
         if (stacked.has(it.cid)) continue;
         stacked.add(it.cid);
         const group = dayEvs.filter(x => x.cid === it.cid);   // in start order, so `it` is first
-        const height = (Math.max(...group.map(x => x.endMs)) - it.startMs) / 3600000 * HOUR_H - 2;
+        const height = (Math.max(...group.map(x => x.endMs)) - it.startMs) / 3600000 * HOUR_H - BLOCK_GAP;
         const last = group.reduce((latest, x) => (x.end > latest ? x.end : latest), it.end);
         // the box shows the count; a half-hour box has no room for a word
         const name = trp('calendar.overlap_stack', group.length, { start: timeShort(o._date), end: timeShort(last) });
@@ -1455,12 +1457,12 @@ function renderTimeGrid(el, days, occ) {
       const left = `calc(2px + ${it.col} * (100% - 4px) / ${it.ncols})`;
       // dom order is time order, so tab walks the day in time order
       const name = tr('calendar.event_span', { title: o.title, start: timeShort(o._date), end: timeShort(it.end) });
-      evHtml += `<div class="cal-tev${o._recur ? ' recurring' : ''}" role="button" tabindex="0" aria-label="${esc(name)}" data-id="${o.id}" data-occ="${ymd(o._date)}" style="top:${top}px;height:${it.durH * HOUR_H - 2}px;left:${left};width:${w};right:auto" title="${chipTitle(o)}"><div class="cal-tev-box" style="background:color-mix(in srgb, ${hx} 24%, transparent);color:var(--text);border-left:3px solid ${hx}"><b>${esc(timeShort(o._date))}</b> ${o._recur ? `<span class="cal-chip-recur">${_si('refresh')}</span>` : ''}<span class="cal-tev-title">${esc(o.title)}</span>${o.location ? `<span class="cal-tev-loc">${esc(o.location)}</span>` : ''}<span class="cal-tev-resize"></span></div></div>`;
+      evHtml += `<div class="cal-tev${o._recur ? ' recurring' : ''}" role="button" tabindex="0" aria-label="${esc(name)}" data-id="${o.id}" data-occ="${ymd(o._date)}" style="top:${top}px;height:${it.durH * HOUR_H - BLOCK_GAP}px;left:${left};width:${w};right:auto" title="${chipTitle(o)}"><div class="cal-tev-box" style="background:color-mix(in srgb, ${hx} 24%, transparent);color:var(--text);border-left:3px solid ${hx}"><b>${esc(timeShort(o._date))}</b> ${o._recur ? `<span class="cal-chip-recur">${_si('refresh')}</span>` : ''}<span class="cal-tev-title">${esc(o.title)}</span>${o.location ? `<span class="cal-tev-loc">${esc(o.location)}</span>` : ''}<span class="cal-tev-resize"></span></div></div>`;
     }
     for (const hidden of folded.values()) {
       const n = fits(el.clientWidth), first = hidden[0];
       const top = (first.o._date.getHours() + first.o._date.getMinutes() / 60) * HOUR_H;
-      const height = (Math.max(...hidden.map(x => x.endMs)) - first.startMs) / 3600000 * HOUR_H - 2;
+      const height = (Math.max(...hidden.map(x => x.endMs)) - first.startMs) / 3600000 * HOUR_H - BLOCK_GAP;
       const last = hidden.reduce((latest, x) => (x.end > latest ? x.end : latest), first.end);
       const name = trp('calendar.overlap_more', hidden.length, { start: timeShort(first.o._date), end: timeShort(last) });
       const picks = JSON.stringify(hidden.map(x => ({ value: `${x.o.id}@${ymd(x.o._date)}`, label: `${timeShort(x.o._date)} ${x.o.title}` })));
