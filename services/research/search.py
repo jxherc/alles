@@ -7,6 +7,7 @@ reader and a chain helper that tells you which provider actually answered.
 """
 
 import asyncio
+import datetime
 import html as _htmlmod
 import json
 import logging
@@ -32,15 +33,16 @@ _UA = (
 # https://foundation.wikimedia.org/wiki/Policy:User-Agent_policy
 WIKIPEDIA_UA = "alles (https://github.com/jxherc/alles)"
 _KNOWN_PROVIDERS = frozenset({*BY_ID, "wikipedia"})
-# the keyless engines for web results, best first. ddgs runs them in this order and only goes
-# down the list while it still needs rows, so a page comes from the best engine that answers.
-# shuffled, a whole page came from whichever engine came up (yandex as often as the bing ones),
-# under wikipedia and grokipedia every time. left out: startpage (a captcha page for every
-# server request) and grokipedia (generated articles, not a search engine)
-# also left out since nov 10: mojeek and yandex. they were the last resort when the others gave
-# nothing, and what they gave was worse than nothing (shop listings for "nike", adult spam for
-# a chinese question). no results and a retry is the honest answer then
-_TEXT_ENGINES = ("wikipedia", "duckduckgo", "google", "brave", "yahoo")
+# the keyless engines for web results. yahoo first and alone: it is the one that answers from
+# most networks, in about 1 second (measured nov 10). ddgs asks engines two at a time in the
+# order given, so behind duckduckgo, google and brave (blocked from many networks) the same
+# yahoo page took 2 to 3 seconds. the others are asked once when yahoo has nothing.
+# left out: startpage (a captcha page for every server request), grokipedia (generated
+# articles, not a search engine), mojeek and yandex (as a last resort they gave shop listings
+# and adult spam: no results and a retry is the honest answer then), and ddgs's wikipedia,
+# which puts the nearest article title first whatever was asked ("Lake Stiphane" for
+# "latest iphone")
+_TEXT_ENGINES = ("yahoo", "duckduckgo", "google", "brave")
 
 # ddgs asks every engine in one "country-language" region and defaults to us-en: google then
 # returns english pages only and wikipedia is the english one, so a query in another script
@@ -371,6 +373,9 @@ def _plain_snippet(text: str) -> str:
     return re.sub(r"\s+", " ", text).strip()
 
 
+NEWS_DAYS = 30
+
+
 async def _search_exa(query, api_key, max_results=5, category="all"):
     # exa is a web index, not an image or video engine; empty hands those to the next engine
     if category in ("images", "videos"):
@@ -385,7 +390,13 @@ async def _search_exa(query, api_key, max_results=5, category="all"):
         "contents": {"highlights": {"maxCharacters": 320}},
     }
     if category == "news":
+        # exa's news category alone is "pages from news sites", any age: travel pieces from
+        # 2017 for "toronto", a help center for "openai" (measured nov 10). a news tab wants
+        # what was published lately
         body["category"] = "news"
+        body["startPublishedDate"] = (
+            datetime.datetime.now(datetime.UTC) - datetime.timedelta(days=NEWS_DAYS)
+        ).strftime("%Y-%m-%dT00:00:00.000Z")
     headers = {"x-api-key": api_key, "user-agent": "aide-research/1.0"}
     async with httpx.AsyncClient(timeout=15) as c:
         r = await c.post("https://api.exa.ai/search", json=body, headers=headers)
@@ -654,22 +665,18 @@ def _text_backends(names=_TEXT_ENGINES):
 
 
 def _web_rows(d, query: str, max_results: int, region: str) -> list:
-    """web results from the keyless engines, asked up to 3 times: an engine that answered
-    nothing once (a busy moment, a page with no results in it) usually answers on the next
-    request. measured nov 10: yahoo, the one that answers from most networks, gives a readable
-    page 5 times in 6. a second page fills a short first one."""
-    backends = _text_backends()
+    """web results from the keyless engines: the first one twice (measured nov 10: yahoo gives
+    a readable page 5 times in 6, and a miss is usually a page with no results in it that the
+    next request doesn't get), then the others once. a second page fills a short first one."""
     rows = []
-    for _attempt in range(3):
+    for names in (_TEXT_ENGINES[:1], _TEXT_ENGINES[:1], _TEXT_ENGINES[1:]):
+        backends = _text_backends(names)
         try:
-            found = d.text(query, max_results=max_results, region=region, **backends)
+            rows = d.text(query, max_results=max_results, region=region, **backends)
         except Exception as error:  # ddgs raises when every engine came back empty
             log.debug("keyless engines %s: %s", backends.get("backend", "default"), error)
-            found = []
-        rows = found or rows
-        # wikipedia alone is one article, not a results page: worth one more try, and still
-        # better than nothing if that is all there is
-        if any("wikipedia.org" not in str(r.get("href") or "") for r in rows) or not backends:
+            rows = []
+        if rows or not backends:
             break
     if rows and len(rows) < max_results and backends:
         try:

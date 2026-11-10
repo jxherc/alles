@@ -14,9 +14,12 @@ class MetasearchEnginesTest(unittest.TestCase):
         # altogether (nov 10): as a last resort they gave adult spam for a chinese question
         backends = search_service._text_backends()["backend"].split(",")
         self.assertEqual(backends, search_service._text_backends()["backend"].split(","))
-        self.assertEqual(backends[0], "wikipedia")
-        self.assertIn("yahoo", backends)
-        for name in ("startpage", "grokipedia", "yandex", "mojeek"):
+        # yahoo first: the one that answers from most networks. behind the blocked ones the
+        # same page took 2 to 3 seconds instead of 1 (ddgs asks two at a time, in order)
+        self.assertEqual(backends[0], "yahoo")
+        # ddgs's wikipedia puts the nearest title first whatever was asked: "Lake Stiphane"
+        # led the page for "latest iphone"
+        for name in ("startpage", "grokipedia", "yandex", "mojeek", "wikipedia"):
             self.assertNotIn(name, backends)
         self.assertFalse(hasattr(search_service, "_LAST_TEXT_ENGINES"))
 
@@ -137,31 +140,24 @@ class MetasearchEnginesTest(unittest.TestCase):
         return [row["url"] for row in rows], calls
 
     def test_the_keyless_search_sends_the_region_and_the_engine_order(self):
-        good = search_service._text_backends()["backend"]
         urls, calls = self.run_keyless([["https://a.cn/1", "https://a.cn/2", "https://a.cn/3"]])
         self.assertEqual(urls, ["https://a.cn/1", "https://a.cn/2", "https://a.cn/3"])
-        self.assertEqual([(c["region"], c["backend"]) for c in calls], [("cn-zh", good)])
+        self.assertEqual([(c["region"], c["backend"]) for c in calls], [("cn-zh", "yahoo")])
         _urls, calls = self.run_keyless([], category="images")
         self.assertEqual(calls[0]["region"], "cn-zh")
 
-    def test_an_empty_reply_from_the_good_engines_is_asked_once_more(self):
-        good = search_service._text_backends()["backend"]
+    def test_an_empty_reply_is_asked_once_more_then_the_other_engines_once(self):
+        rest = "duckduckgo,google,brave"
         page = ["https://a.dev/1", "https://a.dev/2", "https://a.dev/3"]
-        # nothing, then a full page
+        # nothing, then a full page: yahoo's miss is usually a page with no results in it
         urls, calls = self.run_keyless([[], page])
         self.assertEqual(urls, page)
-        self.assertEqual([c["backend"] for c in calls], [good, good])
-        # one wikipedia article is not a results page either
-        wiki = ["https://zh.wikipedia.org/wiki/x"]
-        urls, calls = self.run_keyless([wiki, [], page])
+        self.assertEqual([c["backend"] for c in calls], ["yahoo", "yahoo"])
+        # nothing twice: the others get their one try
+        urls, calls = self.run_keyless([[], [], page])
         self.assertEqual(urls, page)
-        self.assertEqual([c["backend"] for c in calls], [good, good, good])
-        # 3 tries, the same good engines every time, then what there is: one article beats
-        # the junk the old last resort engines gave, and nothing is said as nothing
-        urls, calls = self.run_keyless([wiki, wiki, wiki])
-        self.assertEqual(urls, wiki)
-        self.assertEqual([c["backend"] for c in calls[:3]], [good, good, good])
-        self.assertEqual([c.get("page") for c in calls], [None, None, None, 2])
+        self.assertEqual([c["backend"] for c in calls], ["yahoo", "yahoo", rest])
+        # nothing from anyone is said as nothing: no junk engines behind these
         urls, calls = self.run_keyless([[], [], [], page], count=3)
         self.assertEqual(urls, [])
         self.assertEqual(len(calls), 3)
@@ -224,9 +220,17 @@ class ExaEngineTest(unittest.TestCase):
         self.assertEqual(rows[0]["snippet"], "one two")
         self.assertEqual(rows[1]["published"], "2026-10-01")
 
-    def test_news_uses_the_news_category(self):
+    def test_news_is_the_news_category_from_the_last_30_days(self):
+        # nov 10: the category alone gave travel pieces from 2017 for "toronto"
+        import datetime
+
         _rows, seen = self.run_exa("news")
         self.assertEqual(seen["body"]["category"], "news")
+        since = datetime.datetime.fromisoformat(seen["body"]["startPublishedDate"])
+        age = datetime.datetime.now(datetime.UTC) - since
+        self.assertTrue(datetime.timedelta(days=30) <= age < datetime.timedelta(days=31), age)
+        _rows, seen = self.run_exa("all")
+        self.assertNotIn("startPublishedDate", seen["body"])
 
     def test_a_busy_exa_is_asked_once_more_and_a_refusal_is_not(self):
         found = {"results": [{"url": "https://a.dev/x", "title": "A"}]}
@@ -250,8 +254,7 @@ class ExaEngineTest(unittest.TestCase):
                 self.run_exa(replies=[(401, {})])
 
     def test_a_backup_engine_answering_for_the_chosen_one_is_reported_with_the_reason(self):
-        from services import andromeda
-
+        # for the research chain; andromeda's own web search asks both engines at once
         settings = {"research_search_provider": "exa", "search_fallback_chain": ["duckduckgo"]}
         rows = [{"url": "https://a.dev/x", "title": "A", "snippet": "s"}]
 
@@ -267,9 +270,7 @@ class ExaEngineTest(unittest.TestCase):
                 mock.patch("core.settings.load_settings", return_value=settings),
                 mock.patch.object(search_service, "_search_provider", side_effect=provider),
             ):
-                report = asyncio.run(search_service.search_chain_report("x", category=category))
-                normal = asyncio.run(andromeda.normal_search("x", category=category))
-            return report, normal
+                return asyncio.run(search_service.search_chain_report("x", category=category))
 
         for first, reason in (
             (search_service.SearchProviderFailure("refused"), "refused"),
@@ -277,19 +278,14 @@ class ExaEngineTest(unittest.TestCase):
             ([], "empty"),
         ):
             with self.subTest(reason=reason):
-                report, normal = chain(first)
+                report = chain(first)
                 self.assertEqual((report.provider, report.backup_for), ("duckduckgo", "exa"))
                 self.assertEqual(report.backup_reason, reason)
-                self.assertEqual((normal["backup_for"], normal["backup_reason"]), ("exa", reason))
         # exa answering itself, or having no pictures to give, is not news
-        report, normal = chain(rows)
-        self.assertEqual(
-            (report.provider, report.backup_for, normal["backup_for"]), ("exa", "", "")
-        )
-        report, normal = chain([], category="images")
-        self.assertEqual(
-            (report.provider, report.backup_for, normal["backup_for"]), ("duckduckgo", "", "")
-        )
+        report = chain(rows)
+        self.assertEqual((report.provider, report.backup_for), ("exa", ""))
+        report = chain([], category="images")
+        self.assertEqual((report.provider, report.backup_for), ("duckduckgo", ""))
 
     def test_images_and_videos_fall_through_to_the_next_engine(self):
         for category in ("images", "videos"):
@@ -406,3 +402,149 @@ class KeyedEnginesTest(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class BlendTest(unittest.TestCase):
+    """a web search asks the chosen engine and the free one at once and shows one list."""
+
+    EXA = {"search_provider": "exa"}
+
+    def page(self, name, count):
+        return [
+            {"url": f"https://{name}.example/{i}", "title": f"{name} {i}", "snippet": "s"}
+            for i in range(1, count + 1)
+        ]
+
+    def search(self, chosen, free, settings=None, **kwargs):
+        """normal_search with the chosen engine answering `chosen` (rows, or a failure kind)
+        and the free engine `free` (rows, or seconds to hang)."""
+        from services import andromeda
+
+        asked = {"chain": [], "free": 0}
+
+        async def chain(query, override=None, max_results=10, category="all"):
+            asked["chain"].append(override)
+            if isinstance(chosen, str):
+                error = None if chosen == "no_results" else f"search providers failed ({chosen})"
+                report = search_service.SearchReport([], None, error, chosen, ("exa",))
+            else:
+                report = search_service.SearchReport(chosen, "exa", None, "", ("exa",))
+            if override is None and isinstance(chosen, str):
+                report = search_service.SearchReport(
+                    [], None, "nothing", chosen, ("exa", "wikipedia")
+                )
+            return search_service.SearchChainResult(report)
+
+        async def free_rows(_query):
+            asked["free"] += 1
+            if isinstance(free, (int, float)):
+                await asyncio.sleep(free)
+                return self.page("late", 5)
+            return free
+
+        with (
+            mock.patch(
+                "core.settings.load_settings",
+                return_value=self.EXA if settings is None else settings,
+            ),
+            mock.patch("services.research.search.search_chain", new=chain),
+            mock.patch.object(andromeda, "_free_rows", new=free_rows),
+            mock.patch.object(andromeda, "BLEND_WAIT_SECONDS", 0.2),
+        ):
+            result = asyncio.run(andromeda.normal_search("沙底下一个女", **kwargs))
+        return result, asked
+
+    def test_two_engines_become_one_list_with_shared_pages_on_top(self):
+        from services import andromeda
+
+        words = self.page("words", 4) + [
+            {"url": "https://www.both.example/page/", "title": "both", "snippet": "short"},
+            {"url": "https://www.bing.com/aclick?ld=x", "title": "a paid link"},
+        ]
+        meaning = self.page("meaning", 3) + [
+            {
+                "url": "http://both.example/page",
+                "title": "both",
+                "snippet": "a longer text",
+                "published": "2026-11-01",
+            }
+        ]
+        urls = [row["url"] for row in andromeda.blend_results(words, meaning)]
+        # found by both: first. then they alternate, the word engine's row first. no paid link
+        self.assertEqual(
+            urls[:5],
+            [
+                "http://both.example/page",
+                "https://words.example/1",
+                "https://meaning.example/1",
+                "https://words.example/2",
+                "https://meaning.example/2",
+            ],
+        )
+        self.assertEqual(len(urls), 8)
+        both = andromeda.blend_results(words, meaning)[0]
+        self.assertEqual((both["snippet"], both["published"]), ("a longer text", "2026-11-01"))
+        self.assertEqual(andromeda.blend_results([], meaning), meaning)
+
+    def test_a_web_search_asks_both_engines_and_names_both(self):
+        # nov 10: exa answered 沙底下一个女 with a film, the word engine with the character 娑
+        result, asked = self.search(self.page("exa", 6), self.page("free", 5))
+        self.assertEqual(result["provider"], "exa, duckduckgo")
+        self.assertEqual(result["attempted_sources"], ["exa", "duckduckgo"])
+        self.assertEqual((result["status"], result["backup_for"]), ("ready", ""))
+        self.assertEqual(
+            [row["url"] for row in result["results"][:4]],
+            [
+                "https://free.example/1",
+                "https://exa.example/1",
+                "https://free.example/2",
+                "https://exa.example/2",
+            ],
+        )
+        # the chosen engine is asked alone: its fallback is already on its way
+        self.assertEqual((asked["chain"], asked["free"]), (["exa"], 1))
+
+    def test_a_slow_or_thin_free_engine_never_holds_the_results_back(self):
+        result, _asked = self.search(self.page("exa", 6), 5)
+        self.assertEqual(result["provider"], "exa")
+        self.assertEqual([row["url"] for row in result["results"]][0], "https://exa.example/1")
+        self.assertEqual(result["attempted_sources"], ["exa"])
+        result, _asked = self.search(self.page("exa", 6), self.page("free", 2))
+        self.assertEqual(result["provider"], "exa")
+
+    def test_the_free_engine_stands_in_when_the_chosen_one_has_nothing_and_says_why(self):
+        for kind, reason in (
+            ("refused", "refused"),
+            ("timeout", "failed"),
+            ("no_results", "empty"),
+        ):
+            with self.subTest(kind=kind):
+                result, asked = self.search(kind, self.page("free", 5))
+                self.assertEqual((result["status"], result["provider"]), ("ready", "duckduckgo"))
+                self.assertEqual((result["backup_for"], result["backup_reason"]), ("exa", reason))
+                self.assertEqual(result["failure_type"], "")
+                self.assertEqual(result["attempted_sources"], ["exa", "duckduckgo"])
+                # asked once: it was already on its way
+                self.assertEqual((asked["chain"], asked["free"]), (["exa"], 1))
+        # nothing from either: the rest of the owner's chain gets its turn, as before
+        result, asked = self.search("timeout", [])
+        self.assertEqual(asked["chain"], ["exa", None])
+        self.assertEqual((result["status"], result["backup_for"]), ("error", ""))
+
+    def test_one_engine_stays_one_engine_when_the_owner_said_so(self):
+        cases = (
+            ({"search_provider": "exa", "search_fallback_chain": []}, {}),  # fallback: none
+            ({"search_provider": "exa", "search_fallback_chain": ["wikipedia"]}, {}),
+            ({"search_provider": "duckduckgo"}, {}),  # the free engine is the chosen one
+            ({}, {}),
+            (self.EXA, {"provider": "exa"}),  # picked for this search
+            (self.EXA, {"category": "images"}),
+            (self.EXA, {"category": "news"}),
+        )
+        for settings, kwargs in cases:
+            with self.subTest(settings=settings, kwargs=kwargs):
+                result, asked = self.search(
+                    self.page("exa", 6), self.page("free", 5), settings, **kwargs
+                )
+                self.assertEqual(asked["free"], 0)
+                self.assertEqual(result["provider"], "exa")

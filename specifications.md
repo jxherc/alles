@@ -1417,13 +1417,26 @@ a busy exa (429, 500, 503, 504) is asked once more after at most 2 seconds, and 
 refusal, not retried. when the chosen engine refuses, fails or finds nothing for a web or news search and a backup engine
 answers, the reply says so (`backup_for`, `backup_reason`: refused, empty or failed) and the page shows one line under the
 tabs ("exa refused this search. these results are from the backup engines."), so worse results have a reason.
-the free metasearch asks its engines best first (wikipedia, duckduckgo, google, brave, yahoo), up to 3 times while they
-give nothing, and searches a query written in chinese, japanese, korean, russian or arabic in that language's region
-instead of us-en. yahoo is the one that answers from most networks; the library poses as a random browser, yahoo sends a
-phone browser another page, and the library read that page as empty (4 live pages in 6 on nov 10), so alles reads both
-layouts (`yahoo_phone_rows` in [services/research/search.py](services/research/search.py)). mojeek and yandex are no
-longer asked at all: as a last resort they gave shop listings and adult spam, and no results with a retry is the honest
-answer then.
+exa's news tab asks for the news category from the last 30 days: the category alone returned pages from news sites of any
+age (travel pieces from 2017 for "toronto").
+the free metasearch asks yahoo first and alone, twice while it gives nothing, then duckduckgo, google and brave once, and
+searches a query written in chinese, japanese, korean, russian or arabic in that language's region instead of us-en.
+yahoo is the one that answers from most networks, in about 1 second; the library asks engines two at a time in order, so
+behind the blocked ones the same page took 2 to 3 seconds. the library poses as a random browser, yahoo sends a phone
+browser another page, and the library read that page as empty (4 live pages in 6 on nov 10), so alles reads both layouts
+(`yahoo_phone_rows` in [services/research/search.py](services/research/search.py)) and takes only a result's own title
+and link from the desktop one. mojeek and yandex are no longer asked at all (as a last resort they gave shop listings and
+adult spam; no results with a retry is the honest answer then), nor is the library's wikipedia engine, which put the
+nearest article title first whatever was asked.
+**two engines, one list.** a web search (the "all" tab) asks the chosen engine and the free one at the same time and shows
+one list ([services/andromeda.py](services/andromeda.py) `blend_results`, reciprocal rank: a page both found rises, the
+rest alternate, the free engine's row first). an engine that understands meaning and one that matches words miss
+different things: exa answered 沙底下一个女 with a film, the word engine with the character 娑, and with both the overview
+answers 娑 (measured nov 10 with the owner's exa key: 12 of 12 searches merged, median 0.9 s). the free engine gets 2.2
+seconds from the start of the search and at least 3 rows, or the chosen engine's list is shown alone; when the chosen
+engine has nothing, the free one stands in and the page says why. this only happens when the free engine is among the
+fallbacks the owner allows (fallback "none" stays one engine), never for a search with one engine picked, and not for
+images, news or videos. the reply's `provider` then names both ("exa, duckduckgo").
 the owner can add up to 12 custom engines in settings → search: any https json api (plain http only on this
 machine), with {query} and {count} in the address or a json body, an optional key header, and dotted paths for the
 result list and its link, title and snippet. custom keys are sealed per engine; removing an engine also resets

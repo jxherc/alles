@@ -138,7 +138,7 @@ def normalize_results(
         kind, quality = source_kind(url)
         normalized = {
             "rank": rank,
-            "title": str(row.get("title") or parsed.hostname or url)[:500],
+            "title": " ".join(str(row.get("title") or parsed.hostname or url).split())[:500],
             "url": url[:4000],
             "snippet": re.sub(r"\s+", " ", str(row.get("snippet") or "")).strip()[:2000],
             "publisher": str(row.get("publisher") or row.get("source") or parsed.hostname or "")[
@@ -262,6 +262,69 @@ def order_results(rows, query: str) -> list:
     return first + rest
 
 
+# an engine that understands meaning (exa) and one that matches words (the free engine reads
+# bing's index through yahoo) miss different things: exa answered 沙底下一个女 with the film
+# "woman in the dunes", the word engine with the character 娑; for "how to tie a tie" only the
+# word engine had wikihow. a web search asks both and shows one list (measured nov 10)
+BLEND_ENGINE = "duckduckgo"
+BLEND_ROWS = 7  # one page of the free engine: more would cost it a second request
+BLEND_MIN_ROWS = 3
+BLEND_WAIT_SECONDS = 2.2  # for the free engine, from the start of the search
+_BLEND_K = 10
+
+
+def _page_key(url) -> str:
+    parts = urlsplit(str(url or ""))
+    host = (parts.hostname or "").lower().removeprefix("www.").removeprefix("m.")
+    return f"{host}{parts.path.rstrip('/')}?{parts.query}" if host else ""
+
+
+def blend_results(words: list, meaning: list) -> list:
+    """two engines' rows as one list, by reciprocal rank: a page both found rises, and the
+    rest alternate, the word engine's row first. the row kept for a shared page is the one
+    with more text under it."""
+    score: dict[str, float] = {}
+    kept: dict[str, dict] = {}
+    for rows in (words, meaning):
+        for index, row in enumerate(rows or []):
+            key = _page_key(row.get("url"))
+            if not key or _AD_LINK.match(str(row.get("url") or "")):
+                continue
+            score[key] = score.get(key, 0.0) + 1.0 / (_BLEND_K + index)
+            old = kept.get(key)
+            if old is None or len(str(row.get("snippet") or "")) > len(
+                str(old.get("snippet") or "")
+            ):
+                kept[key] = {**(old or {}), **{k: v for k, v in row.items() if v}}
+    # sorted is stable and the word engine's keys came first, so it wins a tie
+    return [kept[key] for key in sorted(score, key=lambda key: -score[key])]
+
+
+def blend_engine(settings: dict, provider: str, category: str) -> str:
+    """the second engine a web search asks beside the chosen one, or "" for none: only for the
+    "all" tab, never when the owner picked one engine for this search, and only when the free
+    engine is among the fallbacks they allow (a fallback set to none stays none)."""
+    from services.research.search import _provider_chain
+
+    if category != "all" or provider:
+        return ""
+    primary = settings.get("research_search_provider") or settings.get("search_provider") or ""
+    chain = _provider_chain(primary or BLEND_ENGINE, settings.get("search_fallback_chain"))
+    if not chain or chain[0] in (BLEND_ENGINE, "wikipedia") or BLEND_ENGINE not in chain[1:]:
+        return ""
+    return BLEND_ENGINE
+
+
+async def _free_rows(query: str) -> list:
+    from services.research.search import _search_duckduckgo
+
+    try:
+        rows = await _search_duckduckgo(query, BLEND_ROWS, "all")
+    except Exception:
+        return []
+    return [row for row in rows or [] if not _AD_LINK.match(str(row.get("url") or ""))]
+
+
 async def normal_search(
     query: str,
     *,
@@ -282,10 +345,16 @@ async def normal_search(
             "has_more": False,
         }
     from core.settings import load_settings
-    from services.research.search import search_chain
+    from services.research.search import _provider_chain, search_chain
 
-    blocked = blocked_sites(load_settings().get("andromeda_blocked_sites"))
+    settings = load_settings()
+    blocked = blocked_sites(settings.get("andromeda_blocked_sites"))
     started = time.perf_counter()
+    second = blend_engine(settings, provider, category)
+    free = asyncio.create_task(_free_rows(query)) if second else None
+    # set when the second engine's rows are in the list, or stand in for the chosen engine's
+    blended: list = []
+    stood_in: tuple[str, str] | None = None
     category_limit = MAX_RESULTS if category == "all" else MAX_CATEGORY_RESULTS
     requested = max(1, min(category_limit, int(max_results or 1)))
     provider_ceiling = MAX_NORMAL_FETCH_RESULTS if category == "all" else MAX_CATEGORY_RESULTS
@@ -293,14 +362,60 @@ async def normal_search(
         provider_ceiling,
         requested + max(MIN_RESULT_FETCH_HEADROOM, requested // 2),
     )
+    chosen = ""
+    if second:
+        chosen = _provider_chain(
+            settings.get("research_search_provider") or settings.get("search_provider") or "",
+            [],
+        )[0]
     while True:
         chain_result = await search_chain(
             query,
-            override=provider or None,
+            # with a second engine at work the chosen one is asked alone: its fallback is
+            # already on its way
+            override=provider or chosen or None,
             max_results=provider_limit,
             category=category,
         )
         rows, provider, error = chain_result
+        if free is not None:
+            if rows:
+                # the chosen engine answered: the free one gets what is left of its time
+                left = BLEND_WAIT_SECONDS - (time.perf_counter() - started)
+                try:
+                    extra = await asyncio.wait_for(asyncio.shield(free), max(0.05, left))
+                except (TimeoutError, asyncio.TimeoutError):
+                    extra = []
+                if len(extra) >= BLEND_MIN_ROWS:
+                    blended = extra
+            else:
+                # it did not: the free engine is the backup, and it has been asked already
+                extra = await free
+                why = str(getattr(chain_result, "failure_type", "") or "")
+                reason = (
+                    "refused"
+                    if why == "refused"
+                    else "empty"
+                    if why in ("", "no_results")
+                    else "failed"
+                )
+                if extra:
+                    rows, error = extra, None
+                    stood_in = (chosen, reason)
+                    provider = second
+                else:
+                    # nothing from either: the rest of the owner's chain, as before
+                    chain_result = await search_chain(
+                        query, max_results=provider_limit, category=category
+                    )
+                    rows, provider, error = chain_result
+            if not free.done():
+                free.cancel()
+            free = None
+        if blended and rows:
+            # every pass of this loop asks the chosen engine for more: the second engine's page
+            # goes into each
+            rows = blend_results(blended, list(rows))
         shown = drop_blocked(order_results(rows, query) if category == "all" else rows, blocked)
         normalized = normalize_results(shown, provider or "", 0, limit=requested + 1)
         if (
@@ -324,23 +439,39 @@ async def normal_search(
         status = "disabled"
     else:
         status = "error" if error else "empty"
+    attempted = list(
+        getattr(chain_result, "attempted_sources", ())
+        or ((str(provider)[:64],) if provider else ())
+    )
+    if stood_in:
+        attempted = [stood_in[0], second]
+    elif blended and second not in attempted:
+        attempted.append(second)
     return {
         "status": status,
         "results": results,
-        "provider": provider or "",
+        # both names when the list is two engines' rows as one
+        "provider": f"{provider}, {second}" if blended and provider else provider or "",
         "elapsed_ms": elapsed,
         "error": str(error or "")[:500],
-        "failure_type": str(getattr(chain_result, "failure_type", "") or "")[:64],
-        "attempted_sources": list(
-            getattr(chain_result, "attempted_sources", ())
-            or ((str(provider)[:64],) if provider else ())
-        ),
+        "failure_type": ""
+        if stood_in
+        else str(getattr(chain_result, "failure_type", "") or "")[:64],
+        "attempted_sources": attempted,
         "has_more": has_more,
         # the chosen engine did not answer and another one did: the page says so
-        "backup_for": str(getattr(chain_result, "backup_for", "") or "")[:64] if results else "",
-        "backup_reason": str(getattr(chain_result, "backup_reason", "") or "")[:16]
-        if results
-        else "",
+        "backup_for": (
+            (stood_in[0] if stood_in else str(getattr(chain_result, "backup_for", "") or ""))[:64]
+            if results
+            else ""
+        ),
+        "backup_reason": (
+            (stood_in[1] if stood_in else str(getattr(chain_result, "backup_reason", "") or ""))[
+                :16
+            ]
+            if results
+            else ""
+        ),
         # the engine's own spelling fix (brave, searxng, google pse), for the route to check
         **(
             {
