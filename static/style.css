@@ -4006,13 +4006,9 @@ body[data-app="files"] #files-preview-modal { z-index: 1200; }
 .mail-sidebar-toggle { font-size: 1rem; line-height: 1; color: var(--muted); }
 .mail-sidebar-toggle:hover { color: var(--text); }
 .mail-row.sel { background: var(--raised); border-left: 2px solid var(--line-strong); }
-.mail-flag { flex-shrink: 0; background: none; border: none; cursor: pointer; color: var(--muted); font-size: 0.8125rem; line-height: 1; padding: 0 0 0 0.2rem; opacity: 0.5; transition: opacity 0.15s, color 0.15s; }
-.mail-row:hover .mail-flag { opacity: 1; }
-/* 5a triage row actions + saved searches */
-.mail-row-acts { display: flex; align-items: center; justify-content: flex-end; gap: 0.15rem; }
-.mail-act .ic, .mail-flag .ic { width: 15px; height: 15px; }
-.mail-act { background: none; border: none; cursor: pointer; color: var(--muted); font-size: 0.8125rem; line-height: 1; padding: 0 0.1rem; transition: color 0.15s; }
-.mail-act:hover { color: var(--text); }
+.mail-flag { flex-shrink: 0; background: none; border: none; cursor: pointer; color: var(--muted); transition: color 0.15s; }
+.mail-flag .ic, .mail-more .ic { width: 16px; height: 16px; }
+.mail-more { color: var(--muted); }
 .mail-saved { display: flex; flex-wrap: wrap; gap: 0.35rem; padding: 0 0 0.4rem; align-items: center; }
 .mail-saved:empty { display: none; }
 .mail-saved-item { display: inline-flex; align-items: stretch; max-width: 100%; border: 1px solid var(--faint); }
@@ -4070,7 +4066,7 @@ body:has(#mail-view[style*="flex"] #mail-undo-stack > .mail-undo-bar + .mail-und
 .mail-label-chip { display: inline-flex; align-items: center; justify-content: center; min-width: var(--ui-control-height, 44px); min-height: var(--ui-control-height, 44px); font-size: 0.8125rem; background: var(--bg); border: 1px solid var(--faint); border-radius: var(--k-radius-surface); padding: 0 0.35rem; margin-left: 0.3rem; color: var(--cat, var(--text)); cursor: pointer; vertical-align: middle; }
 .mail-label-chip:hover { border-color: var(--line-strong); }
 #mail-view .mail-label-chip:focus-visible { outline-offset: -3px; }
-.mail-flag.on { color: var(--cat-amber); opacity: 1; }
+.mail-flag.on { color: var(--cat-amber); }
 #mail-vip.on { color: var(--text); border-color: var(--line-strong); }
 
 .mail-reader { display: flex; flex-direction: column; height: 100%; }

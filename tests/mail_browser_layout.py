@@ -35,3 +35,27 @@ def return_to_mail_list(page):
     if page.viewport_size["width"] <= 1100:
         page.locator(".mail-pane-back").click()
         expect(page.locator("#mail-list")).to_be_visible()
+
+
+def open_row_menu(page, row):
+    """Open a message row's "more" menu from the keyboard, as its owner does."""
+    row.locator(".mail-more").focus()
+    page.keyboard.press("Enter")
+    expect(row.locator(".mail-menu")).to_be_visible()
+
+
+def open_toolbar_menu(page):
+    """Open the toolbar's "more" menu (refresh, mail settings)."""
+    page.locator("#mail-more").click()
+    expect(page.locator("#mail-more-menu")).to_be_visible()
+
+
+def refresh_mail(page):
+    open_toolbar_menu(page)
+    page.locator("#mail-refresh-btn").click()
+
+
+def choose_folder(page, folder):
+    """Pick a folder in the toolbar dropdown by its filter value (unread, drafts, cat:primary)."""
+    page.locator("#mail-folder").click()
+    page.get_by_role("option", name=folder.removeprefix("cat:"), exact=True).click()

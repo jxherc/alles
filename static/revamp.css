@@ -3141,47 +3141,78 @@ html:not(#_):not(#_) #mail-view .mail-nav-item.active {
 
 html:not(#_):not(#_) #mail-view .mail-nav-item:not(.active):hover { background: var(--k-hover); }
 
-/* rows: no dividers, a rounded fill on hover and when picked, 2px apart */
+/* rows (decision 0076): two lines, sender and time over the subject, and the row's end holds the
+   flag and one "more" button. no dividers, a rounded fill on hover and when picked, --k-row-gap
+   apart (the row list rule). every row is the same height, so a list reads as a column */
 html:not(#_):not(#_) #mail-view .mail-row {
   position: relative;
-  margin-top: 2px;
-  padding: var(--k-space-2) var(--k-space-3);
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  column-gap: var(--k-control-gap);
+  align-items: center;
+  padding: var(--k-space-1) var(--k-space-1) var(--k-space-1) var(--k-space-3);
   border: 0;
   border-radius: var(--k-radius-control);
 }
 
 html:not(#_):not(#_) #mail-view .mail-row:hover { background: var(--k-hover); }
 html:not(#_):not(#_) #mail-view .mail-row.sel { background: var(--k-selected-fill); }
-html:not(#_):not(#_) #mail-view .mail-row .mail-subject .mail-open { min-height: 44px; }
+html:not(#_):not(#_) #mail-view .mail-row > :is(.mail-row-top, .mail-subject, .mail-account-badge) { grid-column: 1; }
+/* the sender line is text, not a target: it overlaps the top of the 44px subject button so the
+   two lines read as one pair */
+html:not(#_):not(#_) #mail-view .mail-row > .mail-row-top { margin: 0 0 calc(-1 * var(--k-space-2)); }
+html:not(#_):not(#_) #mail-view .mail-row > .mail-row-acts { grid-column: 2; grid-row: 1 / span 2; }
 
-@media (hover: hover) and (pointer: fine) {
-  /* the actions take the sender and date line while pointed at (the date's place, like most mail
-     apps), so the subject below stays one clear target */
-  /* the sender line is the actions' full 44px, so they never reach the subject: a click on the
-     middle of the row opens the mail instead of snoozing it */
-  html:not(#_):not(#_) #mail-view .mail-row { padding-top: 0; }
-  html:not(#_):not(#_) #mail-view .mail-row .mail-row-top { min-height: 44px; align-items: center; }
-
-  html:not(#_):not(#_) #mail-view .mail-row .mail-row-acts {
-    position: absolute;
-    top: 0;
-    right: var(--k-space-2);
-    height: 44px;
-    padding-left: var(--k-space-6);
-    border-radius: var(--k-radius-control);
-    background: linear-gradient(to right, transparent, color-mix(in srgb, var(--k-text) 6%, var(--k-page)) 24px);
-    opacity: 0;
-    transition: opacity 120ms var(--k-ease-out);
-  }
-
-  html:not(#_):not(#_) #mail-view .mail-row.sel .mail-row-acts {
-    background: linear-gradient(to right, transparent, color-mix(in srgb, var(--k-text) 11%, var(--k-page)) 24px);
-  }
-
-  /* the pointer is over the row whenever it is over the actions, so they are shown whenever they
-     can be clicked */
-  html:not(#_):not(#_) #mail-view .mail-row:is(:hover, :focus-within) .mail-row-acts { opacity: 1; }
+html:not(#_):not(#_) #mail-view .mail-row .mail-subject {
+  display: flex;
+  align-items: center;
+  gap: var(--k-control-gap);
+  width: auto;
+  margin: 0;
+  padding: 0;
 }
+
+/* the subject is the row's keyboard target: 44px tall, its words on the sender's column, the
+   inset focus ring kept off the first letter by padding that the margin pulls back */
+html:not(#_):not(#_) #mail-view .mail-row .mail-subject .mail-open {
+  flex: 1 1 0;
+  width: auto;
+  min-height: var(--k-control);
+  margin-inline: calc(-1 * var(--k-space-2)) 0;
+  padding-inline: var(--k-space-2);
+}
+
+html:not(#_):not(#_) #mail-view .mail-row .mail-label-chip { flex: 0 0 auto; margin-left: 0; }
+
+html:not(#_):not(#_) #mail-view .mail-row-acts {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: var(--k-control-gap);
+}
+
+html:not(#_):not(#_) #mail-view .mail-row-acts :is(.mail-flag, .mail-more) {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--k-control);
+  min-width: var(--k-control);
+  height: var(--k-control);
+  padding: 0;
+  opacity: 1;
+}
+
+/* the row's own menu hangs under its button and turns upward where the list ends */
+html:not(#_):not(#_) #mail-view .mail-menu {
+  position: absolute;
+  top: calc(100% + var(--k-space-1));
+  right: 0;
+  z-index: 20;
+  min-width: 11rem;
+  max-width: calc(100vw - 2 * var(--k-space-3));
+}
+
+html:not(#_):not(#_) #mail-view .mail-menu.mail-menu-up { top: auto; bottom: calc(100% + var(--k-space-1)); }
 
 /* an empty reading pane says what it is for */
 html:not(#_):not(#_) #mail-view:has(#mail-sidebar > *) #mail-main:empty::before {
@@ -3909,33 +3940,6 @@ html:not(#_):not(#_) .vault-modal #vf-fields {
   html:not(#_):not(#_) .vault-modal .vault-form-actions:has(#vf-del) :is(#vf-cancel, #vf-save) { flex: 1 1 calc(50% - 0.25rem); }
 }
 
-/* mail on a touch screen: when the list is wide enough, the badge shares the line with the row's
-   actions (it sat on a fourth line under them). 360px is what the badge, five 44px actions and the
-   row padding need; an iPad portrait list is narrower and keeps them on separate lines */
-#mail-view #mail-list { container-type: inline-size; }
-
-@media (hover: none), (pointer: coarse) {
-  @container (min-width: 361px) {
-    html:not(#_):not(#_) #mail-view .mail-row:has(> .mail-row-acts) {
-      display: grid;
-      grid-template-columns: minmax(5.5rem, 1fr) auto;
-      align-items: center;
-    }
-
-    html:not(#_):not(#_) #mail-view .mail-row:has(> .mail-row-acts) .mail-row-acts { gap: 0; }
-
-    html:not(#_):not(#_) #mail-view .mail-row:has(> .mail-row-acts) > :is(.mail-row-top, .mail-subject) { grid-column: 1 / -1; }
-    html:not(#_):not(#_) #mail-view .mail-row:has(> .mail-row-acts) > .mail-row-acts { grid-column: 2; grid-row: 3; }
-
-    html:not(#_):not(#_) #mail-view .mail-row:has(> .mail-row-acts) > .mail-account-badge {
-      grid-column: 1;
-      grid-row: 3;
-      justify-self: start;
-      margin-top: 0;
-    }
-  }
-}
-
 /* a badge reads on one line with a normal line height (a long account name collapsed into two
    overlapping lines) */
 html:not(#_):not(#_) #mail-view .mail-account-badge {
@@ -3958,7 +3962,7 @@ html:not(#_) .specialist-inline-action {
 
 /* bare-word buttons that start a column: room for the inset focus ring, then pulled back by the
    same 8px so the words stay on the column. the ring ran through their first letter */
-html:not(#_):not(#_) :is(.task-title, .file-name-button, #mail-view .mail-row .mail-subject, #mail-view .mail-row .mail-subject .mail-open) {
+html:not(#_):not(#_) :is(.task-title, .file-name-button) {
   width: calc(100% + 2 * var(--k-space-2));
   margin-inline: calc(-1 * var(--k-space-2));
   padding-inline: var(--k-space-2);

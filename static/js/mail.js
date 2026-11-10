@@ -4,6 +4,7 @@ import { readRecordTarget, recordTarget } from './recordlinks.js';
 import { pushRouteUrl, replaceRouteUrl, routeHistoryPosition } from './route_history.js';
 import { confirm as dlgConfirm, prompt as dlgPrompt, fields as dlgFields } from './dialog.js';
 import { populateDropdown, getDropdownValue, initCustomDropdown, setDropdownValue } from './dropdown.js?v=217';
+import { wireActionMenu } from './kokuen.js?v=5';
 import { mountSignin, signinReturn } from './signin.js';
 import { detectSetup } from './setup_detect.js';
 import { initDatePicker as _dpInit } from './datepick.js';
@@ -445,6 +446,9 @@ async function mailJson(url, options = {}, fetcher = fetch) {
 function preserveMailReadFocus(list) {
   const label = node => node.getAttribute('aria-label') || node.getAttribute('title') || node.textContent.trim();
   const describe = node => {
+    // a menu item that ran leaves focus on its button, the one that is still there after the repaint
+    const menu = node?.closest?.('[role="menu"]');
+    if (menu) node = document.getElementById(menu.getAttribute('aria-labelledby')) || node;
     if (!list.contains(node)) return null;
     const row = node.closest('.mail-row');
     return { id: node.id, label: label(node), at: row ? [...list.querySelectorAll('.mail-row')].indexOf(row) : -1,
@@ -1466,10 +1470,12 @@ function _unsubLink(raw) {
   return http || mailto || '';
 }
 
+let _menuSeq = 0;
 const _msgRow = (m, indent = false) => {
   // Match the cache filter's UTC comparison, including timestamps without a suffix.
   const snoozed = (m.snoozed_until || '') > new Date().toISOString().slice(0, -1);
   const unsub = _unsubLink(m.list_unsubscribe);
+  const menuId = `mail-row-more-${++_menuSeq}`;
   return `
     <div class="mail-row${m.seen ? '' : ' unread'}${indent ? ' mail-row-child' : ''}" data-aid="${esc(m.account_id)}" data-uid="${esc(m.uid)}" data-folder="${esc(m.folder || 'INBOX')}" data-subject="${esc(m.subject)}">
       <div class="mail-row-top">
@@ -1478,12 +1484,15 @@ const _msgRow = (m, indent = false) => {
       </div>
       <div class="mail-subject"><button type="button" class="mail-open">${esc(m.subject || t('mail.no_subject'))}</button>${(m.labels || []).map(l => `<button type="button" class="mail-label-chip" data-labelfilter="${esc(l)}" style="--cat:var(--cat-${categoryHue(l)})">${esc(l)}</button>`).join('')}</div>
       <span class="mail-row-acts">
-        ${unsub ? `<button class="mail-act" data-unsub="${esc(unsub)}" aria-label="${esc(t('mail.unsubscribe'))}">${_si('x-circle')}</button>` : ''}
-        <button class="mail-act" data-label aria-label="${esc(t('mail.add_label'))}">${_si('tag')}</button>
-        <button class="mail-act" data-snooze data-snoozed="${snoozed}" aria-label="${esc(snoozed ? t('mail.end_snooze') : t('mail.snooze_tomorrow'))}">${_si('snooze')}</button>
-        <button class="mail-act" data-mute data-muted="${Boolean(m.muted)}" aria-label="${esc(m.muted ? t('mail.unmute_thread') : t('mail.mute_thread'))}">${_si('mute')}</button>
-        <button class="mail-act" data-archive aria-label="${esc(t('mail.archive'))}">${_si('archive')}</button>
-        <button class="mail-flag${m.flagged ? ' on' : ''}" data-flag aria-label="${esc(t('mail.flag'))}">${_si(m.flagged ? 'star-fill' : 'star')}</button>
+        <button type="button" class="mail-flag${m.flagged ? ' on' : ''}" data-flag aria-pressed="${Boolean(m.flagged)}" aria-label="${esc(t('mail.flag'))}">${_si(m.flagged ? 'star-fill' : 'star')}</button>
+        <button type="button" class="icon-btn mail-more" id="${menuId}" aria-haspopup="menu" aria-expanded="false" aria-controls="${menuId}-menu" aria-label="${esc(t('common.more_n', { name: m.subject || t('mail.no_subject') }))}">${_si('more')}</button>
+        <div class="ctx-menu mail-menu" id="${menuId}-menu" role="menu" aria-labelledby="${menuId}" hidden>
+          <button type="button" class="ctx-item" role="menuitem" data-archive>${esc(t('mail.archive'))}</button>
+          <button type="button" class="ctx-item" role="menuitem" data-snooze data-snoozed="${snoozed}">${esc(snoozed ? t('mail.end_snooze') : t('mail.snooze_tomorrow'))}</button>
+          <button type="button" class="ctx-item" role="menuitem" data-label>${esc(t('mail.add_label'))}</button>
+          <button type="button" class="ctx-item" role="menuitem" data-mute data-muted="${Boolean(m.muted)}">${esc(m.muted ? t('mail.unmute_thread') : t('mail.mute_thread'))}</button>
+          ${unsub ? `<button type="button" class="ctx-item" role="menuitem" data-unsub="${esc(unsub)}">${esc(t('mail.unsubscribe'))}</button>` : ''}
+        </div>
       </span>
       ${_active === 'all' ? `<div class="mail-account-badge">${esc(m.account_name || acctName(m.account_id))}</div>` : ''}
     </div>`;
@@ -1575,6 +1584,19 @@ function _wireRows(list) {
     r.classList.add('sel');
     openMessage(r.dataset.aid, r.dataset.uid, r.dataset.folder, null, undefined, r.querySelector('.mail-open'));
   }));
+  // the row's one "more" button: the menu opens upward when the list has no room below it, and
+  // a click on the button or the menu never opens the message under it
+  list.querySelectorAll('.mail-more').forEach(btn => {
+    const menu = document.getElementById(btn.getAttribute('aria-controls'));
+    const place = () => {
+      const room = list.getBoundingClientRect().bottom - btn.getBoundingClientRect().bottom;
+      const need = menu.children.length * 44 + 12;
+      menu.classList.toggle('mail-menu-up', room < need && btn.getBoundingClientRect().top - list.getBoundingClientRect().top > need);
+    };
+    wireActionMenu(btn, menu, { beforeOpen: place });
+    btn.addEventListener('click', e => e.stopPropagation());
+    menu.addEventListener('click', e => e.stopPropagation());
+  });
   list.querySelectorAll('.mail-flag').forEach(btn => btn.addEventListener('click', e => {
     e.stopPropagation();
     const { aid, uid, folder } = btn.closest('.mail-row').dataset;

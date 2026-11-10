@@ -496,13 +496,15 @@ def run():
                     )
                 )
                 return_to_mail_list(page)
-                page.get_by_role("button", name="add a label", exact=True).first.press("Tab")
+                page.locator(".mail-row .mail-flag").first.focus()
+                page.keyboard.press("Tab")
+                expect(page.locator(".mail-row .mail-more").first).to_be_focused()
                 assert page.locator(":focus").evaluate("e => getComputedStyle(e).opacity === '1'")
                 for sender in page.locator(".mail-from").all():
                     assert sender.evaluate("e => e.clientWidth >= e.scrollWidth"), (
                         sender.inner_text()
                     )
-                for action in page.locator(".mail-act").all():
+                for action in page.locator(".mail-row-acts button:visible").all():
                     assert action.evaluate("e => getComputedStyle(e).opacity === '1'")
                 shot("mail-populated")
                 passed()

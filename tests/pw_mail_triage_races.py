@@ -10,7 +10,7 @@ from pathlib import Path
 from urllib.parse import parse_qs, urlparse
 
 from browser_gate_safety import require_server_ownership
-from mail_browser_layout import return_to_mail_list
+from mail_browser_layout import open_row_menu, return_to_mail_list
 from playwright.sync_api import expect, sync_playwright
 from pw_inbox_workflows import seed_mail
 
@@ -96,6 +96,7 @@ with sync_playwright() as pw:
                 assert len(held) == 1
 
             def label(value):
+                open_row_menu(page, row())
                 row().locator("[data-label]").click()
                 dlg = page.get_by_role("dialog")
                 dlg.locator("input").fill(value)
@@ -223,6 +224,7 @@ with sync_playwright() as pw:
                     page.route(base + "/api/mail/flag/*", hold)
                     row("702").locator("[data-flag]").click()
                     held_one()
+                    open_row_menu(page, row())
                     row().locator("[data-label]").click()
                     dlg = page.get_by_role("dialog")
                     dlg.locator("input").fill("work")

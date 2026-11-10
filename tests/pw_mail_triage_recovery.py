@@ -10,7 +10,7 @@ from pathlib import Path
 from urllib.parse import parse_qs, urlparse
 
 from browser_gate_safety import require_server_ownership
-from mail_browser_layout import return_to_mail_list
+from mail_browser_layout import open_row_menu, return_to_mail_list, refresh_mail
 from playwright.sync_api import expect, sync_playwright
 from pw_inbox_workflows import seed_mail
 
@@ -202,6 +202,8 @@ with sync_playwright() as pw:
                 )
                 if mode == "offline":
                     context.set_offline(True)
+                if action in {"label", "mute", "snooze", "archive"}:
+                    open_row_menu(page, row())
                 if action == "label":
                     row().locator("[data-label]").click()
                     page.get_by_role("dialog").locator("input").fill("work")
@@ -303,7 +305,7 @@ with sync_playwright() as pw:
                                 .locator("[data-flag]")
                                 .evaluate("e=>e.classList.contains('on')")
                             )
-                        page.locator("#mail-refresh-btn").click()
+                        refresh_mail(page)
                         page.wait_for_load_state("networkidle")
                     if action in {"archive", "mute", "snooze"}:
                         expect(row()).to_have_count(0)

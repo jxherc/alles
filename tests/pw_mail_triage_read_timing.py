@@ -10,7 +10,7 @@ from pathlib import Path
 from urllib.parse import parse_qs, urlparse
 
 from browser_gate_safety import require_server_ownership
-from mail_browser_layout import return_to_mail_list, split_mail_panes
+from mail_browser_layout import open_row_menu, return_to_mail_list, split_mail_panes
 from playwright.sync_api import expect, sync_playwright
 from pw_inbox_workflows import seed_mail
 
@@ -107,6 +107,7 @@ with sync_playwright() as pw:
                 if case.startswith("label"):
                     wait_one(body)
                     with split_mail_panes(page):
+                        open_row_menu(page, row())
                         row().locator("[data-label]").click()
                     dlg = page.get_by_role("dialog")
                     dlg.locator("input").fill("work")
