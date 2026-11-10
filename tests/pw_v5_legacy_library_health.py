@@ -106,7 +106,7 @@ def _books(page: Page) -> None:
     for index in range(shelf.count()):
         _assert_target(shelf.nth(index))
     assert shelf.nth(2).get_attribute("aria-checked") == "true"
-    ratings = card.locator('.book-stars[role="radiogroup"] [role="radio"]')
+    ratings = card.locator('.book-rate [role="radio"]')
     assert ratings.count() == 5
     for index in range(ratings.count()):
         _assert_target(ratings.nth(index))
@@ -121,7 +121,7 @@ def _books(page: Page) -> None:
     page.wait_for_function(
         """() => [...document.querySelectorAll('.book-card')]
           .find(card => card.textContent.includes('KOKUEN field notes'))
-          ?.querySelector('[role=radio][data-rate="5"]')
+          ?.querySelector('.book-rate [data-value="5"]')
           ?.getAttribute('aria-checked') === 'true'"""
     )
     card.locator(".book-add-note").click()

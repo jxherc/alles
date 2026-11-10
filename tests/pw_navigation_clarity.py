@@ -184,13 +184,8 @@ def run():
                         if book["title"] == title
                     ]
                     assert len(created) == 1, created
-                    saved_filter = page.get_by_role("group", name="Library material").get_by_role(
-                        "button", name="saved · 0", exact=True
-                    )
-                    saved_filter.click()
-                    save = queue.get_by_role("button", name="save reading", exact=True)
-                    save.press("Enter")
-                    expect(page.locator("#read-url")).to_be_focused()
+                    page.locator('#library-tabs [data-group-section="read"]').click()
+                    expect(page.locator("#read-url")).to_be_visible()
                     # No external reading URL is submitted; existing saved-reading
                     # workflow gates cover capture using local synthetic sources.
                     assert context.request.delete(base + "/api/books/" + created[0]["id"]).ok

@@ -56,13 +56,13 @@ with sync_playwright() as pw:
                     with page.expect_request(base + "/api/books/overview"):
                         card.locator('[data-move="reading"]').click()
                     page.locator("#books-add-toggle").click()
-                    expect(card.locator('[data-rate="4"]')).to_be_disabled()
+                    expect(card.locator('.book-rate [data-value="4"]')).to_be_disabled()
                     held[0][0].fulfill(response=held[0][1])
                     expect(card.locator('[data-move="want"]')).to_be_enabled()
                     page.unroute(base + "/api/books/overview")
-                    card.locator('[data-rate="4"]').focus()
+                    card.locator('.book-rate [data-value="4"]').focus()
                     page.keyboard.press("Enter")
-                    expect(card.locator('[data-rate="4"]')).to_be_enabled()
+                    expect(card.locator('.book-rate [data-value="4"]')).to_be_enabled()
                     stored = api.get(base + "/api/books/overview").json()["shelves"]["reading"]
                     assert next(b for b in stored if b["id"] == bid)["rating"] == 4
                 elif case == "goal-draft":
@@ -124,7 +124,7 @@ with sync_playwright() as pw:
                     page.route(base + "/api/books/" + bid, lambda route: deletes.append(route))
                     with page.expect_request(base + "/api/books/" + bid, timeout=15000):
                         pass
-                    expect(card.locator("[data-rate]")).to_have_count(0)
+                    expect(card.locator(".book-rate [data-value]")).to_have_count(0)
                     expect(card.locator('[data-act="notes"]')).to_have_count(0)
                     page.unroute(base + "/api/books/overview")
                     deletes[0].fulfill(response=deletes[0].fetch())

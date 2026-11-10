@@ -61,7 +61,7 @@ with sync_playwright() as pw:
                     card.locator('[data-move="reading"]').click()
             elif action == "rating":
                 with page.expect_response(endpoint):
-                    card.locator('[data-rate="4"]').click()
+                    card.locator('.book-rate [data-value="4"]').click()
             elif action == "goal":
                 page.locator('[data-act="set-goal"]').click()
                 page.get_by_role("dialog").get_by_role("textbox").fill("12")

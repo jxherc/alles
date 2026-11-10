@@ -1031,7 +1031,6 @@
           <div class="page-view-head docs-journal-head">
             <span class="page-view-title sr-only" data-i18n="common.journal">journal</span>
             <span id="journal-stats" class="docs-journal-stats"></span>
-            <button class="docs-nav-text-action docs-journal-copy" id="journal-migrate" type="button" data-i18n="shell.wiki.copy_to_markdown">copy to Markdown</button>
             <button type="button" class="icon-btn app-cog" data-app="journal" title="journal settings" aria-label="journal settings" data-i18n-title="shell.wiki.journal_settings" data-i18n-aria-label="shell.wiki.journal_settings" data-kokuen-icon="gear"></button>
           </div>
           <div class="page-view-body" id="journal-body"></div>
@@ -1139,10 +1138,7 @@
       <div class="page-view-head contacts-head">
         <span class="page-view-title" data-i18n="common.contacts">contacts</span>
         <input type="text" id="contacts-search" aria-label="search contacts" class="settings-input contacts-search" placeholder="search…" data-i18n-aria-label="shell.contacts.search_contacts" data-i18n-placeholder="shell.contacts.search">
-        <button type="button" class="btn" id="contacts-fav-filter" title="show favorites only" data-i18n="shell.contacts.favorites" data-i18n-title="shell.contacts.show_favorites_only">favorites</button>
-        <button type="button" class="btn" id="contacts-bday-btn" title="upcoming birthdays" data-i18n="shell.contacts.birthdays" data-i18n-title="shell.contacts.upcoming_birthdays">birthdays</button>
-        <button type="button" class="btn" id="contacts-groups-btn" title="groups" data-i18n="shell.contacts.groups" data-i18n-title="shell.contacts.groups">groups</button>
-        <button type="button" class="btn" id="contacts-dups-btn" title="find duplicates" data-i18n="shell.contacts.duplicates" data-i18n-title="shell.contacts.find_duplicates">duplicates</button>
+        <div class="settings-input custom-select contacts-show" id="contacts-show" aria-label="show" data-i18n-aria-label="common.show" data-value="all" data-options="all|all;favorites|favorites;birthdays|birthdays;groups|groups;duplicates|duplicates" data-i18n-options="common.all;shell.contacts.favorites;shell.contacts.birthdays;shell.contacts.groups;shell.contacts.duplicates"></div>
         <a class="btn" id="contacts-export-btn" href="/api/contacts/export" title="export vCard" data-i18n="common.export" data-i18n-title="shell.contacts.export_vcard">export</a>
         <button type="button" class="btn" id="contacts-import-btn" title="import vCard" data-i18n="common.import" data-i18n-title="shell.contacts.import_vcard">import</button>
         <input type="file" id="contacts-import-input" accept=".vcf,text/vcard" hidden>

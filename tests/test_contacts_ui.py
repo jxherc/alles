@@ -18,8 +18,9 @@ def _head():
 class ContactsRebuild(unittest.TestCase):
     def test_top_buttons_de_iconed(self):
         head = _head()
-        self.assertIn(">favorites</button>", head)
-        self.assertIn(">birthdays</button>", head)
+        # the four views are one dropdown, "all" first
+        self.assertIn('id="contacts-show"', head)
+        self.assertIn('data-options="all|all;favorites|favorites;birthdays|birthdays;', head)
         # the old emoji labels are gone
         self.assertNotIn("★", head)
         self.assertNotIn("🎂", head)

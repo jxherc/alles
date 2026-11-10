@@ -319,7 +319,7 @@ def run():
                 passed()
 
                 begin("inbox.contact-edit-recovery")
-                row.get_by_role("button", name="open", exact=True).press("Enter")
+                row.locator("[data-open]").press("Enter")
                 detail = page.locator(".contact-detail")
                 expect(detail.get_by_label("name", exact=True)).to_have_value(name)
                 detail.get_by_role("textbox", name="notes", exact=True).fill(
@@ -345,7 +345,7 @@ def run():
                 detail.get_by_role("button", name="save", exact=True).press("Enter")
                 expect(detail).to_have_count(0)
                 inbox("contacts", reload=True)
-                row.get_by_role("button", name="open", exact=True).click()
+                row.locator("[data-open]").click()
                 expect(detail.get_by_role("textbox", name="notes", exact=True)).to_have_value(
                     "Important saved notes 中文 " + profile
                 )
@@ -387,7 +387,7 @@ def run():
                 detail.get_by_role("button", name="save", exact=True).click()
                 expect(detail).to_have_count(0)
                 inbox("contacts", reload=True)
-                row.get_by_role("button", name="open", exact=True).click()
+                row.locator("[data-open]").click()
                 expect(detail.get_by_role("textbox", name="notes", exact=True)).to_have_value(
                     pending_note
                 )

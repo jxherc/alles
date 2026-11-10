@@ -199,8 +199,6 @@ CHOICE_EXCEPTIONS = {
     # you pick a color by seeing it; a menu would hide it (u4)
     "js/calendar.js:cal-sw": "color swatches",
     "js/habits.js:habit-sw": "color swatches",
-    # a rating is a row of every value (owner's pick, ux laws)
-    "js/journal.js:jrnl-mood": "mood rating",
     # toggles that each turn one thing on, not one pick from a list
     "js/calendar.js:cal-dow-b": "weekday toggles, like every calendar's repeat editor",
     "index.html:token-scopes": "token powers, several at once, each with a mark",
@@ -208,7 +206,7 @@ CHOICE_EXCEPTIONS = {
     # navigation, not a value: the open view or place, like every calendar and files app
     "js/filesphase7.js:files-location-button": "rail rows, the open place is pressed",
     # 2 or 3 fixed options: already the size of a pill switch
-    "js/books.js:book-move-btn": "3 shelves",
+    "js/books.js:data-move": "3 shelves",
     "js/books.js:te-seg-opt": "3 shelves",
     "js/settings/providers.js:data-value": "2 sign in kinds",
     "js/setupwizard.js:data-value": "2 or 3 choices per step",

@@ -1,6 +1,6 @@
 import { busyText, toast } from './util.js';
 import { prompt as _dlgPrompt, fields as _dlgFields } from './dialog.js';
-import { initCustomDropdown, getDropdownValue, populateDropdown } from './dropdown.js?v=217';
+import { initCustomDropdown, getDropdownValue, populateDropdown, setDropdownValue } from './dropdown.js?v=217';
 import { formatCalendarDate, formatDate, formatTime, t, tp } from './i18n.js';
 import { pushRouteUrl, routeHistoryPosition } from './route_history.js';
 import { createUndoDelete, deleteItemHtml, goneTextHtml, moreMenuHtml, undoButtonHtml, wireMoreMenus } from './undo_delete.js';
@@ -19,15 +19,20 @@ const _si = n => (window.icon ? window.icon(n) : '');   // central icon set, loa
 
 function _wire() {
   if (_wired) return; _wired = true;
-  const btn = document.getElementById('contacts-fav-filter');
-  btn?.addEventListener('click', () => {
-    _favOnly = !_favOnly;
-    btn.classList.toggle('active', _favOnly);
-    loadContacts(document.getElementById('contacts-search')?.value || '');
-  });
-  document.getElementById('contacts-bday-btn')?.addEventListener('click', showBirthdays);
-  document.getElementById('contacts-groups-btn')?.addEventListener('click', showGroups);
-  document.getElementById('contacts-dups-btn')?.addEventListener('click', showDuplicates);
+  const show = document.getElementById('contacts-show');
+  if (show) {
+    initCustomDropdown(show);
+    show.addEventListener('change', () => {
+      const mode = getDropdownValue(show);
+      if (mode === 'birthdays') showBirthdays();
+      else if (mode === 'groups') showGroups();
+      else if (mode === 'duplicates') showDuplicates();
+      else {
+        _favOnly = mode === 'favorites';
+        loadContacts(document.getElementById('contacts-search')?.value || '');
+      }
+    });
+  }
   window._contactsCardDav = showCardDav;   // opened from the contacts settings cog (7b)
 }
 
@@ -102,6 +107,9 @@ function _avatarHtml(c, big) {
 
 export async function loadContacts(q = '', fetcher = fetch) {
   _wire();
+  // the list is back (from a back button or a search), so the menu reads what it shows
+  const show = document.getElementById('contacts-show');
+  if (show) setDropdownValue(show, _favOnly ? 'favorites' : 'all');
   const list = document.getElementById('contacts-list');
   if (!list) return;
   const load = ++_contactsLoad;
@@ -140,13 +148,14 @@ function _contactRow(c) {
   return `
       <div class="contact-item" data-id="${c.id}">
         <button class="contact-star${c.favorite ? ' on' : ''}" data-id="${c.id}" title="${_esc(t('contacts.favorite'))}">${_si(c.favorite ? 'star-fill' : 'star')}</button>
-        ${_avatarHtml(c)}
-        <div class="contact-rowmain">
-          <span class="row-name">${_esc(c.name)}${c.is_me ? ` <span class="contact-me-badge">${t('contacts.me')}</span>` : ''}</span>
-          <span class="row-meta">${_esc(c.email || c.phone || '')}${c.company ? ' · ' + _esc(c.company) : ''}</span>
-        </div>
+        <button type="button" class="contact-open" data-open="${c.id}">
+          <span aria-hidden="true">${_avatarHtml(c)}</span>
+          <span class="contact-rowmain">
+            <span class="row-name">${_esc(c.name)}${c.is_me ? ` <span class="contact-me-badge">${t('contacts.me')}</span>` : ''}</span>
+            <span class="row-meta">${_esc(c.email || c.phone || '')}${c.company ? ' · ' + _esc(c.company) : ''}</span>
+          </span>
+        </button>
         <div class="contact-rowacts">
-          <button class="act-btn" data-open="${c.id}">${t('common.open')}</button>
           ${moreMenuHtml('contact', c.id, c.name, deleteItemHtml(`data-del="${c.id}"`))}
         </div>
       </div>`;

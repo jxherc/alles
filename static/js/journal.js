@@ -3,12 +3,15 @@ import { toast, mdToHtml, plainError } from './util.js';
 import { formatCalendarDate, formatTime, t, tp } from './i18n.js';
 import { whenFull, whenHtml } from './when.js';
 import { createFocusBoundary } from './kokuen.js?v=5';
+import { getDropdownValue, populateDropdown } from './dropdown.js?v=217';
 import { replaceRouteUrl } from './route_history.js';
 import { fetchWithRecentOwner } from './recent_owner.js';
 
 const _si = n => (window.icon ? window.icon(n) : '');   // central icon set, load-order safe
 // labels resolve at render so a language switch shows on the next build
 const moods = () => [['😄', t('journal.mood_happy')], ['🙂', t('journal.mood_content')], ['😐', t('journal.mood_neutral')], ['😕', t('journal.mood_uneasy')], ['😢', t('journal.mood_sad')], ['😠', t('journal.mood_angry')], ['😴', t('journal.mood_tired')], ['🤔', t('journal.mood_thoughtful')], ['🥳', t('journal.mood_celebrating')], ['😍', t('journal.mood_in_love')]];
+// the emoji is the stored value; it leads each option so the trigger shows the pick the way the recent list does
+const moodOptions = () => [{ value: '', label: t('journal.mood_none') }, ...moods().map(([value, label]) => ({ value, label, iconHtml: `<span aria-hidden="true">${value}</span>` }))];
 function _dayFromUrl() { const d = new URLSearchParams(location.search).get('d'); return (d && /^\d{4}-\d{2}-\d{2}$/.test(d)) ? d : ''; }
 let _day = _dayFromUrl() || todayISO();
 let _heatYear = null;
@@ -21,6 +24,7 @@ let _productNavWired = false;
 let _lastHydratedAt = 0;
 let _loadGeneration = 0;
 let _reflectionGeneration = 0;
+let _prompt = '';
 let _loadedDay = '';
 let _loading = false;
 let _failedDay = '';
@@ -78,7 +82,8 @@ export async function initJournal() {
 function wireProductNavigation() {
   if (_productNavWired) return;
   _productNavWired = true;
-  document.getElementById('journal-migrate')?.addEventListener('click', openMarkdownCopy);
+  // opened from the journal settings gear's menu
+  window._journalCopyMarkdown = () => openMarkdownCopy(document.querySelector('.app-cog[data-app="journal"]'));
   window.addEventListener('beforeunload', event => {
     if (!_dirty && _saveTimer === null && _saveInFlight === null) return;
     event.preventDefault();
@@ -112,10 +117,10 @@ async function migrationRequest(url, options = {}) {
   return data;
 }
 
-async function openMarkdownCopy() {
+async function openMarkdownCopy(opener) {
   if (_copyDialogOpen) return;
   _copyDialogOpen = true;
-  const source = document.activeElement;
+  const source = opener || document.activeElement;
   while (_dirty || _saveTimer !== null || _saveInFlight !== null) {
     clearTimeout(_saveTimer);
     _saveTimer = null;
@@ -307,14 +312,13 @@ async function buildJournal() {
             <span id="jrnl-load-message" role="alert"></span>
             <button class="btn" id="jrnl-load-retry" type="button">${t('journal.retry_load_day')}</button>
           </div>
-          <div class="jrnl-prompt" id="jrnl-prompt"></div>
-          <textarea id="jrnl-text" class="jrnl-text" rows="7" aria-label="${t('journal.entry_label')}" aria-describedby="jrnl-prompt" placeholder="${t('journal.entry_placeholder')}"></textarea>
-          <div class="jrnl-mood-label" id="jrnl-mood-label">${t('journal.mood')}</div>
-          <div class="jrnl-moods" id="jrnl-moods" role="group" aria-labelledby="jrnl-mood-label">${moods().map(([m, label]) => `<button type="button" class="jrnl-mood" data-m="${m}" aria-label="${label}" aria-pressed="false">${label}</button>`).join('')}</div>
+          <textarea id="jrnl-text" class="jrnl-text" rows="7" aria-label="${t('journal.entry_label')}" placeholder="${t('journal.entry_placeholder')}"></textarea>
+          <div class="settings-input custom-select jrnl-mood" id="jrnl-mood" aria-label="${t('journal.mood')}"></div>
           <input id="jrnl-tags" class="jrnl-tags" aria-label="${t('journal.tags_label')}" placeholder="${t('journal.tags_label')}">
           <div class="jrnl-actions">
             <button class="btn primary" id="jrnl-save">${t('common.save')}</button>
             <button class="btn" id="jrnl-reflect">${_si('sparkles')} ${t('journal.reflect')}</button>
+            <span class="jrnl-reflect-error" id="jrnl-reflect-error" role="alert" hidden></span>
             <span class="jrnl-saved" id="jrnl-saved" role="status"></span>
           </div>
           <div class="jrnl-reflection" id="jrnl-reflection" role="status" style="display:none"></div>
@@ -379,15 +383,9 @@ async function buildJournal() {
     };
     document.getElementById('jrnl-text').addEventListener('input', scheduleAutosave);
     document.getElementById('jrnl-tags').addEventListener('input', scheduleAutosave);
-    document.getElementById('jrnl-moods').addEventListener('click', e => {
-      const b = e.target.closest('.jrnl-mood'); if (!b) return;
+    populateDropdown(document.getElementById('jrnl-mood'), moodOptions(), '');
+    document.getElementById('jrnl-mood').addEventListener('change', () => {
       invalidateReflection(t('journal.reflect_stale'));
-      const on = b.classList.contains('active');
-      document.querySelectorAll('.jrnl-mood').forEach(x => {
-        const selected = x === b && !on;
-        x.classList.toggle('active', selected);
-        x.setAttribute('aria-pressed', String(selected));
-      });
       _dirty = true;
       save(false);
     });
@@ -723,7 +721,7 @@ function showLock(mode) {
   body.querySelectorAll('input').forEach(i => i.addEventListener('keydown', e => { if (e.key === 'Enter') submit(); }));
 }
 
-function curMood() { return document.querySelector('.jrnl-mood.active')?.dataset.m || ''; }
+function curMood() { return getDropdownValue(document.getElementById('jrnl-mood')); }
 
 function snapshotEditor() {
   const text = document.getElementById('jrnl-text');
@@ -748,7 +746,7 @@ async function navigateDay(nextDay) {
 
 function updateEditorAvailability() {
   const blocked = _loading || _loadedDay !== _day;
-  for (const control of document.querySelectorAll('#jrnl-text, #jrnl-tags, #jrnl-moods button, #jrnl-save, #jrnl-reflect')) {
+  for (const control of document.querySelectorAll('#jrnl-text, #jrnl-tags, #jrnl-mood, #jrnl-save, #jrnl-reflect')) {
     control.disabled = blocked;
   }
   document.getElementById('jrnl-load-retry')?.setAttribute('aria-disabled', String(_loading));
@@ -757,6 +755,7 @@ function updateEditorAvailability() {
 function renderDay() {
   _setDayUrl();
   document.getElementById('jrnl-date').textContent = formatJournalDay(_day);
+  applyPlaceholder();
   stopAt('jrnl-next', 'jrnl-prev', _day >= todayISO());
 }
 
@@ -782,11 +781,7 @@ async function load() {
     const draft = _lockedDraft?.day === requestedDay ? _lockedDraft : null;
     document.getElementById('jrnl-text').value = draft?.content ?? e.content ?? '';
     document.getElementById('jrnl-tags').value = draft?.tags ?? e.tags ?? '';
-    document.querySelectorAll('.jrnl-mood').forEach(x => {
-      const selected = x.dataset.m === (draft?.mood ?? e.mood);
-      x.classList.toggle('active', selected);
-      x.setAttribute('aria-pressed', String(selected));
-    });
+    document.getElementById('jrnl-mood').value = draft?.mood ?? e.mood ?? '';
     document.getElementById('jrnl-reflection').style.display = 'none';
     document.getElementById('jrnl-saved').textContent = draft ? t('journal.draft_restored') : '';
     _dirty = Boolean(draft);
@@ -824,7 +819,7 @@ function updateWords() {
   const n = (text.match(/\S+/g) || []).length;
   const main = document.querySelector('.jrnl-main');
   const using = document.activeElement?.matches?.('.jrnl-tags, .jrnl-mood');
-  if (main && !using) main.dataset.blank = String(!text && !document.getElementById('jrnl-tags')?.value.trim() && !document.querySelector('.jrnl-mood.active'));
+  if (main && !using) main.dataset.blank = String(!text && !document.getElementById('jrnl-tags')?.value.trim() && !curMood());
   document.getElementById('jrnl-words').textContent = n ? tp('journal.word_count', n) : '';
 }
 
@@ -881,11 +876,17 @@ async function loadStats() {
   } catch {}
 }
 
+// today's prompt waits in the empty editor as its placeholder; any other day asks the plain question
+function applyPlaceholder() {
+  const text = document.getElementById('jrnl-text');
+  if (text) text.placeholder = _prompt && _day === todayISO() ? t('journal.prompt_quote', { prompt: _prompt }) : t('journal.entry_placeholder');
+}
+
 async function loadPrompt() {
   try {
     const d = await jget('/api/journal/prompt');
-    const el = document.getElementById('jrnl-prompt');
-    if (el) el.textContent = t('journal.prompt_quote', { prompt: d.prompt });
+    _prompt = d.prompt || '';
+    applyPlaceholder();
   } catch {}
 }
 
@@ -919,8 +920,17 @@ async function loadRecent() {
   } catch {}
 }
 
+// a failed reflection says so beside the button; it clears when reflecting works or the entry changes
+function setReflectError(message = '') {
+  const line = document.getElementById('jrnl-reflect-error');
+  if (!line) return;
+  line.textContent = message;
+  line.hidden = !message;
+}
+
 function invalidateReflection(message = '') {
   _reflectionGeneration += 1;
+  setReflectError();
   const btn = document.getElementById('jrnl-reflect');
   const box = document.getElementById('jrnl-reflection');
   if (btn) {
@@ -944,6 +954,7 @@ async function reflect() {
   const current = () => generation === _reflectionGeneration && day === _day && btn.isConnected;
   btn.setAttribute('aria-disabled', 'true');
   btn.textContent = t('journal.reflecting');
+  setReflectError();
   box.textContent = t('journal.reflection_preparing');
   box.style.display = 'block';
   try {
@@ -962,7 +973,11 @@ async function reflect() {
     if (typeof d.reflection !== 'string' || !d.reflection.trim()) throw new Error(t('journal.no_reflection'));
     box.innerHTML = mdToHtml(d.reflection);
   } catch (e) {
-    if (current()) box.textContent = t('journal.reflect_error', { error: plainError(e.message || t('common.request_failed')) });
+    if (current()) {
+      box.style.display = 'none';
+      box.textContent = '';
+      setReflectError(t('journal.reflect_error', { error: plainError(e.message || t('common.request_failed')) }));
+    }
   } finally {
     if (current()) {
       btn.removeAttribute('aria-disabled');

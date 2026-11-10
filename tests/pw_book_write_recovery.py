@@ -84,11 +84,13 @@ with sync_playwright() as pw:
             expect(card.locator('[data-move="want"]')).to_be_enabled()
             assert current()["status"] == "reading"
             record("failed-move-retry-persists-and-unlocks-card")
-            star = card.locator('[data-rate="4"]')
+            star = card.locator('.book-rate [data-value="4"]')
             star.focus()
             page.keyboard.press("Enter")
-            expect(card.locator('[data-rate="4"]')).to_have_attribute("aria-checked", "true")
-            expect(card.locator('[data-rate="4"]')).to_be_enabled()
+            expect(card.locator('.book-rate [data-value="4"]')).to_have_attribute(
+                "aria-checked", "true"
+            )
+            expect(card.locator('.book-rate [data-value="4"]')).to_be_enabled()
             assert current()["rating"] == 4
             card.locator('[data-act="notes"]').click()
             card.locator("textarea").fill("Exact local notes.\n\nSecond paragraph.")

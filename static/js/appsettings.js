@@ -45,6 +45,7 @@ const appSpecs = () => ({
   journal: { title: t('settings.app_journal'), apply: () => window._reloadJournal?.(), fields: [
     { k: 'journal_mirror_vault', type: 'toggle', label: t('settings.app_journal_mirror') },
     { type: 'note', text: t('settings.app_journal_mirror_note') },
+    { type: 'action', label: t('shell.wiki.copy_to_markdown'), act: '_journalCopyMarkdown' },
   ] },
 });
 

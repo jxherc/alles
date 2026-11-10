@@ -141,11 +141,11 @@ with sync_playwright() as pw:
                     control.tap() if width == 390 else control.press("Enter")
 
                 def rate(value, page=first, book=bid):
-                    use(card(page, book).locator(f'[data-rate="{value}"]'))
+                    use(card(page, book).locator(f'.book-rate [data-value="{value}"]'))
 
                 def idle(page=first, book=bid):
                     expect(card(page, book)).not_to_have_attribute("aria-busy", "true")
-                    expect(card(page, book).locator('[data-rate="1"]')).to_be_enabled()
+                    expect(card(page, book).locator('.book-rate [data-value="1"]')).to_be_enabled()
 
                 def edit_note(value, page=first, book=bid):
                     current = card(page, book)
@@ -169,7 +169,9 @@ with sync_playwright() as pw:
                 )
                 idle()
                 assert stored()["rating"] == 2
-                expect(card().locator('[data-rate="2"]')).to_have_attribute("aria-checked", "true")
+                expect(card().locator('.book-rate [data-value="2"]')).to_have_attribute(
+                    "aria-checked", "true"
+                )
                 expect(card().locator('[data-undo="rating"]')).to_have_count(0)
                 rejected = writes[-1]["body"]
                 assert rejected["rating"] == 3 and rejected["expected_rating"] == 1

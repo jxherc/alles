@@ -168,7 +168,7 @@ with sync_playwright() as pw:
                 cdp.detach()
                 assert page.evaluate("document.documentElement.scrollWidth <= innerWidth + 1")
 
-            use(card.locator('[data-rate="4"]'))
+            use(card.locator('.book-rate [data-value="4"]'))
             expect(card.locator('[data-undo="rating"]')).to_be_visible()
             mode = "invalid-note"
             revised = "revised note 中文\nsecond line"
@@ -211,12 +211,12 @@ with sync_playwright() as pw:
             expect(card.locator('[data-undo="notes"]')).to_have_count(0)
             assert stored()["notes"] == "newer saved note"
             capture("conflict-kept")
-            use(card.locator('[data-rate="5"]'))
+            use(card.locator('.book-rate [data-value="5"]'))
             expect(card.locator('[data-undo="rating"]')).to_be_visible()
             mode = "hold-undo"
             use(card.locator('[data-undo="rating"]'))
             wait_held()
-            expect(card.locator('[data-rate="4"]')).to_be_disabled()
+            expect(card.locator('.book-rate [data-value="4"]')).to_be_disabled()
             use(other.locator('[data-act="notes"]'))
             draft = other.locator('[data-f="notes"]')
             draft.fill("newer unsaved draft 中文")
@@ -244,15 +244,21 @@ with sync_playwright() as pw:
 
             # A saved field stays current even when the following overview fails.
             mode = "fail-overview"
-            use(card.locator('[data-rate="2"]'))
+            use(card.locator('.book-rate [data-value="2"]'))
             expect(card.locator('[data-undo="rating"]')).to_be_visible()
-            expect(card.locator('[data-rate="2"]')).to_have_attribute("aria-checked", "true")
-            use(card.locator('[data-rate="5"]'))
-            expect(card.locator('[data-rate="5"]')).to_have_attribute("aria-checked", "true")
+            expect(card.locator('.book-rate [data-value="2"]')).to_have_attribute(
+                "aria-checked", "true"
+            )
+            use(card.locator('.book-rate [data-value="5"]'))
+            expect(card.locator('.book-rate [data-value="5"]')).to_have_attribute(
+                "aria-checked", "true"
+            )
             expect(card).not_to_have_attribute("aria-busy", "true")
             use(card.locator('[data-undo="rating"]'))
             expect(card.locator('[data-undo="rating"]')).to_have_count(0)
-            expect(card.locator('[data-rate="2"]')).to_have_attribute("aria-checked", "true")
+            expect(card.locator('.book-rate [data-value="2"]')).to_have_attribute(
+                "aria-checked", "true"
+            )
             assert stored()["rating"] == 2
             edit_note("first acknowledged note")
             expect(card.locator('[data-act="notes"]')).to_have_text("first acknowledged note")
@@ -267,7 +273,7 @@ with sync_playwright() as pw:
             mode = "normal"
 
             # Completing an older undo must keep the user's newer button focus.
-            use(card.locator('[data-rate="3"]'))
+            use(card.locator('.book-rate [data-value="3"]'))
             expect(card.locator('[data-undo="rating"]')).to_be_visible()
             mode = "hold-undo"
             use(card.locator('[data-undo="rating"]'))

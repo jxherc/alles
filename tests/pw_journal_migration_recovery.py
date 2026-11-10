@@ -7,6 +7,11 @@ from browser_gate_safety import require_server_ownership
 from playwright.sync_api import expect, sync_playwright
 
 
+def open_copy(page) -> None:
+    page.locator('.app-cog[data-app="journal"]').click()
+    page.get_by_role("button", name="copy to Markdown", exact=True).click()
+
+
 def run() -> None:
     data = Path(os.environ["ALLES_DATA"]).resolve()
     run_id = os.environ["ALLES_TEST_RUN_ID"]
@@ -39,10 +44,10 @@ def run() -> None:
                 page.locator("#setup-skip").click()
                 page.locator("#setup-wizard").wait_for(state="hidden")
             page.locator('#docs-tabs [data-group-section="journal"]').click()
-            expect(page.locator("#journal-migrate")).to_be_visible()
-            trigger = page.locator("#journal-migrate")
+            trigger = page.locator('.app-cog[data-app="journal"]')
+            expect(trigger).to_be_visible()
             if width == 1440:
-                trigger.click()
+                open_copy(page)
                 expect(page.locator(".jrnl-migration-layer")).to_contain_text(
                     "no journal entries to copy yet."
                 )
@@ -56,7 +61,7 @@ def run() -> None:
             )
             assert saved.ok, saved.text()
 
-            trigger.click()
+            open_copy(page)
             dialog = page.locator(".jrnl-migration-layer")
             expect(dialog).to_be_visible()
             expect(dialog.locator(".jrnl-migration-warning")).to_contain_text("plaintext Markdown")
@@ -88,7 +93,7 @@ def run() -> None:
             page.keyboard.press("Escape")
             expect(dialog).to_have_count(0)
             assert trigger.evaluate("element => element === document.activeElement")
-            trigger.click()
+            open_copy(page)
             confirmation = dialog.locator("code").inner_text()
             dialog.locator("input").fill(confirmation)
             dialog.locator("[data-prepare]").click()
@@ -97,7 +102,7 @@ def run() -> None:
             page.keyboard.press("Escape")
             page.reload(wait_until="domcontentloaded")
             page.locator('#docs-tabs [data-group-section="journal"]').click()
-            page.locator("#journal-migrate").click()
+            open_copy(page)
             expect(dialog.locator("[data-apply]")).to_be_visible()
             expect(dialog.locator("[data-new-copy]")).to_be_hidden()
             dialog.locator("[data-apply]").click()
@@ -108,7 +113,7 @@ def run() -> None:
             page.keyboard.press("Escape")
             page.reload(wait_until="domcontentloaded")
             page.locator('#docs-tabs [data-group-section="journal"]').click()
-            page.locator("#journal-migrate").click()
+            open_copy(page)
             expect(dialog.locator("[data-rollback]")).to_be_visible()
             expect(dialog.locator("[data-new-copy]")).to_be_visible()
             dialog.locator("[data-rollback]").click()
@@ -129,7 +134,7 @@ def run() -> None:
                 assert unseen.ok, unseen.text()
                 page.reload(wait_until="domcontentloaded")
                 page.locator('#docs-tabs [data-group-section="journal"]').click()
-                page.locator("#journal-migrate").click()
+                open_copy(page)
                 expect(dialog.locator("[data-apply]")).to_be_visible()
                 dialog.locator("[data-apply]").click()
                 expect(dialog.locator(".jrnl-migration-status")).to_contain_text("copied")
@@ -141,7 +146,7 @@ def run() -> None:
                 page.keyboard.press("Escape")
                 page.reload(wait_until="domcontentloaded")
                 page.locator('#docs-tabs [data-group-section="journal"]').click()
-                page.locator("#journal-migrate").click()
+                open_copy(page)
                 expect(dialog.locator(".jrnl-migration-error")).to_contain_text("would conflict")
                 expect(dialog.locator("[data-prepare]")).to_be_disabled()
                 dialog.locator("[data-rollback]").click()

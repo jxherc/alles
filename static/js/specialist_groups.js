@@ -872,35 +872,30 @@ async function _renderLibrary(target, request) {
   const head = _el('div', 'specialist-workbench-head');
   head.append(_el('h2', '', t('groups.reading_queue')), _el('span', '', tp('groups.items', records.length)));
   const list = _el('div', 'specialist-message-list');
-  let filter = 'all';
+  // the tabs already split saved reading from books, so the overview is one list
   const draw = () => {
     list.replaceChildren();
-    const visible = records.filter(item => filter === 'all' || (filter === 'saved' ? item.section === 'read' : item.section === 'books'));
+    const visible = records;
     head.querySelector('span').textContent = tp('groups.items', visible.length);
+    // when every row has the same kind the kind column says nothing, so it carries the status
+    const sameKind = new Set(visible.map(item => item.kind)).size <= 1;
     if (!visible.length) {
-      const unavailable = filter === 'saved' ? (readError ? t('groups.src_saved_reading') : '')
-        : filter === 'books' ? (booksError ? t('groups.src_books') : '')
-          : readError && booksError ? t('groups.saved_reading_and_books')
-            : readError ? t('groups.src_saved_reading') : booksError ? t('groups.src_books') : '';
+      const unavailable = readError && booksError ? t('groups.saved_reading_and_books')
+        : readError ? t('groups.src_saved_reading') : booksError ? t('groups.src_books') : '';
       list.append(_el(
         'p',
         'specialist-workbench-empty',
         unavailable ? t('groups.unavailable_no_items', { what: unavailable }) : t('groups.library_empty'),
       ));
       if (!unavailable) {
-        const section = filter === 'saved' ? 'read' : 'books';
-        const add = _el('button', 'btn', section === 'read' ? t('groups.save_reading') : t('groups.add_book'));
+        const add = _el('button', 'btn', t('groups.add_book'));
         add.type = 'button';
         add.addEventListener('click', async () => {
-          const navigated = await window._navigateSpecialistSection?.('library', section);
-          if (!navigated || document.getElementById('library-view')?.dataset.section !== section) return;
-          if (section === 'read') {
-            (document.getElementById('read-save-check') || document.getElementById('read-url'))?.focus();
-          } else {
-            const title = document.getElementById('book-title');
-            if (title) title.focus();
-            else document.getElementById('books-add-toggle')?.click();
-          }
+          const navigated = await window._navigateSpecialistSection?.('library', 'books');
+          if (!navigated || document.getElementById('library-view')?.dataset.section !== 'books') return;
+          const title = document.getElementById('book-title');
+          if (title) title.focus();
+          else document.getElementById('books-add-toggle')?.click();
         });
         list.append(add);
       }
@@ -921,21 +916,16 @@ async function _renderLibrary(target, request) {
           focusBook(record.targetId);
         }
       });
+      const state = _readState(record.state) || t('groups.saved');
       button.append(
-        _el('span', 'specialist-record-time', record.kind),
+        _el('span', 'specialist-record-time', sameKind ? state : record.kind),
         _el('strong', 'specialist-record-title', record.title),
-        _el('span', 'specialist-record-meta', `${_readState(record.state) || t('groups.saved')} · ${record.meta}`),
+        _el('span', 'specialist-record-meta', sameKind ? (record.meta === state ? '' : record.meta) : `${state} · ${record.meta}`),
       );
       list.append(button);
     }
   };
-  const filters = _choiceButtons(t('groups.library_material'), [
-    { value: 'all', label: t('groups.filter_everything', { count: records.length }) },
-    { value: 'saved', label: t('groups.filter_saved', { count: read.length }) },
-    { value: 'books', label: t('groups.filter_books', { count: books.length }) },
-  ], filter, value => { filter = value; draw(); });
-  filters.setAttribute('role', 'group');
-  main.append(head, filters, list);
+  main.append(head, list);
   workbench.append(main);
   const partial = _partialAvailability([
     [t('groups.src_saved_reading'), readError],

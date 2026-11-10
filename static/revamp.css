@@ -1552,18 +1552,10 @@ html:not(#_):not(#_) #contacts-view .contact-rowmain :is(.row-name, .row-meta) {
   html:not(#_):not(#_) #contacts-view .contacts-head { row-gap: var(--k-space-2); }
   html:not(#_):not(#_) #contacts-view .contacts-head > .contacts-search { flex: 1 1 12rem; width: auto; min-width: 0; }
   html:not(#_):not(#_) #contacts-view .contacts-head > .app-cog { order: 1; margin-inline: 0; }
-  html:not(#_):not(#_) #contacts-view .contacts-head > :is(.btn, a.btn) { order: 2; margin-inline-start: 0; }
+  html:not(#_):not(#_) #contacts-view .contacts-head > :is(.btn, a.btn, .contacts-show) { order: 2; margin-inline-start: 0; }
 }
 
 @media (max-width: 600px) {
-  /* the open and del buttons took 190 of 360px, leaving a name 130px; they drop under it */
-  html:not(#_):not(#_) #contacts-view .contact-item {
-    display: grid;
-    grid-template-columns: auto auto minmax(0, 1fr);
-    align-items: center;
-    column-gap: var(--k-space-2);
-  }
-  html:not(#_):not(#_) #contacts-view .contact-item > .contact-rowacts { grid-column: 3; }
   html:not(#_):not(#_) #contacts-view .contacts-head {
     display: grid;
     grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -4074,21 +4066,25 @@ html:not(#_):not(#_) .specialist-workbench .specialist-group-capture > button:fo
    one row per habit on the shared row list (4px apart, 8px radius, hover fill). the name side
    opens the habit; today's check or log sits on the right. colours stay quiet: done is the
    neutral picked fill with a tick, not the habit's own bright colour */
-/* one 720px column, centred on wide screens like the owner's set logger shots, so the list and
-   an opened habit sit in the same place */
-html:not(#_):not(#_) #habits-body > * {
+/* one 1040px column (the dashboard width, decisions 0038 and 0077), centred on wide screens: the
+   health overview, the logs and the habits read in the same place, and an opened habit sits where its
+   list was. at 880px the overview's measurement rows left a name no room */
+html:not(#_):not(#_) :is(#habits-body, #health-body) > * {
   box-sizing: border-box;
   width: 100%;
-  max-width: 720px;
+  max-width: 1040px;
   margin-inline: auto;
 }
+html:not(#_):not(#_) .specialist-group-overview > .specialist-workbench-health { max-width: 1040px; margin-inline: auto; }
+/* the overview's cards take their own content's height, not the tallest card's */
+html:not(#_):not(#_) .specialist-workbench-health > :is(.specialist-workbench-rail, .specialist-workbench-main, .specialist-workbench-detail) { align-self: start; }
 
 html:not(#_):not(#_) .habits-list {
   display: flex;
   flex-direction: column;
   align-items: stretch;
   gap: var(--k-row-gap);
-  max-width: 720px;
+  max-width: 1040px;
 }
 
 html:not(#_):not(#_) .habit-card.habit-row {
@@ -4213,7 +4209,7 @@ html:not(#_):not(#_) .habit-gone { justify-content: space-between; padding-inlin
 html:not(#_):not(#_) .habit-card.habit-detail {
   display: grid;
   gap: var(--k-space-4);
-  max-width: 720px;
+  max-width: 1040px;
   padding: 0;
   border: 0;
   background: transparent;

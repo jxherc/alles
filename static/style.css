@@ -4963,19 +4963,14 @@ textarea.vform-input { resize: vertical; min-height: 2.4rem; line-height: 1.5; f
 @media (max-width: 560px) { .jrnl-datebar .jrnl-date { flex: 1 0 100%; order: -1; } }
 .jrnl-date { flex: 1; min-width: 0; font-size: 1rem; font-weight: 500; color: var(--text); }
 .jrnl-words { margin-left: auto; font-size: 0.8125rem; color: var(--muted); }
-.jrnl-prompt { font-size: 0.8125rem; color: var(--muted); font-style: italic; margin-bottom: 0.7rem; }
-.jrnl-mood-label { margin: var(--k-space-3) 0 var(--k-space-2); font-size: 0.8125rem; color: var(--muted); }
-.jrnl-moods { display: flex; flex-wrap: wrap; gap: var(--k-space-1); }
-.jrnl-mood { background: none; color: var(--text); border: 1px solid transparent; border-radius: var(--k-radius-control); font: inherit; font-size: 0.8125rem; line-height: 1.4; padding: 0 var(--k-space-2); cursor: pointer; transition: border-color .15s, background .15s; }
-.jrnl-mood:hover { background: var(--k-hover, var(--panel)); }
-/* neutral selection (decision 0019) */
-.jrnl-mood.active { opacity: 1; border-color: var(--k-line-strong, var(--muted)); background: var(--k-raised, var(--panel)); -webkit-text-stroke: 0.35px currentColor; }
+.jrnl-mood { width: 12rem; max-width: 100%; margin-top: var(--k-space-3); }
 .jrnl-text { width: 100%; min-height: 12rem; resize: vertical; background: var(--panel); color: var(--text); border: 1px solid var(--faint); border-radius: var(--k-radius-control); padding: 0.9rem; font: inherit; line-height: 1.7; }
 .jrnl-text:focus { outline: none; }
 /* compact rail, like every other quick field (decision 0026) */
 .jrnl-tags { width: 100%; min-height: 44px; margin-top: var(--k-space-2); background: transparent; color: var(--text); border: 0; border-bottom: 1px solid var(--faint); border-radius: 0; padding: 0 var(--k-space-2); font-size: 0.8125rem; }
 .jrnl-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 0.6rem; margin-top: 0.7rem; }
 .jrnl-saved { font-size: 0.8125rem; color: var(--muted); margin-left: auto; }
+.jrnl-reflect-error { font-size: 0.875rem; color: var(--error); }
 .jrnl-load-error { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 12px; color: var(--danger); font-size: 0.8125rem; }
 .jrnl-lock-btn { font-size: 0.8125rem; display: inline-flex; align-items: center; gap: 0.3rem; }
 .jrnl-lock-btn .ic { width: 13px; height: 13px; }
@@ -6337,6 +6332,11 @@ body.afterlife-aide-projects[data-space="aide"] .aide-scheduled-view {
 .contact-item { display: flex; align-items: center; gap: 0.6rem; padding: 0.4rem 0.4rem; border-radius: var(--k-radius-surface); font-size: 0.8125rem; }
 .contact-item:hover { background: var(--panel); }
 .contact-rowmain { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 0.1rem; }
+/* the whole name area is the row's one open button */
+.contact-open { flex: 1; min-width: 0; min-height: 44px; display: flex; align-items: center; gap: 0.6rem; padding: 0 var(--k-space-2); border: 0; background: none; color: inherit; font: inherit; text-align: left; cursor: pointer; border-radius: var(--k-radius-control); }
+.contact-open > [aria-hidden="true"] { display: flex; flex-shrink: 0; }
+.contact-open .row-name { font-size: 0.875rem; }
+.contacts-show { width: 9rem; max-width: 100%; }
 .contact-rowmain .row-name { flex-shrink: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .contact-rowacts { display: flex; gap: var(--k-control-gap); flex-shrink: 0; }
 .contacts-create { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)) auto; }
@@ -9272,7 +9272,7 @@ input.cp-swatch-input { width: 44px; min-width: 44px; height: 44px; border: 1px 
 .book-shelf { margin-bottom: 1.6rem; }
 .book-shelf-h { font-size: 0.8125rem; color: var(--muted); margin-bottom: 0.6rem; }
 .book-shelf-h span { color: var(--muted); }
-.book-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 0.7rem; }
+.book-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 21rem), 1fr)); gap: var(--k-space-3, 12px); }
 .book-card { display: flex; gap: 0.7rem; border: 1px solid var(--faint); border-radius: var(--k-radius-surface); background: var(--panel); padding: 0.7rem; position: relative; }
 .book-card:focus { outline: 2px solid var(--k-focus); outline-offset: var(--k-focus-offset, -2px); }
 .book-cover { width: 52px; height: 76px; object-fit: cover; border-radius: var(--k-radius-control); flex-shrink: 0; background: var(--bg); }
@@ -9281,23 +9281,12 @@ input.cp-swatch-input { width: 44px; min-width: 44px; height: 44px; border: 1px 
 .book-author { font-size: 0.8125rem; color: var(--muted); margin-bottom: 0.35rem; }
 /* no author still keeps its line, or the stars ride up under remove and the 5th star's target hides */
 .book-author:empty { min-height: 1lh; }
-.book-stars { display: inline-flex; gap: 1px; margin-bottom: 0.4rem; }
-/* the 44px target stays, but only the star itself reacts: the picked-state square and the hover tint
-   would draw that whole target as a box */
-.book-star { background: none; border: none; padding: 0; cursor: pointer; color: var(--muted); display: flex; border-radius: 50%; }
-.book-star svg { width: 14px; height: 14px; }
-.book-star.on { color: var(--cat-amber); }
-.book-star:hover:not(.on) { color: var(--cat-amber); }
-.book-star:active { opacity: 0.7; }
-/* want / reading / read: one row, the picked one carries its own tone. want is a plain outline,
-   reading the accent shade, read the same shade dimmed */
-.book-move { display: flex; gap: 0.25rem; flex-wrap: wrap; }
-.book-move-btn { background: none; border: 1px solid var(--faint); border-radius: var(--k-radius-control); color: var(--muted); font-size: 0.8125rem; padding: 0.12rem 0.4rem; cursor: pointer; }
-.book-move-btn:hover { color: var(--text); border-color: var(--muted); }
-.book-move .book-move-btn[aria-checked="true"] { color: var(--text); border-color: var(--k-line-strong, var(--line-strong)); background: none; -webkit-text-stroke: 0.35px currentColor; }
-/* every picked shelf looks the same: a status is not a reason for its own purple fill */
+/* rating is the kit's number row, shelf is its pill switch (decision 0077). the row's readout would
+   only repeat the picked number, so the card leaves it out */
+.book-info > :is(.book-rate, .book-move) { margin-top: var(--k-space-2, 8px); }
+.book-rate .k-number-row-readout { display: none; }
 .book-notes { display: block; width: 100%; border: 0; padding: 0; background: none; text-align: left; overflow-wrap: anywhere; font-size: 0.8125rem; color: var(--muted); margin-top: 0.45rem; line-height: 1.4; white-space: pre-wrap; cursor: pointer; }
-.book-add-note { background: none; border: none; color: var(--muted); font-size: 0.8125rem; cursor: pointer; margin-top: 0.4rem; padding: 0; }
+.book-add-note { display: block; background: none; border: none; color: var(--muted); font-size: 0.8125rem; cursor: pointer; margin-top: 0.4rem; padding: 0; }
 .book-add-note:hover { color: var(--text); }
 .book-notes-edit { margin-top: 0.45rem; }
 .book-notes-error { color: var(--error); font-size: 0.8125rem; line-height: 1.45; }
@@ -9327,7 +9316,7 @@ input.cp-swatch-input { width: 44px; min-width: 44px; height: 44px; border: 1px 
 .health-bar { display: flex; align-items: center; justify-content: space-between; gap: 0.75rem; margin-bottom: 1rem; flex-wrap: wrap; }
 .health-bar-actions { display: flex; align-items: center; gap: var(--k-control-gap); }
 .health-range { width: 10rem; min-height: 44px; }
-.health-empty { padding: 1.2rem 0; font-size: 0.8125rem; color: var(--muted); max-width: 460px; }
+.health-empty { margin: 0; padding: var(--k-space-3) 0; font-size: 0.875rem; color: var(--muted); }
 .health-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 0.7rem; margin-bottom: 1.6rem; }
 .health-card { border: 1px solid var(--faint); border-radius: var(--k-radius-surface); background: var(--panel); padding: 0.8rem 0.9rem; }
 .health-card-h { font-size: 0.8125rem; color: var(--muted); margin-bottom: 0.3rem; display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; }
@@ -11205,12 +11194,7 @@ body[data-app="docs"] .main > .topbar { display: none !important; }
 .docs-journal-main { grid-column: 1 / -1; min-width: 0; min-height: 0; display: flex; flex-direction: column; }
 .docs-journal-head { max-width: none; margin: 0; min-height: 54px; padding: 0 1rem; border-bottom: 1px solid var(--faint); }
 .docs-journal-stats { margin-left: auto; color: var(--muted); font-size: 0.8125rem; }
-.docs-journal-copy { min-height: 44px; margin: 0; padding: 0 0.5rem; font-size: 0.875rem; }
-.docs-journal-head { container-type: inline-size; flex-wrap: nowrap; }
-.docs-journal-copy { margin-inline-start: var(--k-space-2); }
-/* stats + copy + cog need ~45rem of head; under that the cog wrapped onto its own row */
-@container (max-width: 45rem) { .docs-journal-stats { display: none; } .docs-journal-copy { margin-inline-start: auto; } }
-.docs-journal-copy:focus-visible { outline: 2px solid var(--focus); outline-offset: var(--k-focus-offset, -2px); }
+.docs-journal-head { flex-wrap: nowrap; }
 .docs-journal-main #journal-body {
   flex: 1;
   min-height: 0;
@@ -11767,7 +11751,7 @@ html[data-kokuen-version="5"] #settings-modal :is(.btn, .act-btn).danger:hover {
 .cal-more-menu .ctx-item { box-sizing: border-box; font: inherit; font-size: 0.8125rem; display: flex; align-items: center; min-height: var(--ui-control-height, 44px); text-decoration: none; }
 
 /* an empty journal day is just the page: mood and tags appear once you start writing */
-.jrnl-main[data-blank="true"] :is(.jrnl-mood-label, .jrnl-moods, .jrnl-tags) { display: none; }
+.jrnl-main[data-blank="true"] :is(.jrnl-mood, .jrnl-tags) { display: none; }
 
 /* mail before the first account: only the account setup and compose */
 #mail-view[data-no-account] :is(#mail-sidebar-toggle, #mail-account, #mail-search, #mail-refresh-btn, #mail-sidebar, #mail-list) { display: none; }

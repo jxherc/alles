@@ -97,7 +97,9 @@ def run():
                     )
 
                 def refresh():
-                    radio = page.locator(f'.book-card[data-id="{book_id}"] [data-rate="4"]')
+                    radio = page.locator(
+                        f'.book-card[data-id="{book_id}"] .book-rate [data-value="4"]'
+                    )
                     with page.expect_response(
                         lambda response: (
                             response.url == endpoint + "/" + book_id
