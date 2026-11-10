@@ -72,7 +72,7 @@ def run():
 
             try:
                 page.goto(base + "/?view=wiki", wait_until="networkidle")
-                trigger = page.locator("#docs-import-btn:visible, #docs-empty-import:visible")
+                trigger = page.locator("#docs-import-btn:visible, #docs-empty-import:visible").first
                 trigger.focus()
                 page.keyboard.press("Enter")
                 expect(page.locator("#docs-import-choose")).to_be_focused()

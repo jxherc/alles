@@ -10816,7 +10816,6 @@ body[data-app="docs"] .main > .topbar { display: none !important; }
 .docs-inline-actions { margin-left: auto; display: flex; gap: var(--k-control-gap); }
 .docs-inline-actions button { min-height: 25px; padding: 0 0.45rem; border: 0; }
 
-.docs-import-trigger { flex: 0 0 auto; min-height: 44px; padding-inline: var(--k-space-3); }
 .docs-import-panel {
   display: grid;
   grid-auto-rows: max-content;

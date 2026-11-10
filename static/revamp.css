@@ -3269,17 +3269,6 @@ html:not(#_):not(#_) .finance-daily-actions .specialist-inline-action:hover { ba
 html:not(#_):not(#_) .finance-daily-actions { display: flex; flex-wrap: wrap; gap: var(--k-space-2); margin-bottom: var(--k-block-gap); }
 
 /* ── docs ───────────────────────────────────────────────────────────────── */
-/* an open document's toolbar actions are all text actions; import was the one filled box */
-html:not(#_)[data-kokuen-version="5"] #docs-import-btn.docs-import-trigger:not(.primary) {
-  background: transparent;
-  color: var(--k-soft);
-}
-
-html:not(#_)[data-kokuen-version="5"] #docs-import-btn.docs-import-trigger:not(.primary):hover {
-  background: var(--k-hover);
-  color: var(--k-text);
-}
-
 /* the open document's name is the column's title */
 html:not(#_):not(#_) #wiki-current {
   font-size: 1rem;

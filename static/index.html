@@ -887,6 +887,7 @@
         <button class="docs-nav-text-action docs-nav-close" id="wiki-nav-close" type="button" aria-label="close document navigation" data-i18n="common.close" data-i18n-aria-label="shell.docs_nav.close_document_navigation">close</button>
         <div class="docs-nav-create">
           <button type="button" id="wiki-new-btn" data-i18n="common.new_document">new document</button>
+          <button type="button" id="docs-import-btn" data-i18n="common.import">import</button>
           <button type="button" id="wiki-folder-btn" data-i18n="common.new_folder">new folder</button>
         </div>
         <input type="text" id="wiki-search" class="docs-nav-search" placeholder="search documents…" aria-label="search documents" data-i18n-aria-label="shell.docs_nav.search_documents_2" data-i18n-placeholder="shell.docs_nav.search_documents">
@@ -932,8 +933,8 @@
             <div class="docs-title-block">
               <span id="wiki-current" class="wiki-current" data-i18n="shell.wiki.your_documents">your documents</span>
               <span id="wiki-path" class="docs-current-path" data-i18n="shell.wiki.local_markdown">local Markdown</span>
+              <span id="wiki-folder" class="docs-current-path" hidden></span>
             </div>
-            <button type="button" id="docs-import-btn" class="btn docs-import-trigger" data-i18n="common.import">import</button>
             <span id="wiki-stats" class="wiki-stats"></span>
             <span id="wiki-save-state" class="docs-save-state" role="status" aria-live="polite" tabindex="-1"></span>
             <div class="docs-reader-actions">
