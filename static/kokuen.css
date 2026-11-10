@@ -4412,6 +4412,10 @@ html[dir="rtl"] :where(
     flex-direction: column;
   }
 
+  #settings-modal[data-kokuen-surface="settings"] #locale-settings-save-state {
+    min-height: 1.5rem;
+  }
+
   #settings-modal[data-kokuen-surface="settings"] .locale-settings-save .btn {
     width: 100%;
     min-height: var(--k-control);
@@ -4798,6 +4802,11 @@ html[dir="rtl"] :where(
   #settings-modal[data-kokuen-surface="settings"] .home-settings-save {
     align-items: stretch;
     flex-direction: column;
+  }
+
+  /* the status line has its row reserved: it shows without moving the buttons */
+  #settings-modal[data-kokuen-surface="settings"] .home-settings-save > div:first-child {
+    min-height: 1.5rem;
   }
 
   /* buttons keep their own width; reset's label starts on the column edge */
