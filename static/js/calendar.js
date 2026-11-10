@@ -1,6 +1,6 @@
 import { plainError, toast, writeClipboard } from './util.js';
 import { replaceLinkedRecord } from './recordlinks.js';
-import { initCustomDropdown, populateDropdown, getDropdownValue } from './dropdown.js?v=217';
+import { initCustomDropdown, populateDropdown, getDropdownValue, getDropdownValues } from './dropdown.js?v=217';
 import { initDatePickers } from './datepick.js';
 import { prompt as dlgPrompt, confirm as dlgConfirm, choose as dlgChoose } from './dialog.js';
 import { initKokuenPrimitives, wireActionMenu } from './kokuen.js?v=5';
@@ -1871,19 +1871,17 @@ function openEditor(event, defaultDate, hour, allDay, occ) {
 
   el.innerHTML = `<div class="cal-editor" role="form" aria-labelledby="cal-ed-head">
     <h2 class="cal-ed-head" id="cal-ed-head" tabindex="-1">${esc(tr(isNew ? 'calendar.editor_new' : 'calendar.editor_edit'))}</h2>
-    <input class="note-editor-title" id="cal-title" aria-label="${esc(tr('calendar.event_title'))}" value="${esc(event?.title || '')}" placeholder="${esc(tr('calendar.event_title_placeholder'))}">
+    <input class="settings-input cal-ed-title" id="cal-title" aria-label="${esc(tr('calendar.event_title'))}" value="${esc(event?.title || '')}" placeholder="${esc(tr('calendar.event_title_placeholder'))}">
     <div class="cal-ed-grid">
       <div><div class="cal-flabel">${esc(tr('calendar.start'))}</div><div class="date-input" id="cal-start" aria-label="${esc(tr('calendar.start'))}" data-type="datetime" data-value="${start}" data-ph="${esc(tr('calendar.start'))}" style="width:100%"></div></div>
       <div><div class="cal-flabel">${esc(tr('calendar.end'))}</div><div class="date-input" id="cal-end" aria-label="${esc(tr('calendar.end'))}" data-type="datetime" data-value="${endVal}" data-ph="${esc(tr('calendar.end_optional'))}" style="width:100%"></div></div>
-    </div>
-    <div class="cal-sched">
       <button class="btn cal-sched-btn" id="cal-freeslot" type="button">${esc(tr('calendar.find_free_time'))}</button>
-      <span class="cal-conflict" id="cal-conflict"></span>
     </div>
+    <div class="cal-conflict" id="cal-conflict"></div>
     <div class="cal-slots" id="cal-slots"></div>
     <div class="cal-ed-row">
       <div id="cal-allday-row"><button type="button" class="cal-flabel cal-chk-row" id="cal-allday" role="checkbox" aria-checked="${event?.all_day || allDay ? 'true' : 'false'}"><span class="chk" aria-hidden="true"></span>${esc(tr('home.all_day'))}</button></div>
-      <div class="cal-cal-pick"><span class="cal-flabel">${esc(tr('calendar.title'))}</span>
+      <div class="cal-cal-pick"><div class="cal-flabel">${esc(tr('calendar.title'))}</div>
         <div class="settings-input custom-select" id="cal-calendar" aria-label="${esc(tr('calendar.title'))}" aria-disabled="${Boolean(_calendarMetadataError)}" data-placeholder="${esc(_calendarMetadataError ? tr('calendar.calendar_unavailable') : tr('calendar.select'))}" data-value="${defaultCal}" data-options="${_calendars.map(c => `${c.id}|${esc(c.name)}`).join(';')}" style="min-width:130px"></div></div>
     </div>
 
@@ -1906,7 +1904,7 @@ function openEditor(event, defaultDate, hour, allDay, occ) {
     </div>
 
     <div class="cal-flabel">${esc(tr('calendar.reminders'))}</div>
-    <div class="cal-reminders" id="cal-reminders">${remindPresets().map(([m, l]) => `<button type="button" class="cal-rem ${reminders.has(m) ? 'on' : ''}" data-m="${m}" aria-pressed="${reminders.has(m)}" aria-label="${esc(m === 0 ? tr('calendar.remind_at_event_time') : trp('calendar.remind_minutes_before', m))}">${esc(l)}</button>`).join('')}</div>
+    <div class="settings-input custom-select" id="cal-reminders" aria-label="${esc(tr('calendar.reminders'))}" data-multiple="true" data-placeholder="${esc(tr('common.none'))}" data-value="${[...reminders].sort((a, b) => a - b).join(';')}" data-options="${remindPresets().map(([m, l]) => `${m}|${esc(l)}`).join(';')}" style="width:100%"></div>
 
     <div class="cal-ed-grid">
       <div><div class="cal-flabel">${esc(tr('calendar.location'))}</div><input class="settings-input" id="cal-loc" value="${esc(event?.location || '')}" placeholder="${esc(tr('calendar.add_location'))}" style="width:100%"></div>
@@ -1942,13 +1940,14 @@ function openEditor(event, defaultDate, hour, allDay, occ) {
     <div class="cal-ed-actions">
       ${isNew ? '' : `<button class="btn" id="cal-del" style="margin-right:auto;color:var(--error);border-color:var(--error)">${esc(tr('common.delete'))}</button>`}
       ${isNew ? '' : `<button class="btn" id="cal-dup" title="${esc(tr('calendar.duplicate_help'))}">${esc(tr('calendar.duplicate'))}</button>`}
-      <button class="btn ic-btn-lbl" id="cal-back">${_si('chevron-left')} back</button>
+      <button class="btn" id="cal-back" type="button">${esc(tr('common.cancel'))}</button>
       <button class="btn primary" id="cal-save">${esc(isNew ? tr('common.create') : tr('common.save'))}</button>
     </div>
   </div>`;
 
   initCustomDropdown(document.getElementById('cal-recur'));
   initCustomDropdown(document.getElementById('cal-calendar'));
+  initCustomDropdown(document.getElementById('cal-reminders'));
   refreshCalendarPicker();
   initDatePickers(el);
 
@@ -2028,7 +2027,6 @@ function openEditor(event, defaultDate, hour, allDay, occ) {
   el.querySelectorAll('.cal-dow-b').forEach(b => b.addEventListener('click', () => {
     const i = +b.dataset.i; byday.has(i) ? byday.delete(i) : byday.add(i); syncDow();
   }));
-  el.querySelectorAll('.cal-rem').forEach(r => r.addEventListener('click', () => { r.classList.toggle('on'); r.setAttribute('aria-pressed', String(r.classList.contains('on'))); }));
   el.querySelectorAll('#cal-colors .cal-sw').forEach(s => s.addEventListener('click', () => {
     color = s.dataset.c; el.querySelectorAll('#cal-colors .cal-sw').forEach(x => { x.classList.toggle('sel', x === s); x.setAttribute('aria-pressed', String(x === s)); });
   }));
@@ -2180,7 +2178,7 @@ function collectBody(byday) {
   const el = document.getElementById('calendar-list');
   const rec = document.getElementById('cal-recur').value;
   const ends = el.querySelector('.cal-radio-choice[aria-checked="true"]')?.dataset.value || 'never';
-  const reminders = [...el.querySelectorAll('.cal-rem.on')].map(r => +r.dataset.m).sort((a, b) => a - b);
+  const reminders = getDropdownValues(document.getElementById('cal-reminders')).map(Number).sort((a, b) => a - b);
   const body = {
     title: document.getElementById('cal-title').value.trim(),
     calendar_id: _calendarMetadataError && _editing ? (_editing.calendar_id || '') : document.getElementById('cal-calendar').value,

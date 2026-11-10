@@ -203,7 +203,6 @@ CHOICE_EXCEPTIONS = {
     "js/journal.js:jrnl-mood": "mood rating",
     # toggles that each turn one thing on, not one pick from a list
     "js/calendar.js:cal-dow-b": "weekday toggles, like every calendar's repeat editor",
-    "js/calendar.js:cal-rem": "reminder toggles, several at once",
     "index.html:token-scopes": "token powers, several at once, each with a mark",
     "js/habit_loggers.js:dlog-step-check": "a checklist's own steps, each ticked on its own",
     # navigation, not a value: the open view or place, like every calendar and files app
