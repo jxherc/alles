@@ -65,14 +65,11 @@ test('Aide uses the available workspace with aligned compact gutters', () => {
   }
 });
 
-test('Aide prose retains a reading measure without capping tables and code', () => {
-  const prose = rules(aide).find(({ selector }) => selector.includes('.ai-body > :where(p,'));
-  assert.ok(prose, 'block-level prose measure');
-  assert.ok(prose.selector.includes('.ai-content > :where(p,'), 'saved and streaming replies render prose inside .ai-content');
-  // the measure is in em: 68ch held about 85 of inter's letters, the token holds about 72
-  assert.match(prose.body, /max-width:\s*var\(--k-measure\)/);
-  assert.match(read('static/kokuen.css'), /--k-measure:\s*36em;/);
-  assert.doesNotMatch(prose.selector, /\b(?:pre|table)\b/);
+test('Aide prose, code and tables end on the same column edge', () => {
+  // a prose-only measure wrapped paragraphs at 621px while code ran to 760 (decision 0036)
+  assert.ok(!rules(aide).some(({ selector }) => selector.includes('.ai-body > :where(p,')), 'no prose-only max-width');
+  assert.ok(!rules(aide).some(({ selector }) => selector.includes('.ai-content > :where(p,')), 'no prose-only max-width');
+  assert.match(aide, /body\.aide-central #messages > \* \{[^}]*max-width:\s*760px/);
   assert.match(rule(aide, 'body.aide-central[data-space="aide"] .user-bubble'), /max-width:\s*min\(88%,\s*68ch\)/);
 });
 

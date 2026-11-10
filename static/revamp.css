@@ -2035,8 +2035,9 @@ html:not(#_):not(#_) #files-view .files-phase7-actions { grid-area: actions; }
 html:not(#_):not(#_) #files-view .files-breadcrumb .crumb:last-child,
 html:not(#_):not(#_) #files-view .files-breadcrumb .crumb:only-child {
   color: var(--k-text);
-  /* beats the specialist-wide 13px control floor, which is !important */
-  font-size: 1.125rem !important;
+  /* the page title role; the important beats the specialist-wide 13px control floor */
+  font-size: 1rem !important;
+  line-height: 24px;
   font-weight: 600;
 }
 
@@ -2048,8 +2049,14 @@ html:not(#_):not(#_) #files-view #files-up-btn:disabled {
   opacity: .35;
 }
 
-html:not(#_):not(#_) #files-view :is(.files-phase7-table-head, .file-row, .files-phase7-selection, .files-phase7-notice) {
+html:not(#_):not(#_) #files-view :is(.files-phase7-selection, .files-phase7-notice) {
   padding-inline: var(--k-gutter);
+}
+
+/* margin, not padding: a row's divider then starts and ends where its content does */
+html:not(#_):not(#_) #files-view :is(.files-phase7-table-head, .file-row) {
+  margin-inline: var(--k-gutter);
+  padding-inline: 0;
 }
 
 /* when the column is narrow the folder name squeezed to nothing ("on t" with the details open on
@@ -2155,23 +2162,8 @@ html:not(#_):not(#_) #photos-view .photos-sel-clear {
   margin-inline-start: -14px;
 }
 
-/* the view you're on is the toolbar's title, not a hidden label */
-html:not(#_):not(#_) #photos-view #photos-head-title {
-  position: static;
-  width: auto;
-  height: auto;
-  overflow: visible;
-  clip: auto;
-  clip-path: none;
-  margin: 0 auto 0 0;
-  color: var(--k-text);
-  font-size: 1.125rem;
-  font-weight: 600;
-  white-space: nowrap;
-}
-
 html:not(#_):not(#_) #photos-view .photos-head .photos-search {
-  margin-left: 0;
+  margin: 0 auto 0 0;
   width: auto;
   flex: 1 1 7rem;
   min-width: 7rem;
@@ -2529,15 +2521,14 @@ html:not(#_):not(#_) .activity-day {
    section titles ran from 12.5 to 16px at four weights, so a card's heading and its rows
    read at nearly one size */
 html:not(#_):not(#_) :is([data-specialist-app], .specialist-group) h2:not(.sr-only),
-html:not(#_):not(#_) :is(.empty-state-title, .jrnl-side-title) {
+html:not(#_):not(#_) :is(.empty-state-title, .jrnl-side-title, #wiki-empty-state h2) {
   font-size: 1rem;
   line-height: 24px;
   font-weight: 600;
   letter-spacing: -0.005em;
 }
 
-html:not(#_):not(#_) :is(#today-greeting, #wiki-empty-state h2, .page-view-head > .page-view-title, #photos-head-title),
-html:not(#_):not(#_) #files-view .files-breadcrumb .crumb:last-child {
+html:not(#_):not(#_) #today-greeting {
   font-size: 1.25rem !important;
   line-height: 28px;
   font-weight: 600;
@@ -3253,17 +3244,6 @@ html:not(#_):not(#_) .finance-daily-actions .specialist-inline-action:hover { ba
 html:not(#_):not(#_) .finance-daily-actions { display: flex; flex-wrap: wrap; gap: var(--k-space-2); margin-bottom: var(--k-block-gap); }
 
 /* ── docs ───────────────────────────────────────────────────────────────── */
-/* an open document's toolbar actions are all text actions; import was the one filled box */
-html:not(#_)[data-kokuen-version="5"] #docs-import-btn.docs-import-trigger:not(.primary) {
-  background: transparent;
-  color: var(--k-soft);
-}
-
-html:not(#_)[data-kokuen-version="5"] #docs-import-btn.docs-import-trigger:not(.primary):hover {
-  background: var(--k-hover);
-  color: var(--k-text);
-}
-
 /* the open document's name is the column's title */
 html:not(#_):not(#_) #wiki-current {
   font-size: 1rem;

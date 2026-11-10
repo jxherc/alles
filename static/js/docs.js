@@ -444,12 +444,20 @@ export function showSection(section) {
     setHidden($('docs-context-panel'), true);
     setHidden($('wiki-ask'), true);
     $('wiki-view')?.classList.remove('no-note');
+    showTitle(true);
     if ($('wiki-current')) $('wiki-current').textContent = t('docs.notes_title');
     if ($('wiki-path')) $('wiki-path').textContent = t('docs.notes_path');
     return loadNotes(_fetcher);
   }
   setHidden($('wiki-notes'), true);
   renderShell();
+}
+
+function showTitle(show, folder = '') {
+  setHidden($('wiki-current'), !show);
+  setHidden($('wiki-path'), !show);
+  if ($('wiki-folder')) $('wiki-folder').textContent = folder;
+  setHidden($('wiki-folder'), !folder);
 }
 
 function renderShell() {
@@ -459,6 +467,7 @@ function renderShell() {
   setHidden($('wiki-document'), !hasDoc);
   setHidden($('docs-context-panel'), !hasDoc);
   if (!hasDoc) {
+    showTitle(true);
     if ($('wiki-current')) $('wiki-current').textContent = t('docs.your_documents');
     if ($('wiki-path')) $('wiki-path').textContent = t('docs.local_markdown');
     if ($('wiki-stats')) $('wiki-stats').textContent = '';
@@ -468,6 +477,8 @@ function renderShell() {
   }
   setHidden($('wiki-preview'), _mode === 'edit');
   setHidden($('wiki-editor'), _mode !== 'edit');
+  // the open note's name is the page's h1, so the header says only which folder it is in
+  showTitle(false, _cur.includes('/') ? _cur.slice(0, _cur.lastIndexOf('/')) : '');
   if ($('wiki-current')) $('wiki-current').textContent = stem(_cur);
   if ($('wiki-path')) $('wiki-path').textContent = _cur;
   $('wiki-edit-btn').textContent = _mode === 'edit' ? t('docs.editing') : t('common.edit');
