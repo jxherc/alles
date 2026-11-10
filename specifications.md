@@ -1385,6 +1385,15 @@ andromeda opens at `http://localhost:6769/?app=andromeda` or its own app host. i
   suggestion service the search box completes from (2 or more, or the section stays away); one tap searches it. safe search
   (`andromeda_safe_search`, on, a switch in settings › andromeda) keeps adult pages and pictures out: exa `moderation`,
   brave and the free engines `safesearch` moderate, searxng `safesearch` 1; off sends them off.
+- **news rows and pictures among the web results.** a search that asks for the news ("toronto news", "ai news today",
+  多伦多新闻) gets up to 3 headlines above the results, and one that asks for pictures ("cat pictures", "pictures of cats",
+  猫的图片, "nike logo") gets up to 8 of them in two rows after the third result. the word has to be what is asked for (the
+  end of the search, or before "of"), so "breaking bad", "photo editor" and 图片压缩 get nothing
+  (`strip_topics` in [services/andromeda.py](services/andromeda.py)). the news or images tab's own engine is asked for the
+  thing, not the word ("toronto", not "toronto news"), beside the web search, and the rows travel in the same reply
+  (`strips` on `POST /api/andromeda/search`): the page draws results and rows in one go and nothing moves afterwards. a tab
+  that fails, is slower than the results plus 0.3 seconds, or has fewer than 2 headlines or 4 pictures is left out. the
+  heading of each opens its tab; a picture opens large in place. a search that names neither costs nothing more.
 - **what the searched thing is.** a search that names one wikipedia page ("toronto", "nyc", "obama", 多倫多) gets a panel with the
   page's picture, title, short description and first sentences, from `GET /api/andromeda/knowledge`
   ([services/andromeda_knowledge.py](services/andromeda_knowledge.py)). "names" means the page's title or a redirect to it, in any

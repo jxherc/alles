@@ -9533,6 +9533,40 @@ body.afterlife-shell[data-space="andromeda"] .main { flex: 1 1 auto; }
 .andromeda-view .andromeda-period { flex: 0 0 auto; width: 10.5rem; margin-inline-start: auto; }
 .andromeda-view .andromeda-period[hidden] + .andromeda-result-meta { margin-inline-start: auto; }
 /* what people search next: plain rows under the results, 2 across where there is room */
+/* news rows and a row of pictures among the web results (andromeda.js "news rows and a row of
+   pictures"). every row is one fixed height, so a picture that loads late moves nothing */
+.andromeda-strip { max-width: var(--andromeda-text); margin-block: var(--k-space-5); }
+.andromeda-strip:first-child { margin-top: 0; }
+.andromeda-strip h2 { margin: 0; font-size: 0.8125rem; font-weight: 560; }
+.andromeda-strip-more {
+  min-height: 44px; display: inline-flex; align-items: center; gap: var(--k-space-1); padding: 0;
+  border: 0; border-radius: var(--k-radius-control); background: transparent; color: var(--muted);
+  font: inherit; cursor: pointer;
+}
+.andromeda-strip-more:hover { color: var(--text); }
+.andromeda-strip-more svg { flex: none; width: 14px; height: 14px; }
+/* two justified rows, as the images tab lays its pictures out: every picture in a row is the
+   same height and the row fills the width. a picture that fits neither row is cut off whole */
+.andromeda-strip-images .andromeda-strip-list {
+  --strip-h: 5.5rem;
+  height: calc(2 * var(--strip-h) + var(--k-row-gap)); display: flex; flex-wrap: wrap; align-content: flex-start;
+  gap: var(--k-row-gap); overflow: hidden;
+}
+.andromeda-strip-image {
+  flex: calc(var(--ar, 1.333) * 100) 1 calc(var(--ar, 1.333) * var(--strip-h)); min-width: 0;
+  /* a picture alone on its row stays a picture, not a banner */
+  max-width: calc(var(--ar, 1.333) * var(--strip-h) * 1.6); height: var(--strip-h); display: block; overflow: hidden;
+  border-radius: var(--k-radius-control); background: color-mix(in srgb, var(--panel) 88%, var(--faint));
+}
+.andromeda-strip-image .andromeda-media-frame { width: 100%; height: 100%; border: 0; border-radius: 0; background: transparent; }
+.andromeda-strip-image .andromeda-media-frame > span { display: none; }
+.andromeda-strip-news .andromeda-strip-list { display: grid; }
+.andromeda-strip-story { height: 4rem; display: grid; align-content: center; gap: var(--k-space-1); min-width: 0; }
+.andromeda-strip-story-title { overflow: hidden; color: var(--link); font-size: 1rem; line-height: 1.4; text-decoration: none; text-overflow: ellipsis; white-space: nowrap; }
+.andromeda-strip-story-title:visited { color: var(--link-visited); }
+.andromeda-strip-story-title:hover { text-decoration: underline; text-underline-offset: 3px; }
+.andromeda-strip-story-meta { overflow: hidden; color: var(--muted); font-size: 0.8125rem; line-height: 1.4; text-overflow: ellipsis; white-space: nowrap; }
+.andromeda-result + .andromeda-strip + .andromeda-result, .andromeda-strip + .andromeda-result { margin-top: 0; }
 .andromeda-related { max-width: var(--andromeda-text); margin-top: 32px; }
 .andromeda-related h2 { margin: 0 0 8px; color: var(--muted); font-size: 0.8125rem; font-weight: 560; }
 .andromeda-related-list { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--k-row-gap) 16px; }
@@ -9545,6 +9579,7 @@ body.afterlife-shell[data-space="andromeda"] .main { flex: 1 1 auto; }
 .andromeda-related-item svg { flex: none; width: 16px; height: 16px; color: var(--muted); }
 .andromeda-related-item span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 @container (max-width: 40rem) {
+  .andromeda-strip-images .andromeda-strip-list { --strip-h: 5rem; }
   .andromeda-related-list { grid-template-columns: minmax(0, 1fr); }
 }
 .andromeda-status { min-height: 0; padding-top: 4px; color: var(--muted); font-size: 0.8125rem; }

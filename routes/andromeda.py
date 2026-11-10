@@ -238,7 +238,22 @@ async def search(body: SearchBody):
             **({"period": body.period} if body.period and body.category in ("all", "news") else {}),
         )
 
-    result = await run(used)
+    # news rows and pictures for a search that asks for them, fetched beside the web search
+    wanted = (
+        andromeda.strip_topics(used)
+        if body.category == "all" and normal_enabled and not body.follow_up_of
+        else {}
+    )
+    strip_tasks = {
+        kind: asyncio.create_task(andromeda.strip_rows(topic, kind, body.period))
+        for kind, topic in wanted.items()
+    }
+    try:
+        result = await run(used)
+    except BaseException:
+        for task in strip_tasks.values():
+            task.cancel()
+        raise
     engine_fix = result.pop("engine_correction", "")
     applied = result.pop("engine_correction_applied", False)
     if not fixed and not body.exact and body.category == "all" and not body.follow_up_of:
@@ -249,6 +264,19 @@ async def search(body: SearchBody):
                 result = await run(used)
                 result.pop("engine_correction", None)
                 result.pop("engine_correction_applied", None)
+
+    strips = {}
+    if strip_tasks:
+        done, late = await asyncio.wait(strip_tasks.values(), timeout=andromeda.STRIP_GRACE_SECONDS)
+        for task in late:
+            task.cancel()
+        # only with results to sit among, and only what came back whole and in time
+        if result.get("results"):
+            strips = {
+                kind: task.result()
+                for kind, task in strip_tasks.items()
+                if task in done and not task.cancelled() and not task.exception() and task.result()
+            }
 
     overview_seed = result.get("results", [])[:12] if parsed.overview else []
     from services import andromeda_answers
@@ -268,6 +296,8 @@ async def search(body: SearchBody):
         # the page offers the date filter only for an engine that can apply it
         "can_filter_period": (body.provider or settings.get("search_provider") or "duckduckgo")
         in PERIOD_ENGINES,
+        # news rows and a row of pictures on the web results page, for a search that asks
+        "strips": strips,
         "normal_results_enabled": bool(normal_enabled),
         "overview_requested": parsed.overview,
         "overview_seed": overview_seed,

@@ -721,6 +721,117 @@ class AndromedaApiTest(ApiTest):
             other = self.client.post("/api/andromeda/search", json={"query": "toronto"}).json()
         self.assertIs(other["can_filter_period"], False)
 
+    def test_a_search_that_asks_for_news_or_pictures_names_what_to_ask_each_tab(self):
+        asked = {
+            "toronto news": {"news": "toronto"},
+            "Toronto Raptors News": {"news": "Toronto Raptors"},
+            "ai news today": {"news": "ai"},
+            "noticias de toronto": {"news": "toronto"},
+            "多伦多新闻": {"news": "多伦多"},
+            "東京のニュース": {"news": "東京"},
+            # the search is for the news itself: the tab is asked as typed
+            "latest news": {"news": "latest news"},
+            "最新新闻": {"news": "最新新闻"},
+            "cat pictures": {"images": "cat"},
+            "pictures of cats": {"images": "cats"},
+            "猫的图片": {"images": "猫"},
+            # these name the kind of picture, so they stay
+            "nike logo": {"images": "nike logo"},
+            "原神壁纸": {"images": "原神壁纸"},
+        }
+        for query, expected in asked.items():
+            with self.subTest(query=query):
+                self.assertEqual(andromeda.strip_topics(query), expected)
+        # the word inside a phrase about something else asks for nothing
+        for query in (
+            "breaking bad",
+            "image processing in python",
+            "photo editor",
+            "logo design",
+            "newsletter",
+            "apple news app",
+            "新闻联播",
+            "图片压缩",
+            "news",
+            "图片",
+            "how to tie a tie",
+            "https://example.com/news",
+            "x" * 200 + " news",
+            "",
+        ):
+            with self.subTest(query=query):
+                self.assertEqual(andromeda.strip_topics(query), {})
+                self.assertEqual(andromeda.strips(query), [])
+
+    def test_news_rows_and_pictures_come_with_the_results_or_not_at_all(self):
+        web = {"results": [{"url": "https://a.dev/x", "title": "A"}], "status": "ready"}
+        stories = [{"url": f"https://n.dev/{n}", "title": f"story {n}"} for n in range(5)]
+        pictures = [
+            {
+                "url": f"https://p.dev/{n}",
+                "title": f"cat {n}",
+                "thumbnail_url": f"https://p.dev/{n}.jpg",
+            }
+            for n in range(9)
+        ] + [{"url": "https://p.dev/none", "title": "no picture"}]
+        calls = []
+
+        def tab(rows, wait=0.0):
+            async def fake(query, **kwargs):
+                calls.append((query, kwargs["category"], kwargs.get("period", "")))
+                if kwargs["category"] == "all":
+                    return dict(web)
+                await asyncio.sleep(wait)
+                return {"results": rows, "status": "ready"}
+
+            return fake
+
+        def search(query, fake, **extra):
+            calls.clear()
+            with mock.patch.object(andromeda, "normal_search", side_effect=fake):
+                body = {"query": query, "overview": False, **extra}
+                return self.client.post("/api/andromeda/search", json=body).json()
+
+        news = search("toronto news", tab(stories), period="week")
+        self.assertEqual(
+            [row["title"] for row in news["strips"]["news"]], ["story 0", "story 1", "story 2"]
+        )
+        # the tab is asked for the thing, inside the same dates as the search
+        self.assertIn(("toronto", "news", "week"), calls)
+        cats = search("cat pictures", tab(pictures), period="week")
+        self.assertEqual(len(cats["strips"]["images"]), andromeda.STRIP_ROWS["images"])
+        self.assertTrue(all(row["thumbnail_url"] for row in cats["strips"]["images"]))
+        # a date means nothing for a picture
+        self.assertIn(("cat", "images", ""), calls)
+        # one headline is not a section
+        self.assertEqual(search("toronto news", tab(stories[:1]))["strips"], {})
+        # a tab that is slower than the results and their moment of grace is left out
+        with mock.patch.object(andromeda, "STRIP_GRACE_SECONDS", 0.05):
+            self.assertEqual(search("toronto news", tab(stories, wait=1.0))["strips"], {})
+
+        # a tab that fails is left out and the results still answer
+        async def broken(query, **kwargs):
+            if kwargs["category"] == "all":
+                return dict(web)
+            raise RuntimeError("engine down")
+
+        self.assertEqual(search("toronto news", broken)["strips"], {})
+        # no word, no extra search; nor on another tab, a follow up, or with results off
+        self.assertEqual(search("toronto", tab(stories))["strips"], {})
+        self.assertEqual([call[1] for call in calls], ["all"])
+        self.assertEqual(search("toronto news", tab(stories), category="news")["strips"], {})
+        self.assertEqual([call[1] for call in calls], ["news"])
+        follow = search("toronto news", tab(stories), follow_up_of="what about ottawa")
+        self.assertEqual(follow["strips"], {})
+
+        # no results to sit among: no rows either
+        async def empty(query, **kwargs):
+            if kwargs["category"] == "all":
+                return {"results": [], "status": "ready"}
+            return {"results": stories, "status": "ready"}
+
+        self.assertEqual(search("toronto news", empty)["strips"], {})
+
     def test_safe_search_is_a_setting_that_is_on(self):
         from core import settings as core_settings
 

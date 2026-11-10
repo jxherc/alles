@@ -109,11 +109,38 @@ def search_payload(body: dict) -> dict:
             for index in range(min(requested, 12))
         ]
     totals = {"all": 12, "images": 65, "news": 45, "videos": 21}
+    strips = {}
+    if category == "all" and "strip rows" in clean:
+        # a search that asks for news and pictures: the server sends a few of each with the results
+        strips = {
+            "news": [
+                {
+                    "title": f"strip story {index + 1} with a title long enough to need its dots at the end",
+                    "url": f"https://news.example.test/strip/{index + 1}",
+                    "publisher": "news.example.test",
+                    "published": "2026-07-13T12:10:18+00:00",
+                }
+                for index in range(3)
+            ],
+            "images": [
+                {
+                    "title": f"strip picture {index + 1}",
+                    "url": f"https://images.example.test/strip/{index + 1}",
+                    "publisher": "images.example.test",
+                    "thumbnail_url": f"https://images.example.test/strip-{index + 1}.png",
+                    "image_url": f"https://images.example.test/strip-{index + 1}.png",
+                    "width": 1200 if index % 2 else 800,
+                    "height": 800 if index % 2 else 1200,
+                }
+                for index in range(8)
+            ],
+        }
     return {
         **common,
         "results": results,
         "has_more": len(results) < totals[category],
         "overview_seed": results if common["overview_requested"] else [],
+        "strips": strips,
     }
 
 
@@ -234,8 +261,16 @@ def check_knowledge(page, viewport: dict, requests: list[dict]) -> None:
 
 def check_period_and_related(page, viewport: dict, requests: list[dict]) -> None:
     """the date filter by the tabs and the related searches under the results."""
+    sent = len(requests)
     page.locator("#andromeda-query").fill("toronto !ai")
     page.locator("#andromeda-form").press("Enter")
+    # the search before this one keeps its rows up until this one is sent (the spelling check
+    # comes first): measured in that gap, a row disappears between two readings
+    for _ in range(200):
+        if len(requests) > sent:
+            break
+        page.wait_for_timeout(50)
+    assert len(requests) > sent, "the search was never sent"
     page.wait_for_selector("#andromeda-related:not([hidden]) .andromeda-related-item")
     period = page.locator("#andromeda-period")
     assert period.is_visible()
@@ -243,7 +278,7 @@ def check_period_and_related(page, viewport: dict, requests: list[dict]) -> None
     tabs = page.locator(".andromeda-tabs").bounding_box()
     box = period.bounding_box()
     first = page.locator("#andromeda-results .andromeda-result").first.bounding_box()
-    assert tabs and box and first
+    assert tabs and box and first, (tabs, box, first)
     assert box["height"] >= 44
     assert box["x"] + box["width"] <= viewport["width"]
     # beside the tabs with a gap, or on its own row under them: never touching, never over them
@@ -311,6 +346,98 @@ def check_period_and_related(page, viewport: dict, requests: list[dict]) -> None
         page.wait_for_timeout(50)
     assert requests[-1]["period"] == ""
     assert "t=" not in page.url.split("?", 1)[-1]
+
+
+def check_strips(page, viewport: dict, requests: list[dict]) -> None:
+    """news rows above the results and pictures after the third, sent with the results."""
+    sent = len(requests)
+    page.locator("#andromeda-query").fill("strip rows !ai")
+    page.locator("#andromeda-form").press("Enter")
+    page.wait_for_selector("#andromeda-results > .andromeda-strip")
+    # they came in the search's own reply: no second request, so nothing arrives late
+    assert len(requests) == sent + 1, requests[sent:]
+    order = page.evaluate(
+        "[...document.querySelectorAll('#andromeda-results > *')]"
+        ".map(node => node.dataset.strip || 'result')"
+    )
+    assert order[:5] == ["news", "result", "result", "result", "images"], order
+    assert order.count("news") == 1 and order.count("images") == 1, order
+    fourth = page.locator("#andromeda-results .andromeda-result").nth(3)
+    before = fourth.bounding_box()
+    page.wait_for_function(
+        "() => document.querySelectorAll('.andromeda-strip-image img.loaded').length >= 4"
+    )
+    assert fourth.bounding_box() == before, "a picture that loaded moved the results under it"
+    stories = page.locator(".andromeda-strip-story")
+    assert stories.count() == 3
+    heights = set()
+    for index in range(3):
+        row = stories.nth(index).bounding_box()
+        assert row and row["x"] + row["width"] <= viewport["width"], row
+        heights.add(round(row["height"]))
+        title = stories.nth(index).locator(".andromeda-strip-story-title")
+        assert title.get_attribute("href").startswith("https://news.example.test/strip/")
+        # a long title ends in dots on its one line instead of making its row taller
+        assert title.evaluate("node => node.scrollWidth > node.clientWidth") or (
+            viewport["width"] > 1000
+        )
+    assert len(heights) == 1, heights
+    # the pictures fill whole rows inside their box; one that fits no row is cut off whole
+    shown = page.evaluate(
+        """() => { const list = document.querySelector('.andromeda-strip-images .andromeda-strip-list');
+          const box = list.getBoundingClientRect();
+          return [...list.children].map(tile => tile.getBoundingClientRect())
+            .filter(tile => tile.top < box.bottom - 1)
+            .map(tile => [tile.left >= box.left - 1, tile.right <= box.right + 1, tile.bottom <= box.bottom + 1, Math.round(tile.height)]); }"""
+    )
+    assert len(shown) >= 4, shown
+    assert all(left and right and bottom for left, right, bottom, _ in shown), shown
+    assert len({height for *_, height in shown}) == 1, shown
+    for kind in ("news", "images"):
+        more = page.locator(f".andromeda-strip-{kind} .andromeda-strip-more").bounding_box()
+        assert more and more["height"] >= 44, more
+    assert page.evaluate(
+        "document.documentElement.scrollWidth <= document.documentElement.clientWidth"
+    )
+    # more results draws the list again: the rows stay where they were, once each
+    more_results = page.locator("#andromeda-more-results")
+    if more_results.is_visible():
+        more_results.click()
+        page.wait_for_function(
+            "() => document.querySelectorAll('#andromeda-results .andromeda-result').length > 10"
+        )
+        order = page.evaluate(
+            "[...document.querySelectorAll('#andromeda-results > *')]"
+            ".map(node => node.dataset.strip || 'result')"
+        )
+        assert order[:5] == ["news", "result", "result", "result", "images"], order
+        assert order.count("news") == 1 and order.count("images") == 1, order
+    # a picture opens large in place, stepping through the strip's own pictures
+    page.locator(".andromeda-strip-image").first.click()
+    page.wait_for_selector(".andromeda-preview .dialog-title", state="visible")
+    assert page.locator(".andromeda-preview .dialog-title").inner_text() == "strip picture 1"
+    page.keyboard.press("ArrowRight")
+    page.wait_for_function(
+        "() => document.querySelector('.andromeda-preview .dialog-title')?.textContent"
+        " === 'strip picture 2'"
+    )
+    page.keyboard.press("Escape")
+    page.wait_for_selector(".andromeda-preview", state="detached")
+    # the heading opens that tab for the same search
+    sent = len(requests)
+    page.locator(".andromeda-strip-news .andromeda-strip-more").click()
+    for _ in range(100):
+        if len(requests) > sent:
+            break
+        page.wait_for_timeout(50)
+    assert requests[-1]["category"] == "news", requests[-1]
+    page.wait_for_selector("#andromeda-news .andromeda-news-card")
+    # a search that asks for neither shows neither
+    page.locator('[data-andromeda-category="all"]').click()
+    page.locator("#andromeda-query").fill("toronto !ai")
+    page.locator("#andromeda-form").press("Enter")
+    page.wait_for_selector("#andromeda-results .andromeda-result")
+    page.wait_for_function("() => !document.querySelector('#andromeda-results > .andromeda-strip')")
 
 
 def mock_api(route: Route, requests: list[dict], overview_requests: list[dict]) -> None:
@@ -767,6 +894,7 @@ def run_case(browser, *, viewport: dict, mobile: bool, theme: str, screenshot: s
     )
     check_knowledge(page, viewport, requests)
     check_period_and_related(page, viewport, requests)
+    check_strips(page, viewport, requests)
     # worse results get their reason: one quiet line under the tabs, gone with the next search
     page.locator("#andromeda-query").fill("refused words !ai")
     page.locator("#andromeda-form").press("Enter")
