@@ -1,4 +1,4 @@
-import { toast } from './util.js';
+import { stateHtml, toast } from './util.js';
 import { confirm as confirmDialog } from './dialog.js';
 import { t, tp } from './i18n.js';
 
@@ -37,7 +37,7 @@ function renderGallery(msg = '', retry = false) {
   if (!grid) return;
 
   if (msg) {
-    grid.innerHTML = `<div class="page-empty" role="status">${esc(msg)}${retry ? ` <button type="button" class="btn" id="gallery-retry">${esc(t('common.retry'))}</button>` : ''}</div>`;
+    grid.innerHTML = retry ? stateHtml('error', msg, { retry: 'id="gallery-retry"' }) : stateHtml('loading', msg);
     document.getElementById('gallery-retry')?.addEventListener('click', () => loadGallery());
     return;
   }

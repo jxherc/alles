@@ -4202,8 +4202,6 @@
     "journal.title": "اليوميات",
     "journal.topics": "المواضيع",
     "journal.topics_empty": "ضع وسومًا على الإدخالات لرؤية مواضيعك",
-    "journal.unavailable_body": "تعذّر على alles التحقق من قفل اليوميات. أعد التحميل عندما يصبح الخادم متاحًا.",
-    "journal.unavailable_title": "اليوميات غير متاحة",
     "journal.unlock": "فتح القفل",
     "journal.unsaved_changes": "تغييرات غير محفوظة",
     "journal.write_first": "اكتب شيئًا أولًا",

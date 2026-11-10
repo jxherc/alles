@@ -4202,8 +4202,6 @@
     "journal.title": "日记",
     "journal.topics": "主题",
     "journal.topics_empty": "给条目加标签就能看到你的主题",
-    "journal.unavailable_body": "alles 无法验证日记锁。服务器可访问时请重新加载。",
-    "journal.unavailable_title": "日记不可用",
     "journal.unlock": "解锁",
     "journal.unsaved_changes": "有未保存的更改",
     "journal.write_first": "请先写点内容",

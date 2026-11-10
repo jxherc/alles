@@ -1,4 +1,4 @@
-import { toast, writeClipboard } from './util.js';
+import { appLabel, stateHtml, toast, writeClipboard } from './util.js';
 import { prompt as dlgPrompt, confirm as dlgConfirm, choose as dlgChoose } from './dialog.js';
 import { initCustomDropdown, populateDropdown, setDropdownValue } from './dropdown.js?v=217';
 import { initDatePicker } from './datepick.js';
@@ -408,6 +408,7 @@ function _loadNotice(part, message) {
   if (!node) return;
   node.hidden = !Object.keys(_loadErrors).length;
   node.querySelector('span').textContent = Object.values(_loadErrors).join(' ');
+  if (!node.hidden) $('photos-grid')?.querySelector(':scope > .specialist-state[data-state="busy"]')?.remove();
 }
 
 async function _loadAlbums(fetcher = fetch) {
@@ -423,6 +424,8 @@ async function _loadAlbums(fetcher = fetch) {
 export async function loadPhotos(fetcher = fetch) {
   _closeActionMenus();
   const generation = ++_listGeneration;
+  const grid = $('photos-grid');
+  if (grid && !grid.children.length) grid.innerHTML = stateHtml('loading', t('shell.state_loading', { label: appLabel('gallery') }));
   await _loadAlbums(fetcher);
   if (generation !== _listGeneration) return;
   _updateHeadTitle();

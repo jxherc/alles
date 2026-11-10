@@ -341,6 +341,27 @@ export function busyText(error) {
   return error?.status === 503 && error?.data?.code === 'database_busy' ? plainError(error.message) : '';
 }
 
+// one load state for a pane (decision 0079): a failed load is the shell's card (message, one retry)
+// laid in the pane it is about, and a load in progress is a small box with the busy edge. a screen
+// draws these and nothing of its own. kind: loading, error, offline or partial (the screen's own
+// word stays on data-kokuen-state). retry is the retry button's attributes ('data-act="retry-load"'),
+// or '' for none
+export function stateHtml(kind, message, { retry = '', id = '', cls = '' } = {}) {
+  const loading = kind === 'loading';
+  const shown = loading ? 'busy' : kind === 'partial' ? 'partial' : 'error';
+  const attrs = `${id ? ` id="${id}"` : ''} class="specialist-state${loading ? ' k-busy' : ''}${cls ? ` ${cls}` : ''}" data-state="${shown}" data-kokuen-state="${kind}" data-inline${loading ? ' data-busy="true"' : ''} role="${loading ? 'status' : 'alert'}"`;
+  const button = retry ? `<button type="button" class="specialist-state-retry" ${retry}>${escapeHtml(t('common.retry'))}</button>` : '';
+  return `<div${attrs}><span>${escapeHtml(message)}</span>${button}</div>`;
+}
+
+export function stateEl(kind, message, { onRetry = null, id = '', cls = '' } = {}) {
+  const host = document.createElement('div');
+  host.innerHTML = stateHtml(kind, message, { retry: onRetry ? 'data-act="state-retry"' : '', id, cls });
+  const el = host.firstElementChild;
+  el.querySelector('[data-act="state-retry"]')?.addEventListener('click', onRetry);
+  return el;
+}
+
 export function plainError(msg) {
   const text = String(msg ?? '').trim();
   if (!text) return t('shell.error_generic');

@@ -79,7 +79,7 @@ test('specialist partial status uses the module detail and retry label without c
     addEventListener(_event, handler) { this.activate = handler; },
   });
   const root = node(); root.dataset.specialistApp = 'vault';
-  root.querySelector = () => root.children[0]; root.prepend = child => root.children.unshift(child);
+  root.querySelector = selector => selector.includes('data-inline') ? null : root.children[0]; root.prepend = child => root.children.unshift(child);
   const context = vm.createContext({ t: i18nT, tp: i18nTp, appLabel, document: { createElement: node } });
   vm.runInContext(app.match(/function _paintSpecialistState\([^]*?\n}/)[0], context);
   let retries = 0;

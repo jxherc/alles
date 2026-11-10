@@ -1,7 +1,7 @@
 // read — a read-later archive. paste a URL, alles fetches + stores the readable text
 // (reusing the research extractor) so it's searchable offline and the link can't rot.
 // list + reader views; mirrors the watch/habits panel conventions.
-import { toast, _safeUrl } from './util.js';
+import { stateHtml, toast, _safeUrl } from './util.js';
 import { confirm as dlgConfirm } from './dialog.js';
 import { initCustomDropdown } from './dropdown.js?v=217';
 import { readingPlace } from './reading_place.js';
@@ -207,9 +207,7 @@ function _loadFailure(failures, successes) {
 function _loadNotice() {
   if (_loadState.state === 'resting') return '';
   const loading = _loadState.state === 'loading';
-  return `<div class="specialist-group-note legacy-load-note" role="${loading ? 'status' : 'alert'}" aria-live="${loading ? 'polite' : 'assertive'}" data-kokuen-state="${_loadState.state}">
-    <span>${esc(_loadState.message)}</span>${loading ? '' : `<button type="button" class="btn" data-act="retry-load">${t('common.retry')}</button>`}
-  </div>`;
+  return stateHtml(_loadState.state, _loadState.message, { cls: 'legacy-load-note', retry: loading ? '' : 'data-act="retry-load"' });
 }
 
 function _feedsPanel() {

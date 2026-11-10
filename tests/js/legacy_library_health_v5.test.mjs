@@ -8,6 +8,7 @@ const read = source('../../static/js/read.js');
 const health = source('../../static/js/health.js');
 const kokuen = source('../../static/js/kokuen.js');
 const css = source('../../static/kokuen.css');
+const util = source('../../static/js/util.js');
 
 test('Library and Health choices use the shared KOKUEN radio model', () => {
   for (const module of [books]) {
@@ -43,8 +44,9 @@ test('v5 preserves a 44px target for dynamically rendered discrete choices', () 
 });
 
 test('legacy screens retain loaded data and expose a persistent retryable KOKUEN load state', () => {
+  assert.match(util, /data-kokuen-state="\$\{kind\}"/);
   for (const module of [books, read, health]) {
-    assert.match(module, /data-kokuen-state="\$\{_loadState\.state\}"/);
+    assert.match(module, /stateHtml\(_loadState\.state, _loadState\.message/);
     assert.match(module, /data-act="retry-load"/);
     assert.match(module, /querySelector\('\[data-act="retry-load"\]'\)\?\.addEventListener\('click'/);
     assert.match(module, /_loadState = \{ state: 'loading'/);

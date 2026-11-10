@@ -4202,8 +4202,6 @@
     "journal.title": "日記",
     "journal.topics": "トピック",
     "journal.topics_empty": "エントリにタグを付けるとトピックが表示されます",
-    "journal.unavailable_body": "alles が日記のロックを確認できませんでした。サーバーに接続できるようになったら再読み込みしてください。",
-    "journal.unavailable_title": "日記を利用できません",
     "journal.unlock": "ロック解除",
     "journal.unsaved_changes": "未保存の変更",
     "journal.write_first": "先に何か書いてください",

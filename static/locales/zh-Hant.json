@@ -4202,8 +4202,6 @@
     "journal.title": "日記",
     "journal.topics": "主題",
     "journal.topics_empty": "為項目加上標籤即可看到你的主題",
-    "journal.unavailable_body": "alles 無法驗證日記鎖定。伺服器可連線時請重新載入。",
-    "journal.unavailable_title": "日記無法使用",
     "journal.unlock": "解鎖",
     "journal.unsaved_changes": "有未儲存的變更",
     "journal.write_first": "請先寫點內容",

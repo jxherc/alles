@@ -4202,8 +4202,6 @@
     "journal.title": "journal",
     "journal.topics": "sujets",
     "journal.topics_empty": "étiquette des entrées pour voir tes sujets",
-    "journal.unavailable_body": "alles n’a pas pu vérifier le verrou du journal. recharge quand le serveur est joignable.",
-    "journal.unavailable_title": "journal indisponible",
     "journal.unlock": "déverrouiller",
     "journal.unsaved_changes": "modifications non enregistrées",
     "journal.write_first": "écris d’abord quelque chose",

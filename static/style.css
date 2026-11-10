@@ -6958,8 +6958,7 @@ button.cal-agenda-ev { width: 100%; margin: 0; border: 0; background: none; font
    only ever programmatic, so no ring */
 .cal-editor .cal-ed-head { margin: 0 0 var(--k-space-1, 4px); }
 .cal-editor .cal-ed-head:focus { outline: none; }
-.cal-save-error, .cal-load-error { color: var(--error); padding-block: 0.5rem; }
-.cal-load-error { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem; }
+.cal-save-error { color: var(--error); padding-block: 0.5rem; }
 .cal-quick-feedback { display: flex; flex-wrap: wrap; align-items: center; gap: var(--k-space-2, 8px); padding: var(--k-space-2, 8px) var(--k-space-3, 12px); overflow-wrap: anywhere; }
 .cal-quick-feedback .btn { min-height: 44px; }
 .cal-chk-row { border: 0; background: transparent; color: var(--text); font: inherit; padding: 0; }

@@ -674,6 +674,42 @@ html:not(#_) .toast:is(.success, .error, .info) {
   text-decoration: none;
 }
 
+/* the shell's line is a one-line chip in the header corner: it never wraps */
+.specialist-state[data-state="loading"] > span { white-space: nowrap; }
+
+/* a pane's own load state (decision 0079): the same card and retry as above, laid at the top of the
+   pane it is about, so a failure shows once. while a pane draws its own loading box the shell's
+   corner words step aside */
+.specialist-state[data-inline] {
+  align-self: stretch;
+  margin: 0 0 var(--k-space-3);
+}
+
+.specialist-state[data-inline]:is([data-state="error"], [data-state="partial"]) .specialist-state-retry {
+  flex: 0 0 auto;
+  min-height: var(--k-control);
+}
+
+/* the photos page has no padding of its own, so its failure sits on the gutter like the toolbar above it */
+#photos-load-status { margin-inline: var(--k-gutter); }
+
+.specialist-state[data-inline][data-state="busy"] {
+  position: relative;
+  box-sizing: border-box;
+  min-height: var(--k-space-6);
+  justify-content: flex-start;
+  gap: 0;
+  padding: var(--k-space-2) var(--k-space-3);
+  border-radius: var(--k-radius-surface);
+  color: var(--k-muted);
+  font-size: 0.875rem;
+  text-align: left;
+}
+
+:has(.specialist-state[data-inline][data-state="busy"]) > .specialist-state[data-state="loading"] > span {
+  visibility: hidden;
+}
+
 
 /* ── icons that answer the pointer ──────────────────────────────────────────── */
 

@@ -828,6 +828,12 @@ function _paintSpecialistState(root, state, retry, details = null) {
     line.replaceChildren();
     return;
   }
+  // a pane that drew its own failure (with its own retry) is the one message: the corner chip would repeat it
+  if (state === 'error' && root.querySelector('.specialist-state[data-inline][data-state="error"]')) {
+    line.hidden = true;
+    line.replaceChildren();
+    return;
+  }
   line.hidden = false;
   const label = appLabel(root.dataset.stateLabel || root.dataset.specialistApp || 'page');
   const partialMessage = typeof details?.partialMessage === 'string' ? details.partialMessage : '';

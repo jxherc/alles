@@ -4202,8 +4202,6 @@
     "journal.title": "journal",
     "journal.topics": "topics",
     "journal.topics_empty": "tag entries to see your topics",
-    "journal.unavailable_body": "alles could not verify the journal lock. reload when the server is reachable.",
-    "journal.unavailable_title": "journal unavailable",
     "journal.unlock": "unlock",
     "journal.unsaved_changes": "unsaved changes",
     "journal.write_first": "write something first",

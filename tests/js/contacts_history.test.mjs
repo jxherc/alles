@@ -26,6 +26,7 @@ function harness() {
       this.opens = [...html.matchAll(/data-open="([^"]+)"/g)].map(([, key]) => Object.assign(node(), { dataset: { open: key } }));
     },
     get innerHTML() { return this.html || ''; },
+    get children() { return this.html ? [this] : []; },
   });
   document.body = node('body');
   document.getElementById = id => nodes.get(id) || null;
@@ -37,6 +38,7 @@ function harness() {
   const response = data => ({ ok: true, json: async () => data });
   const context = vm.createContext({ ...undoGlobals, t, tp,
     document, window: {}, CSS: { escape: String }, URLSearchParams, Promise, toast() {},
+    appLabel: String, stateHtml: (kind, message) => `<div data-state="${kind}">${message}</div>`,
     location: { pathname: '/', search: '?view=contacts', hash: '' },
     pushRouteUrl: url => { pushes.push(url); position++; },
     routeHistoryPosition: () => position,

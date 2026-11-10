@@ -4202,8 +4202,6 @@
     "journal.title": "diario",
     "journal.topics": "temas",
     "journal.topics_empty": "etiqueta entradas para ver tus temas",
-    "journal.unavailable_body": "alles no pudo verificar el bloqueo del diario. recarga cuando el servidor esté accesible.",
-    "journal.unavailable_title": "diario no disponible",
     "journal.unlock": "desbloquear",
     "journal.unsaved_changes": "cambios sin guardar",
     "journal.write_first": "escribe algo primero",

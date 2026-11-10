@@ -1,6 +1,6 @@
 // books — a reading list with shelves (want / reading / done), covers, star ratings,
 // notes, and a keyless OpenLibrary lookup to autofill. mirrors the panel conventions.
-import { toast } from './util.js';
+import { stateHtml, toast } from './util.js';
 import { confirm as dlgConfirm, prompt as dlgPrompt } from './dialog.js';
 import { wireChoiceGroup } from './kokuen.js?v=5';
 import { t, tp } from './i18n.js';
@@ -65,9 +65,7 @@ function _loadFailure(error) {
 function _loadNotice() {
   if (_loadState.state === 'resting') return '';
   const loading = _loadState.state === 'loading';
-  return `<div class="specialist-group-note legacy-load-note" role="${loading ? 'status' : 'alert'}" aria-live="${loading ? 'polite' : 'assertive'}" data-kokuen-state="${_loadState.state}">
-    <span>${esc(_loadState.message)}</span>${loading ? '' : `<button type="button" class="btn" data-act="retry-load">${t('common.retry')}</button>`}
-  </div>`;
+  return stateHtml(_loadState.state, _loadState.message, { cls: 'legacy-load-note', retry: loading ? '' : 'data-act="retry-load"' });
 }
 
 export async function loadBooks(fetcher = _fetcher) {

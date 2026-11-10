@@ -1,4 +1,4 @@
-import { plainError, toast, writeClipboard } from './util.js';
+import { appLabel, plainError, stateEl, toast, writeClipboard } from './util.js';
 import { replaceLinkedRecord } from './recordlinks.js';
 import { initCustomDropdown, populateDropdown, getDropdownValue, getDropdownValues } from './dropdown.js?v=217';
 import { initDatePickers } from './datepick.js';
@@ -330,12 +330,22 @@ function calendarLoadError(message) {
   const host = document.getElementById('calendar-list');
   if (!host) return;
   document.getElementById('cal-load-error')?.remove();
-  const notice = document.createElement('div');
-  notice.id = 'cal-load-error'; notice.className = 'cal-load-error'; notice.setAttribute('role', 'alert');
-  const text = document.createElement('span'); text.textContent = tr('calendar.load_failed', { reason: plainError(message) });
-  const retry = document.createElement('button'); retry.type = 'button'; retry.className = 'btn'; retry.textContent = tr('common.retry');
-  retry.addEventListener('click', retryCalendarView);
-  notice.append(text, retry); host.prepend(notice);
+  clearCalendarLoading();
+  host.prepend(stateEl('error', tr('calendar.load_failed', { reason: plainError(message) }), { id: 'cal-load-error', onRetry: retryCalendarView }));
+}
+
+// a pane is never blank while it loads: the list and the sidebar each show the shared loading box
+// until their content replaces it
+function calendarLoading() {
+  document.getElementById('cal-load-error')?.remove();
+  for (const id of ['calendar-list', 'cal-sidebar']) {
+    const host = document.getElementById(id);
+    if (host && !host.children.length) host.append(stateEl('loading', tr('shell.state_loading', { label: appLabel('calendar') })));
+  }
+}
+
+function clearCalendarLoading() {
+  document.querySelectorAll('#calendar-list > .specialist-state[data-state="busy"], #cal-sidebar > .specialist-state[data-state="busy"]').forEach(el => el.remove());
 }
 
 async function retryCalendarView() {
@@ -358,13 +368,7 @@ function calendarMetadataNotice() {
   document.getElementById('cal-metadata-error')?.remove();
   const layout = document.getElementById('calendar-list')?.parentElement;
   if (!layout || !_calendarMetadataError) return;
-  const notice = document.createElement('div');
-  notice.id = 'cal-metadata-error'; notice.className = 'cal-load-error'; notice.setAttribute('role', 'alert');
-  const text = document.createElement('span');
-  text.textContent = tr('calendar.names_failed', { reason: plainError(_calendarMetadataError) });
-  const retry = document.createElement('button'); retry.type = 'button'; retry.className = 'btn'; retry.textContent = tr('common.retry');
-  retry.addEventListener('click', retryCalendarView);
-  notice.append(text, retry); layout.before(notice);
+  layout.before(stateEl('partial', tr('calendar.names_failed', { reason: plainError(_calendarMetadataError) }), { id: 'cal-metadata-error', onRetry: retryCalendarView }));
 }
 
 const SUNDAY_FIRST_REGIONS = new Set(['AG', 'AS', 'BD', 'BR', 'BS', 'BT', 'BW', 'BZ', 'CA', 'CN', 'CO', 'DM', 'DO', 'ET', 'GT', 'GU', 'HK', 'HN', 'ID', 'IL', 'IN', 'JM', 'JP', 'KE', 'KH', 'KR', 'LA', 'MH', 'MM', 'MO', 'MT', 'MX', 'MZ', 'NI', 'NP', 'PA', 'PE', 'PH', 'PK', 'PR', 'PT', 'PY', 'SA', 'SG', 'SV', 'TH', 'TT', 'TW', 'UM', 'US', 'VE', 'VI', 'WS', 'YE', 'ZA', 'ZW']);
@@ -431,6 +435,7 @@ export async function loadCalendar(fetcher = fetch, canReplaceEditor = () => tru
   _tickWorldClock();
   const sequence = ++_loadSequence;
   const preserveEditor = _preserveEditorOnRetry && Boolean(document.querySelector('.cal-editor'));
+  if (!preserveEditor) calendarLoading();
   try {
   const requiredList = async (url, init) => { const data = await readCalendarResponse(await (init ? fetcher(url, init) : fetcher(url))); if (!Array.isArray(data)) throw new Error(tr('calendar.unreadable_reply')); return data; };
   const [cals, evs, s, tasks, subs, bdays] = await Promise.all([
@@ -470,6 +475,7 @@ export async function loadCalendar(fetcher = fetch, canReplaceEditor = () => tru
   if (preserveEditor || !canReplaceEditor()) refreshCalendarPicker();
   // the agenda draws after a fetch: wait for it, so focus can go back to the row that was open
   else { _editing = null; _readDraft = null; await render(); }
+  clearCalendarLoading();
   calendarMetadataNotice();
   // the connections list links here as /?view=calendar#sync: open the sync panel once
   if (globalThis.location?.hash === '#sync') { history.replaceState(history.state, '', location.pathname + location.search); openCaldavPanel(); }
