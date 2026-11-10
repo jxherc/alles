@@ -357,12 +357,12 @@ test('the page has no engine, model or saved-search block; every setting lives i
   assert.doesNotMatch(source, /andromeda-settings-panel|\/api\/system\/searxng|search_primary|search_provider/);
 });
 
-test('overview strength explains both speed and answer quality', () => {
+test('overview strength has no helper lines under it', () => {
   const html = readFileSync(new URL('../../static/index.html', import.meta.url), 'utf8');
-  assert.match(html, /light[^<]*fastest[^<]*least checking/i);
-  assert.match(html, /standard[^<]*balanced/i);
-  assert.match(html, /strong[^<]*slower[^<]*more checking/i);
-  assert.match(html, /automatic[^<]*query[^<]*available model/i);
+  assert.doesNotMatch(html, /light[^<]*fastest[^<]*least checking/i);
+  assert.doesNotMatch(html, /standard[^<]*balanced/i);
+  assert.doesNotMatch(html, /strong[^<]*slower[^<]*more checking/i);
+  assert.doesNotMatch(html, /automatic[^<]*query[^<]*available model/i);
 });
 
 test('every real specialist app is registered for the shared app shell', () => {
