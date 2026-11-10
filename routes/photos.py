@@ -8,6 +8,7 @@ from fastapi.responses import FileResponse, JSONResponse, Response
 from pydantic import BaseModel
 from sqlalchemy import func
 from sqlalchemy.orm import Session as DbSession
+from starlette.concurrency import run_in_threadpool
 
 from core.database import Album, Face, Person, Photo, TrashItem, get_db
 from routes.vault import DEFAULT_VAULT, _ctx
@@ -884,7 +885,8 @@ async def upload(
     if len(data) > 100 * 1024 * 1024:
         raise HTTPException(400, "file too large (100MB max)")
     try:
-        info = ps.import_media(data, file.filename or "photo.jpg")
+        # decode, thumbnails and hashing: off the event loop
+        info = await run_in_threadpool(ps.import_media, data, file.filename or "photo.jpg")
     except ValueError as e:
         raise HTTPException(400, str(e))
     p = Photo(
