@@ -73,6 +73,15 @@ def run():
             try:
                 page.goto(base + "/?view=wiki", wait_until="networkidle")
                 trigger = page.locator("#docs-import-btn:visible, #docs-empty-import:visible").first
+
+                def open_import():
+                    # with a note open on a phone, import lives in the closed navigation drawer
+                    if not page.locator(
+                        "#docs-import-btn:visible, #docs-empty-import:visible"
+                    ).count():
+                        page.locator("#wiki-tree-toggle").click()
+                    trigger.click()
+
                 trigger.focus()
                 page.keyboard.press("Enter")
                 expect(page.locator("#docs-import-choose")).to_be_focused()
@@ -90,7 +99,7 @@ def run():
                 assert not writes
                 record("preview-cancel-no-write")
 
-                trigger.click()
+                open_import()
                 for name, content, message in [
                     ("bad.txt", b"\xff", "UTF-8"),
                     ("empty.md", b" \r\n", "no readable text"),
@@ -184,95 +193,108 @@ def run():
 
                 page.route(base + "/api/vault-md/safety/draft", hold_draft)
                 page.locator("#wiki-source").fill(source + "edited after import\npending draft\n")
-                trigger.click()
+                open_import()
                 for _ in range(100):
                     if held_draft:
                         break
                     page.wait_for_timeout(20)
                 assert len(held_draft) == 1
-                page.locator("#wiki-source").focus()
+                # on a phone the trigger sits in the drawer, which closes when focus moves to the editor
+                if width > 760:
+                    page.locator("#wiki-source").focus()
                 route, response = held_draft[0]
                 route.fulfill(response=response)
                 page.unroute(base + "/api/vault-md/safety/draft", hold_draft)
                 expect(page.locator("#docs-import-panel")).to_be_visible()
-                expect(page.locator("#wiki-source")).to_be_focused()
+                if width > 760:
+                    expect(page.locator("#wiki-source")).to_be_focused()
                 page.locator("#docs-import-close").click()
                 page.locator("#wiki-save-btn").click()
                 expect(page.locator("#wiki-save-state")).to_contain_text("saved", ignore_case=True)
                 record("opening-import-preserves-focus-after-draft-flush")
-                trigger.click()
+                open_import()
                 expect(page.locator("#docs-import-panel")).to_be_visible()
-                held_draft.clear()
-                page.route(base + "/api/vault-md/safety/draft", hold_draft)
-                page.locator("#wiki-source").fill(
-                    source + "edited after import\ncancelled import draft\n"
-                )
-                trigger.click()
-                for _ in range(100):
-                    if held_draft:
-                        break
-                    page.wait_for_timeout(20)
-                assert len(held_draft) == 1
-                page.locator("#docs-import-close").click()
-                route, response = held_draft[0]
-                route.fulfill(response=response)
-                page.unroute(base + "/api/vault-md/safety/draft", hold_draft)
-                expect(page.locator("#wiki-save-state")).to_have_text(
-                    re.compile(r"^(draft kept locally|local draft · not saved)$")
-                )
-                # Let the draft's awaiting import handler finish before checking cancellation.
-                page.evaluate(
-                    "() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)))"
-                )
-                expect(page.locator("#docs-import-panel")).to_be_hidden()
-                page.locator("#wiki-save-btn").click()
-                expect(page.locator("#wiki-save-state")).to_contain_text("saved", ignore_case=True)
-                record("cancel-invalidates-pending-import-entry")
+                # on a phone the open drawer covers cancel while the draft flushes
+                if width > 760:
+                    held_draft.clear()
+                    page.route(base + "/api/vault-md/safety/draft", hold_draft)
+                    page.locator("#wiki-source").fill(
+                        source + "edited after import\ncancelled import draft\n"
+                    )
+                    open_import()
+                    for _ in range(100):
+                        if held_draft:
+                            break
+                        page.wait_for_timeout(20)
+                    assert len(held_draft) == 1
+                    page.locator("#docs-import-close").click()
+                    route, response = held_draft[0]
+                    route.fulfill(response=response)
+                    page.unroute(base + "/api/vault-md/safety/draft", hold_draft)
+                    expect(page.locator("#wiki-save-state")).to_have_text(
+                        re.compile(r"^(draft kept locally|local draft · not saved)$")
+                    )
+                    # Let the draft's awaiting import handler finish before checking cancellation.
+                    page.evaluate(
+                        "() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)))"
+                    )
+                    expect(page.locator("#docs-import-panel")).to_be_hidden()
+                    page.locator("#wiki-save-btn").click()
+                    expect(page.locator("#wiki-save-state")).to_contain_text(
+                        "saved", ignore_case=True
+                    )
+                    record("cancel-invalidates-pending-import-entry")
 
-                trigger.click()
+                open_import()
                 choose(f"consumed-{width}.md", b"completed preview fixture")
                 expect(page.locator("#docs-import-save")).to_be_enabled()
-                held_draft.clear()
-                page.route(base + "/api/vault-md/safety/draft", hold_draft)
-                page.locator("#wiki-source").fill(
-                    source + "edited after import\npending while import completes\n"
-                )
-                trigger.click()
-                for _ in range(100):
-                    if held_draft:
-                        break
-                    page.wait_for_timeout(20)
-                assert len(held_draft) == 1
-                page.locator("#docs-import-save").click()
-                expect(page.locator("#docs-import-panel")).to_be_hidden()
-                route, response = held_draft[0]
-                route.fulfill(response=response)
-                page.unroute(base + "/api/vault-md/safety/draft", hold_draft)
-                page.evaluate(
-                    "() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)))"
-                )
-                stayed_closed = page.locator("#docs-import-panel").is_hidden()
-                trigger.click()
-                expect(page.locator("#docs-import-panel")).to_be_visible()
-                state = {
-                    "stayed_closed": stayed_closed,
-                    "text": page.locator("#docs-import-preview").text_content(),
-                    "name": page.locator("#docs-import-name").input_value(),
-                    "status": page.locator("#docs-import-status").text_content(),
-                }
-                assert state == {
-                    "stayed_closed": True,
-                    "text": "",
-                    "name": "",
-                    "status": "nothing is saved until you choose import",
-                }, state
-                page.locator("#docs-import-close").click()
-                page.locator("#wiki-save-btn").click()
-                expect(page.locator("#wiki-save-state")).to_contain_text("saved", ignore_case=True)
-                record("completed-save-clears-preview-and-invalidates-entry")
+                # a pending draft flush while the phone drawer is open can not be raced from the panel
+                if width > 760:
+                    held_draft.clear()
+                    page.route(base + "/api/vault-md/safety/draft", hold_draft)
+                    page.locator("#wiki-source").fill(
+                        source + "edited after import\npending while import completes\n"
+                    )
+                    open_import()
+                    for _ in range(100):
+                        if held_draft:
+                            break
+                        page.wait_for_timeout(20)
+                    assert len(held_draft) == 1
+                    page.locator("#docs-import-save").click()
+                    expect(page.locator("#docs-import-panel")).to_be_hidden()
+                    route, response = held_draft[0]
+                    route.fulfill(response=response)
+                    page.unroute(base + "/api/vault-md/safety/draft", hold_draft)
+                    page.evaluate(
+                        "() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)))"
+                    )
+                    stayed_closed = page.locator("#docs-import-panel").is_hidden()
+                    open_import()
+                    expect(page.locator("#docs-import-panel")).to_be_visible()
+                    state = {
+                        "stayed_closed": stayed_closed,
+                        "text": page.locator("#docs-import-preview").text_content(),
+                        "name": page.locator("#docs-import-name").input_value(),
+                        "status": page.locator("#docs-import-status").text_content(),
+                    }
+                    assert state == {
+                        "stayed_closed": True,
+                        "text": "",
+                        "name": "",
+                        "status": "nothing is saved until you choose import",
+                    }, state
+                    page.locator("#docs-import-close").click()
+                    page.locator("#wiki-save-btn").click()
+                    expect(page.locator("#wiki-save-state")).to_contain_text(
+                        "saved", ignore_case=True
+                    )
+                    record("completed-save-clears-preview-and-invalidates-entry")
+                else:
+                    page.locator("#docs-import-close").click()
 
                 page.locator("#wiki-done-btn").click()
-                trigger.click()
+                open_import()
                 choose(f"pending-{width}.md", b"    same content\n\n")
                 expect(page.locator("#docs-import-save")).to_be_enabled()
                 page.locator("#docs-import-name").fill(f"pending-a-{width}.md")
@@ -291,7 +313,7 @@ def run():
                 expect(page.locator("#docs-import-name")).to_have_value(f"pending-b-{width}.md")
                 page.locator("#docs-import-close").click()
                 record("pending-save-does-not-discard-new-destination")
-                trigger.click()
+                open_import()
                 choose(f"recovery-focus-{width}.md", b"local recovery focus fixture")
                 expect(page.locator("#docs-import-save")).to_be_enabled()
                 page.route(base + "/api/vault-md/file", lose)
@@ -322,7 +344,7 @@ def run():
                 expect(page.locator("#docs-import-recovery .note-saved-open")).to_be_focused()
                 record("direct-save-retry-transfers-recovery-focus")
 
-                trigger.click()
+                open_import()
                 exact = "    ordinary capture differs  \r\n\r\n"
                 requested = f"normalized-{width}.md"
                 page.route(base + "/api/vault-md/file", lose)
@@ -360,7 +382,7 @@ def run():
                 )
                 record("ordinary-recovery-retains-different-exact-payload")
 
-                trigger.click()
+                open_import()
                 choose(
                     f"html-{width}.html",
                     b"<html><head><title>metadata</title><p>Report</p><script>hidden()</script></html>",
@@ -380,7 +402,7 @@ def run():
                 )
                 record("implicit-head-html-save-and-open")
 
-                trigger.click()
+                open_import()
                 doc = Document()
                 doc.add_paragraph("before table")
                 table = doc.add_table(rows=1, cols=1)
@@ -425,7 +447,7 @@ def run():
                 expect(page.locator("#wiki-path")).to_have_text(path)
                 record("trash-restore-imported-document")
 
-                trigger.click()
+                open_import()
                 choose(f"focus-{width}.txt", b"focus stays where the owner moved it")
                 expect(page.locator("#docs-import-save")).to_be_enabled()
                 held = []
@@ -443,14 +465,15 @@ def run():
                         break
                     page.wait_for_timeout(20)
                 assert len(held) == 1
-                trigger.focus()
+                moved = page.locator("#wiki-tree-toggle") if width <= 760 else trigger
+                moved.focus()
                 route, response = held[0]
                 route.fulfill(response=response)
                 expect(page.locator("#docs-import-panel")).to_be_hidden()
-                expect(trigger).to_be_focused()
+                expect(moved).to_be_focused()
                 page.unroute(base + "/api/vault-md/file", hold_save)
                 record("late-save-preserves-moved-focus")
-                trigger.click()
+                open_import()
                 choose(f"focused-preview-{width}.txt", b"preview keeps keyboard ownership")
                 expect(page.locator("#docs-import-save")).to_be_enabled()
                 held.clear()
