@@ -19,7 +19,7 @@ import { closeWithSlide } from './motion.js';
 import { loadTasks, addTask, prepareTaskNavigation, resetTaskFilters } from './tasks.js';
 import { loadCalendar, newEvent } from './calendar.js';
 import { loadGallery, initGalleryUpload } from './gallery.js';
-import { initSlash, tryExecuteSlashCommand } from './slash.js?v=402';
+import { initSlash, tryExecuteSlashCommand } from './slash.js?v=403';
 import { attachFile, discardAttachments, initDropZone } from './uploads.js?v=254';
 import { loadProjects } from './projects.js';
 import { openSearch, closeSearch, initSearch } from './search.js';
@@ -28,7 +28,7 @@ import { initCompareView, loadCompareModels, loadCompareLeaderboard } from './co
 import { loadVaultView, initVault } from './vault.js?v=294';
 import { loadContacts, addContact } from './contacts.js';
 import { initLiveFormat } from './liveformat.js';
-import { loadFiles, initFiles, closeFilesDialogs } from './filesphase7.js?v=492';
+import { loadFiles, initFiles, closeFilesDialogs } from './filesphase7.js?v=493';
 import { loadMail, startMailPoll, prepareMailNavigation } from './mail.js';
 import { initAppCogs } from './appsettings.js';
 import { loadPhotos, initPhotos, closeLightbox } from './photos.js';
@@ -37,10 +37,10 @@ import { buildCompatibilityUrl, resolveCompatibilityRoute } from './routecompat.
 import { acceptRoutePosition, pushRouteUrl, replaceRouteUrl, restoreDeniedRoute, routeHistoryPosition, targetRoutePosition, visibleRouteUrl } from './route_history.js';
 import { readRecordTarget, recordTarget, revealRecord, withRecordTarget } from './recordlinks.js';
 import { closeAideRun } from './aiderun.js';
-import { GROUP_DEFINITIONS, groupIdentifierFor, groupRouteFor, initSpecialistGroup, normalizeGroupSection, releaseSpecialistLegacyView } from './specialist_groups.js?v=19';
+import { GROUP_DEFINITIONS, groupIdentifierFor, groupRouteFor, initSpecialistGroup, normalizeGroupSection, releaseSpecialistLegacyView } from './specialist_groups.js?v=20';
 import { addSsoAuthCode, buildApexBrokerUrl, normalizeSsoTarget, stripTransientParams } from './sso-state.js';
 import { loadBrainPanel } from './brain.js?v=242';
-import { openSettings, openSettingsAt, closeSettings, applyVis } from './settings.js?v=301';
+import { openSettings, openSettingsAt, closeSettings, applyVis } from './settings.js?v=302';
 import {
   setIncognitoMode,
   isIncognitoMode,
@@ -63,7 +63,7 @@ import { wireAutosizeTextarea } from './text_entry.js?v=1';
 import { initAideWorkspace } from './aideworkspace.js?v=283';
 import { initAideCentral } from './aidecentral.js?v=4';
 import { beginBusy, createFocusBoundary, createMenuController, initKokuenPrimitives, setControlState } from './kokuen.js?v=5';
-import { validatedProjectId, withProjectContext } from './andromeda.js?v=264';
+import { validatedProjectId, withProjectContext } from './andromeda.js?v=265';
 import { initAppRail, syncAppRail } from './app_rail.js';
 import { loadShortcuts, matchesShortcut, matchesSettingsShortcut } from './shortcuts.js';
 import { initAskPanel, syncAskPanel } from './ask_panel.js';
@@ -955,7 +955,7 @@ window._openSearchResult = async (type, value, messageId = '') => {
   }
   if (!(await navigateTo(type === 'note' ? 'wiki' : 'chat', { preserveSession: true }))) return false;
   if (type === 'chat') return selectSession(value, messageId);
-  const { openNote } = await import('./docs.js?v=264');
+  const { openNote } = await import('./docs.js?v=265');
   return openNote(value);
 };
 
@@ -1086,7 +1086,7 @@ window._askInChat = async (
         if (newChat({ projectId: scopedProjectId }) === false) return false;
       }
       _replaceHistoryUrl(withProjectContext(location.href, scopedProjectId));
-      const module = await import('./andromeda.js?v=264');
+      const module = await import('./andromeda.js?v=265');
       await module.runAndromedaSearch(q, { documentScope });
       return true;
     }
@@ -1161,7 +1161,7 @@ const showCompareView  = () => showView('compare-view',  'compare',  () => { ini
 const showWikiView     = (section = 'docs') => showView(
   'wiki-view',
   section === 'journal' ? 'journal' : 'wiki',
-  (track, request) => trackedImport(track, request, () => import('./docs.js?v=264'), module => module.initDocs(section, request)),
+  (track, request) => trackedImport(track, request, () => import('./docs.js?v=265'), module => module.initDocs(section, request)),
   section === 'journal' ? 'docs-journal-section' : '',
 );
 const showVaultView      = () => showView('vault-view',      'vault',     (_track, request) => loadVaultView(request));
@@ -1189,11 +1189,11 @@ const showMailView       = () => showView('mail-view',      'mail',      (_track
 const showPhotosView     = () => showView('photos-view',    'photos',    (_track, request) => { initPhotos(); return loadPhotos(request); });
 const showTodayView      = () => {
   _setAfterlifeSpace('today');
-  const result = showView('today-view', 'today', (track, request) => trackedImport(track, request, () => import('./today.js?v=313'), module => module.initToday({ navigate: navigateTo, apps: HOME_PINNABLE_APPS, askAide: prepareHomeDayDraft, legacyShortcuts: readLegacyHomeShortcuts, openRecord: openHomeRecord })));
+  const result = showView('today-view', 'today', (track, request) => trackedImport(track, request, () => import('./today.js?v=314'), module => module.initToday({ navigate: navigateTo, apps: HOME_PINNABLE_APPS, askAide: prepareHomeDayDraft, legacyShortcuts: readLegacyHomeShortcuts, openRecord: openHomeRecord })));
   _renderFirstRun();
   return result;
 };
-const showAndromedaView  = () => { _setAfterlifeSpace('andromeda'); return showView('andromeda-view', 'andromeda', (track, request) => trackedImport(track, request, () => import('./andromeda.js?v=264'), module => module.initAndromeda())); };
+const showAndromedaView  = () => { _setAfterlifeSpace('andromeda'); return showView('andromeda-view', 'andromeda', (track, request) => trackedImport(track, request, () => import('./andromeda.js?v=265'), module => module.initAndromeda())); };
 const showAideScheduledView = () => showView('aide-scheduled-view', 'scheduled', (track, request) => trackedImport(
   track,
   request,
@@ -1214,7 +1214,7 @@ async function _loadSpecialistLegacy(group, section, request) {
   if (section === 'habits') return import('./habits.js').then(module => module.initHabits(request));
   if (section === 'money') return import('./money.js').then(module => module.initMoneyPanel(request));
   if (section === 'subs') return import('./subs.js').then(module => module.initSubsPanel(request));
-  if (group === 'docs') return import('./docs.js?v=264').then(module => module.initDocs(section === 'journal' ? 'journal' : 'docs', request));
+  if (group === 'docs') return import('./docs.js?v=265').then(module => module.initDocs(section === 'journal' ? 'journal' : 'docs', request));
   if (group === 'files' && section === 'files') return Promise.all([initFiles(request), loadFiles(undefined, request)]);
   if (group === 'files' && section === 'gallery') { initPhotos(); return loadPhotos(request); }
   if (group === 'vault') return loadVaultView(request);
