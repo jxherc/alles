@@ -2905,9 +2905,8 @@ mark.wiki-cmark { background: rgba(129, 140, 248, 0.28); color: inherit; border-
 :where(#today-view) .today-shortcuts { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 0.4rem; }
 :where(#today-view) .today-shortcut { min-width: 0; border: 1px solid var(--faint); border-radius: var(--k-radius-control); background: transparent; color: var(--text); font: inherit; text-align: left; padding: 0.65rem; cursor: pointer; }
 :where(#today-view) .today-shortcut:hover { border-color: var(--muted); background: var(--panel); }
-:where(#today-view) .today-shortcut b, :where(#today-view) .today-shortcut small { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+:where(#today-view) .today-shortcut b { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 :where(#today-view) .today-shortcut b { font-size: 0.8125rem; font-weight: 500; }
-:where(#today-view) .today-shortcut small { color: var(--muted); font-size: 0.8125rem; margin-top: 0.1rem; }
 :where(#today-view) .today-sections.compact { gap: 0.9rem; }
 :where(#today-view) .today-sections.compact .today-row { padding-block: 0.42rem; }
 :where(#today-view) .today-customize-panel { position: fixed; inset: 0; z-index: 2200; background: rgba(0,0,0,0.55); display: flex; align-items: center; justify-content: center; padding: 1rem; }
@@ -2979,7 +2978,7 @@ body[data-space="today"] .today-view { min-height: var(--k-shell-height, 100dvh)
 :where(#today-view) .today-summary-tasks {
   min-width: var(--ui-control-height, 44px); min-height: var(--ui-control-height, 44px);
   padding: 0; border: 0; background: none; color: var(--text); font: inherit;
-  text-align: start; text-decoration: underline; text-underline-offset: 3px; cursor: pointer;
+  text-align: start; cursor: pointer;
 }
 :where(#today-view) .today-summary { max-width: 560px; margin-top: 20px; color: var(--muted); font-size: 1rem; line-height: 1.65; }
 :where(#today-view) .today-ask {
@@ -3040,7 +3039,7 @@ body[data-space="today"] .today-view { min-height: var(--k-shell-height, 100dvh)
 :where(#today-view) .today-now span { color: var(--signal); font-size: 0.8125rem; font-weight: 560; }
 :where(#today-view) .today-now::after { content: ''; height: 1px; background: color-mix(in srgb, var(--signal) 55%, transparent); }
 :where(#today-view) .today-earlier { display: grid; gap: 10px; margin-top: 16px; opacity: 0.55; }
-:where(#today-view) .today-earlier h3 { margin: 0; color: var(--muted); font-size: 0.8125rem; font-weight: 560; }
+:where(#today-view) :is(.today-earlier h3, .today-group) { margin: 0; color: var(--muted); font-size: 0.8125rem; font-weight: 560; }
 @media (max-width: 560px) {
   :where(#today-view) .today-schedule .today-row:not(.today-task-open), :where(#today-view) .today-task, :where(#today-view) .today-now { grid-template-columns: 3.5rem minmax(0, 1fr); gap: 12px; }
   :where(#today-view) .today-task { grid-template-columns: 3.5rem minmax(0, 1fr) auto; }

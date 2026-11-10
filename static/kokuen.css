@@ -2963,12 +2963,9 @@ html[data-kokuen-version="5"] .act-chip.off {
   color: var(--k-text);
 }
 
-#today-view .today-summary-tasks:hover {
-  text-decoration-thickness: 2px;
-}
-
 /* names and crumbs sit flush with their column, so they answer with text, not a tile */
 .skl-card-name:hover,
+#today-view .today-summary-tasks:hover,
 body[data-app="files"] #files-view button.crumb:hover {
   text-decoration: underline;
   text-underline-offset: 3px;
