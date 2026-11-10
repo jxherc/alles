@@ -181,33 +181,6 @@
   },
   {
     "rule": "nested-boundary",
-    "message": "descendant draws a boundary in #settings-modal[data-kokuen-surface=\"settings\"] .locale-settings-preview; check for nested bezels",
-    "css_block_sha256": "656de8be42cae1127716580117561869b58fd81d4183047c72cbdaf8e7a46251",
-    "path": "static/kokuen.css",
-    "selector": "#settings-modal[data-kokuen-surface=\"settings\"] .locale-settings-preview",
-    "job": "distinct-region",
-    "reason": "format preview grouped region. whole locale preview and containment"
-  },
-  {
-    "rule": "nested-boundary",
-    "message": "descendant draws a boundary in #settings-modal[data-kokuen-surface=\"settings\"] .locale-preview-surface; check for nested bezels",
-    "css_block_sha256": "a157c1b198faeae1e1cb2a5a0fb7b68bab8fad7505a632387c55d995a0208fd5",
-    "path": "static/kokuen.css",
-    "selector": "#settings-modal[data-kokuen-surface=\"settings\"] .locale-preview-surface",
-    "job": "sample-region",
-    "reason": "sample surface region within format preview. each preview sample surface"
-  },
-  {
-    "rule": "nested-boundary",
-    "message": "descendant draws a boundary in #settings-modal[data-kokuen-surface=\"settings\"] .locale-preview-surface div; check for nested bezels",
-    "css_block_sha256": "179807c159105bd899844d8f8ac507d570f36d1e6d3adc65c0fcd9c8a8da291e",
-    "path": "static/kokuen.css",
-    "selector": "#settings-modal[data-kokuen-surface=\"settings\"] .locale-preview-surface div",
-    "job": "sample-row-seams",
-    "reason": "sample formatted amount or number value. localized sample div, including longer formatted value"
-  },
-  {
-    "rule": "nested-boundary",
     "message": "descendant draws a boundary in #settings-modal[data-kokuen-surface=\"settings\"] .credits-row; check for nested bezels",
     "css_block_sha256": "f7ed9e3ea0f095ee7754dac546b1866e788d1af49c821950df589efd3de3cac1",
     "path": "static/kokuen.css",
@@ -244,30 +217,12 @@
   },
   {
     "rule": "nested-boundary",
-    "message": "descendant draws a boundary in #settings-modal[data-kokuen-surface=\"settings\"] .home-settings-preview; check for nested bezels",
-    "css_block_sha256": "49ba992848de8d716a78d526a51cf3880a89f6950ac01630dc7fd875485cf174",
-    "path": "static/kokuen.css",
-    "selector": "#settings-modal[data-kokuen-surface=\"settings\"] .home-settings-preview",
-    "job": "distinct-region",
-    "reason": "Home configuration preview region. Home preview region and clipping"
-  },
-  {
-    "rule": "nested-boundary",
     "message": "descendant draws a boundary in #settings-modal[data-kokuen-surface=\"settings\"] .home-settings-save; check for nested bezels",
     "css_block_sha256": "2f11d4ea354786c533233a58eaeb8c7ad09aa3635dad3221ffceff9945647857",
     "path": "static/kokuen.css",
     "selector": "#settings-modal[data-kokuen-surface=\"settings\"] .home-settings-save",
     "job": "distinct-region",
     "reason": "Home save/status footer region. save footer and its separation"
-  },
-  {
-    "rule": "nested-boundary",
-    "message": "descendant draws a boundary in #settings-modal[data-kokuen-surface=\"settings\"] .home-settings-density button; check for nested bezels",
-    "css_block_sha256": "aeca34a5c88aa6da0da000724cb294e7978e01030fc7e541110b41830298fdb9",
-    "path": "static/kokuen.css",
-    "selector": "#settings-modal[data-kokuen-surface=\"settings\"] .home-settings-density button",
-    "job": "control-row-seam",
-    "reason": "Home density option label. every density label with target/focus"
   },
   {
     "rule": "nested-boundary",
@@ -601,15 +556,6 @@
     "selector": "#today-view[data-kokuen-surface=\"home\"] .today-capture textarea:focus-visible",
     "job": "single wrapper-owned focus",
     "reason": "The Home capture form owns the visible field edge and focused underline; forced colors use a two-pixel Highlight outline on that form. The inner textarea must not add another outline."
-  },
-  {
-    "rule": "nested-boundary",
-    "message": "descendant draws a boundary in #settings-modal[data-kokuen-surface=\"settings\"] .home-settings-density button; check for nested bezels",
-    "css_block_sha256": "ba07319624973418f1969023a12b0d2cf729b494cab846fddfa242d306163caf",
-    "path": "static/kokuen.css",
-    "selector": "#settings-modal[data-kokuen-surface=\"settings\"] .home-settings-density button",
-    "job": "peer choice separator",
-    "reason": "A single right-hand divider separates density choices; the group has no enclosing border. Shared keyboard focus remains visible on the selected control."
   },
   {
     "rule": "nested-boundary",

@@ -1,4 +1,4 @@
-// Settings → search: custom engines. Which engine answers, and its key, live in the andromeda section.
+// Settings → andromeda → custom engines. Which engine answers, and its key, live in the same section.
 // The list comes from /api/search/engines, so a new engine needs no change here.
 import { _esc } from './shared.js';
 import { toast, plainError } from '../util.js';
@@ -6,6 +6,7 @@ import { t } from '../i18n.js';
 import { confirm as _dlgConfirm } from '../dialog.js';
 import { wireChoiceGroup } from '../kokuen.js?v=5';
 
+export const SEARCH_ENGINES_EVENT = 'alles:search-engines';
 let _engines = [];
 let _editing = null; // custom engine id being edited, '' for a new one
 
@@ -100,6 +101,7 @@ async function saveCustom(event) {
       method: _editing ? 'PUT' : 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body),
     });
     await loadSearchEngines();
+    window.dispatchEvent(new CustomEvent(SEARCH_ENGINES_EVENT));
     toast(t('settings.search_engine_saved', { name: saved.label }), 'success');
     closeForm();
   } catch (error) {
@@ -116,6 +118,7 @@ async function removeCustom(id) {
   try {
     await _json(`/api/search/custom/${encodeURIComponent(id)}`, { method: 'DELETE' });
     await loadSearchEngines();
+    window.dispatchEvent(new CustomEvent(SEARCH_ENGINES_EVENT));
     toast(t('settings.search_engine_removed', { name: engine.label }), 'success');
   } catch (error) {
     toast(error.message || t('settings.search_engine_remove_failed'), 'error');

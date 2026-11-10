@@ -218,7 +218,7 @@ CHOICE_EXCEPTIONS = {
     "js/vault.js:data-value": "3 field widths",
     # the renderer picks by length: 4 or more options draw the dropdown, so these hold 3 or fewer
     "js/appsettings.js:seg-opt": "app setting choices with 3 options or fewer",
-    "js/theme.js:te-seg-opt": "font, density and harmony mode: 3 options or fewer",
+    "js/theme.js:te-seg-opt": "font and density: 3 options or fewer",
 }
 # known walls still waiting for the dropdown: none left
 CHOICE_TO_CONVERT = {}

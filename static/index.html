@@ -111,7 +111,6 @@
 <link rel="modulepreload" href="/static/js/settings/backups.js">
 <link rel="modulepreload" href="/static/js/settings/providers.js">
 <link rel="modulepreload" href="/static/js/settings/andromeda.js">
-<link rel="modulepreload" href="/static/js/settings/search_engines.js">
 <link rel="modulepreload" href="/static/js/settings/connections.js">
 <link rel="modulepreload" href="/static/js/settings/organization.js">
 <link rel="modulepreload" href="/static/js/memory.js">
@@ -123,6 +122,7 @@
 <link rel="modulepreload" href="/static/js/connection_catalog.js">
 <link rel="modulepreload" href="/static/js/settings/pane.js">
 <link rel="modulepreload" href="/static/js/settings/model_roles.js">
+<link rel="modulepreload" href="/static/js/settings/search_engines.js">
 <link rel="modulepreload" href="/static/js/mcp-config.js">
 <link rel="modulepreload" href="/static/js/dependencies.js">
 <link rel="modulepreload" href="/static/js/settings/ledger.js">
@@ -1703,7 +1703,6 @@
         <button class="s-nav-item" type="button" data-pane="memory" data-i18n="settings.memory_instructions">memory & instructions</button>
         <button class="s-nav-item" type="button" data-pane="personas" data-i18n="common.personas">personas</button>
         <button class="s-nav-item" type="button" data-pane="voice" data-i18n="common.voice">voice</button>
-        <button class="s-nav-item" type="button" data-pane="search" data-i18n="common.search">search</button>
         <button class="s-nav-item" type="button" data-pane="recall" data-i18n="settings.personal_search">search personal records</button>
         <button class="s-nav-item" type="button" data-pane="proactive" data-i18n="common.background_checks">background checks</button>
         <button class="s-nav-item" type="button" data-pane="intelligence" data-i18n="settings.patterns">patterns & suggestions</button>
@@ -1765,9 +1764,9 @@
 
               <section class="home-settings-section" aria-labelledby="home-settings-density-title">
                 <h3 id="home-settings-density-title" data-i18n="shell.settings_home.density">density</h3>
-                <div class="home-settings-density" role="radiogroup" aria-labelledby="home-settings-density-title">
-                  <button type="button" role="radio" aria-checked="true" tabindex="0" data-home-density="comfortable"><span data-i18n="shell.settings_home.comfortable">comfortable</span></button>
-                  <button type="button" role="radio" aria-checked="false" tabindex="-1" data-home-density="compact"><span data-i18n="shell.settings_home.compact">compact</span></button>
+                <div class="k-pill-switch" data-kokuen-choice="switch" role="radiogroup" aria-labelledby="home-settings-density-title">
+                  <button type="button" role="radio" aria-checked="true" tabindex="0" data-home-density="comfortable" data-value="comfortable" data-i18n="shell.settings_home.comfortable">comfortable</button>
+                  <button type="button" role="radio" aria-checked="false" tabindex="-1" data-home-density="compact" data-value="compact" data-i18n="shell.settings_home.compact">compact</button>
                 </div>
               </section>
 
@@ -1786,17 +1785,6 @@
                 </div>
               </section>
             </div>
-
-            <details class="home-settings-preview">
-              <summary><span id="home-settings-preview-title" data-i18n="shell.settings_home.home_outline">home outline</span><span id="home-settings-preview-count">5 sections</span></summary>
-              <div id="home-settings-preview-list">
-                <div data-home-preview="needs_you"><strong data-i18n="shell.settings_home.needs_you">needs you</strong></div>
-                <div data-home-preview="today"><strong data-i18n="shell.settings_home.schedule">schedule</strong></div>
-                <div data-home-preview="in_progress"><strong data-i18n="shell.settings_home.in_progress">in progress</strong></div>
-                <div data-home-preview="briefs"><strong data-i18n="shell.settings_home.briefs">briefs</strong></div>
-                <div data-home-preview="shortcuts"><strong data-i18n="shell.settings_home.pinned_apps">pinned apps</strong><small id="home-settings-preview-shortcuts" data-i18n="shell.settings_home.plan_docs_files">plan · docs · files</small></div>
-              </div>
-            </details>
           </div>
 
           <footer class="home-settings-save">
@@ -1927,10 +1915,6 @@
         <!-- ── ai defaults pane ── -->
         <div class="s-pane" id="s-pane-ai">
           <div class="s-card">
-            <div class="s-card-head">
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M12 1v4M12 19v4M4.22 4.22l2.83 2.83"/></svg>
-              <span data-i18n="settings.chat_context">chat display & context</span>
-            </div>
             <div class="s-card-body">
               <div class="s-field">
                 <label for="settings-context-limit" data-i18n="shell.settings_ai.context_window_messages">context window (messages)</label>
@@ -1940,7 +1924,6 @@
           </div>
           <div class="s-card">
             <div class="s-card-head">
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
               <span data-i18n="shell.settings_ai.features">features</span>
             </div>
             <div class="s-card-body" style="padding-top:0.2rem;padding-bottom:0.2rem">
@@ -1980,7 +1963,6 @@
           </div>
           <div class="s-card" role="region" aria-labelledby="s-memory-head">
             <div class="s-card-head">
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5v14a9 3 0 0 0 18 0V5"/><path d="M3 12a9 3 0 0 0 18 0"/></svg>
               <span id="s-memory-head" data-i18n="common.memory">memory</span>
               <button type="button" class="btn" id="mem-extract-btn" style="margin-left:auto" data-i18n="shell.settings_memory.extract_from_chat">extract from chat</button>
             </div>
@@ -2019,45 +2001,6 @@
         </div>
 
         <!-- ── search pane ── -->
-        <div class="s-pane" id="s-pane-search">
-          <div class="s-card" role="region" aria-labelledby="s-custom-search-head">
-            <div class="s-card-head" id="s-custom-search-head" data-i18n="shell.settings_search.custom_engines">custom engines</div>
-            <div class="s-card-body">
-              <div class="s-card-hint">any search api that answers with JSON. put {query} where the search words go, and {count} for the number of results.</div>
-              <div class="settings-list" id="s-custom-search-list"></div>
-              <button type="button" class="btn" id="s-custom-search-add" data-i18n="shell.settings_search.add_custom_engine">add custom engine</button>
-              <form class="s-custom-search-form" id="s-custom-search-form" hidden novalidate>
-                <div class="s-field"><label for="s-cse-name" data-i18n="common.name">name</label><input type="text" class="settings-input" id="s-cse-name" maxlength="40" autocomplete="off"></div>
-                <div class="s-field"><label for="s-cse-url" data-i18n="shell.settings_search.address">address</label><input type="url" class="settings-input" id="s-cse-url" maxlength="500" autocomplete="off" spellcheck="false" aria-describedby="s-cse-url-hint"><div class="s-card-hint" id="s-cse-url-hint" data-i18n="shell.settings_search.https_or_http_for_this_machine">https://, or http:// for this machine</div></div>
-                <div class="s-field">
-                  <span class="s-field-label" id="s-cse-method-label" data-i18n="shell.settings_search.method">method</span>
-                  <div class="s-ep-type" id="s-cse-method" role="radiogroup" aria-labelledby="s-cse-method-label">
-                    <button type="button" role="radio" aria-checked="true" data-value="GET">GET</button>
-                    <button type="button" role="radio" aria-checked="false" data-value="POST">POST</button>
-                  </div>
-                </div>
-                <div class="s-field" id="s-cse-body-row" hidden><label for="s-cse-body" data-i18n="shell.settings_search.json_body">JSON body</label><textarea class="settings-input" id="s-cse-body" rows="3" maxlength="2000" spellcheck="false"></textarea></div>
-                <div class="s-field"><label for="s-cse-key" data-i18n="shell.settings_search.api_key_optional">api key, optional</label><input type="password" class="settings-input" id="s-cse-key" maxlength="500" autocomplete="new-password"></div>
-                <div class="s-cse-pair">
-                  <div class="s-field"><label for="s-cse-key-header" data-i18n="shell.settings_search.key_header">key header</label><input type="text" class="settings-input" id="s-cse-key-header" maxlength="64" autocomplete="off" spellcheck="false"></div>
-                  <div class="s-field"><label for="s-cse-key-prefix" data-i18n="shell.settings_search.key_prefix">key prefix</label><input type="text" class="settings-input" id="s-cse-key-prefix" maxlength="20" autocomplete="off" spellcheck="false"></div>
-                </div>
-                <div class="s-field"><label for="s-cse-results" data-i18n="shell.settings_search.result_list_path">result list path</label><input type="text" class="settings-input" id="s-cse-results" maxlength="120" autocomplete="off" spellcheck="false" aria-describedby="s-cse-results-hint"><div class="s-card-hint" id="s-cse-results-hint" data-i18n="shell.settings_search.where_the_list_sits_in_the">where the list sits in the answer, like data.items; blank when the answer is the list</div></div>
-                <div class="s-cse-pair">
-                  <div class="s-field"><label for="s-cse-url-field" data-i18n="shell.settings_search.link_field">link field</label><input type="text" class="settings-input" id="s-cse-url-field" maxlength="60" autocomplete="off" spellcheck="false"></div>
-                  <div class="s-field"><label for="s-cse-title-field" data-i18n="shell.settings_search.title_field">title field</label><input type="text" class="settings-input" id="s-cse-title-field" maxlength="60" autocomplete="off" spellcheck="false"></div>
-                  <div class="s-field"><label for="s-cse-snippet-field" data-i18n="shell.settings_search.snippet_field">snippet field</label><input type="text" class="settings-input" id="s-cse-snippet-field" maxlength="60" autocomplete="off" spellcheck="false"></div>
-                </div>
-                <div class="s-cse-actions">
-                  <button type="button" class="btn" id="s-cse-cancel" data-i18n="common.cancel">cancel</button>
-                  <span class="s-cse-status" id="s-cse-status" role="status" aria-live="polite"></span>
-                  <button type="submit" class="btn primary" id="s-cse-save" data-i18n="shell.settings_search.save_engine">save engine</button>
-                </div>
-              </form>
-            </div>
-          </div>
-        </div>
-
         <div class="s-pane" id="s-pane-andromeda">
           <div class="s-card" role="region" aria-labelledby="s-andromeda-sources-head">
             <div class="s-card-head" id="s-andromeda-sources-head" data-i18n="shell.andromeda_settings.search_sources">search sources</div>
@@ -2092,17 +2035,49 @@
                 <div class="s-field" hidden data-andromeda-provider-field="exa"><label for="s-andromeda-exa-key" data-i18n="shell.andromeda_settings.exa_api_key">exa api key</label><div style="display:flex;gap:var(--k-control-gap)"><input id="s-andromeda-exa-key" type="password" class="settings-input" style="flex:1" autocomplete="new-password" placeholder="not configured" data-i18n-placeholder="andromeda.x_not_configured"><button type="button" class="btn" data-andromeda-clear-setting="s-andromeda-exa-key" aria-label="clear exa api key" data-i18n="common.clear" data-i18n-aria-label="shell.andromeda_settings.clear_exa_api_key">clear</button></div><p class="s-card-hint s-key-why" data-i18n="shell.andromeda_settings.why_key_exa">exa's search api only takes a key; exa's sign in covers its mcp server, which you can add under mcp servers.</p></div>
               </div>
               <div id="s-andromeda-search-status" class="s-search-status" role="status" aria-live="polite"></div>
-            </div>
-          </div>
-          <div class="s-card" role="region" aria-labelledby="s-andromeda-searxng-head">
-            <div class="s-card-head" style="display:flex;align-items:center;justify-content:space-between;gap:0.5rem">
-              <span id="s-andromeda-searxng-head" data-i18n="shell.andromeda_settings.local_searxng">local searxng</span>
-              <button type="button" class="btn" id="s-andromeda-searxng-refresh" data-i18n="common.refresh">refresh</button>
-            </div>
-            <div class="s-card-body">
-              <div class="s-search-status" id="s-andromeda-searxng-status" role="status" aria-live="polite">checking local search…</div>
-              <div class="s-card-hint" id="s-andromeda-searxng-meta"></div>
-              <div id="s-andromeda-searxng-actions" style="display:flex;flex-wrap:wrap;gap:var(--k-control-gap)" role="group" aria-label="managed searxng actions" data-i18n-aria-label="shell.andromeda_settings.managed_searxng_actions"></div>
+              <div class="s-toggle-row s-action-row" id="s-andromeda-searxng">
+                <div>
+                  <div class="s-toggle-label" id="s-andromeda-searxng-head" data-i18n="shell.andromeda_settings.local_searxng">local searxng</div>
+                  <div class="s-toggle-desc" id="s-andromeda-searxng-status" role="status" aria-live="polite">checking local search…</div>
+                  <div class="s-toggle-desc" id="s-andromeda-searxng-meta" hidden></div>
+                </div>
+                <div class="s-searxng-actions" id="s-andromeda-searxng-actions" role="group" aria-label="managed searxng actions" data-i18n-aria-label="shell.andromeda_settings.managed_searxng_actions"></div>
+                <button type="button" class="btn" id="s-andromeda-searxng-refresh" data-i18n="common.refresh">refresh</button>
+              </div>
+              <div class="s-custom-engines" role="group" aria-labelledby="s-custom-search-head">
+                <div class="s-field-label" id="s-custom-search-head" data-i18n="shell.settings_search.custom_engines">custom engines</div>
+                <div class="settings-list" id="s-custom-search-list"></div>
+                <button type="button" class="btn" id="s-custom-search-add" data-i18n="shell.settings_search.add_custom_engine">add custom engine</button>
+                <form class="s-custom-search-form" id="s-custom-search-form" hidden novalidate>
+                  <div class="s-card-hint">any search api that answers with JSON. put {query} where the search words go, and {count} for the number of results.</div>
+                  <div class="s-field"><label for="s-cse-name" data-i18n="common.name">name</label><input type="text" class="settings-input" id="s-cse-name" maxlength="40" autocomplete="off"></div>
+                  <div class="s-field"><label for="s-cse-url" data-i18n="shell.settings_search.address">address</label><input type="url" class="settings-input" id="s-cse-url" maxlength="500" autocomplete="off" spellcheck="false" aria-describedby="s-cse-url-hint"><div class="s-card-hint" id="s-cse-url-hint" data-i18n="shell.settings_search.https_or_http_for_this_machine">https://, or http:// for this machine</div></div>
+                  <div class="s-field">
+                    <span class="s-field-label" id="s-cse-method-label" data-i18n="shell.settings_search.method">method</span>
+                    <div class="s-ep-type" id="s-cse-method" role="radiogroup" aria-labelledby="s-cse-method-label">
+                      <button type="button" role="radio" aria-checked="true" data-value="GET">GET</button>
+                      <button type="button" role="radio" aria-checked="false" data-value="POST">POST</button>
+                    </div>
+                  </div>
+                  <div class="s-field" id="s-cse-body-row" hidden><label for="s-cse-body" data-i18n="shell.settings_search.json_body">JSON body</label><textarea class="settings-input" id="s-cse-body" rows="3" maxlength="2000" spellcheck="false"></textarea></div>
+                  <div class="s-field"><label for="s-cse-key" data-i18n="shell.settings_search.api_key_optional">api key, optional</label><input type="password" class="settings-input" id="s-cse-key" maxlength="500" autocomplete="new-password"></div>
+                  <div class="s-cse-pair">
+                    <div class="s-field"><label for="s-cse-key-header" data-i18n="shell.settings_search.key_header">key header</label><input type="text" class="settings-input" id="s-cse-key-header" maxlength="64" autocomplete="off" spellcheck="false"></div>
+                    <div class="s-field"><label for="s-cse-key-prefix" data-i18n="shell.settings_search.key_prefix">key prefix</label><input type="text" class="settings-input" id="s-cse-key-prefix" maxlength="20" autocomplete="off" spellcheck="false"></div>
+                  </div>
+                  <div class="s-field"><label for="s-cse-results" data-i18n="shell.settings_search.result_list_path">result list path</label><input type="text" class="settings-input" id="s-cse-results" maxlength="120" autocomplete="off" spellcheck="false" aria-describedby="s-cse-results-hint"><div class="s-card-hint" id="s-cse-results-hint" data-i18n="shell.settings_search.where_the_list_sits_in_the">where the list sits in the answer, like data.items; blank when the answer is the list</div></div>
+                  <div class="s-cse-pair">
+                    <div class="s-field"><label for="s-cse-url-field" data-i18n="shell.settings_search.link_field">link field</label><input type="text" class="settings-input" id="s-cse-url-field" maxlength="60" autocomplete="off" spellcheck="false"></div>
+                    <div class="s-field"><label for="s-cse-title-field" data-i18n="shell.settings_search.title_field">title field</label><input type="text" class="settings-input" id="s-cse-title-field" maxlength="60" autocomplete="off" spellcheck="false"></div>
+                    <div class="s-field"><label for="s-cse-snippet-field" data-i18n="shell.settings_search.snippet_field">snippet field</label><input type="text" class="settings-input" id="s-cse-snippet-field" maxlength="60" autocomplete="off" spellcheck="false"></div>
+                  </div>
+                  <div class="s-cse-actions">
+                    <button type="button" class="btn" id="s-cse-cancel" data-i18n="common.cancel">cancel</button>
+                    <span class="s-cse-status" id="s-cse-status" role="status" aria-live="polite"></span>
+                    <button type="submit" class="btn primary" id="s-cse-save" data-i18n="shell.settings_search.save_engine">save engine</button>
+                  </div>
+                </form>
+              </div>
             </div>
           </div>
           <div class="s-card" role="region" aria-labelledby="s-andromeda-answer-head">
@@ -2140,13 +2115,13 @@
                 <label id="s-andromeda-band-label" data-i18n="shell.andromeda_settings.overview_strength">overview strength</label>
                 <div class="settings-input custom-select" id="s-andromeda-band" data-value="standard" data-options="light|light;standard|standard;strong|strong;auto|automatic" data-i18n-options="common.light;shell.settings_search.standard;shell.settings_search.strong;common.automatic" aria-labelledby="s-andromeda-band-label"></div>
               </div>
-              <div class="andromeda-band-settings">
+              <div class="andromeda-band-settings" id="s-andromeda-band-models">
                 <label><span data-i18n="common.light">light</span> <div class="settings-input custom-select s-andromeda-model" id="s-andromeda-model-light" data-band="light" data-value="" data-options="|not configured" data-i18n-options="andromeda.x_not_configured"></div></label>
                 <label><span data-i18n="shell.settings_search.standard">standard</span> <div class="settings-input custom-select s-andromeda-model" id="s-andromeda-model-standard" data-band="standard" data-value="" data-options="|use answer role" data-i18n-options="settings.andromeda_use_answer_role"></div></label>
                 <label><span data-i18n="shell.settings_search.strong">strong</span> <div class="settings-input custom-select s-andromeda-model" id="s-andromeda-model-strong" data-band="strong" data-value="" data-options="|not configured" data-i18n-options="andromeda.x_not_configured"></div></label>
                 <label><span data-i18n="common.auto">auto</span> <div class="settings-input custom-select s-andromeda-model" id="s-andromeda-model-auto" data-band="auto" data-value="" data-options="|not configured" data-i18n-options="andromeda.x_not_configured"></div></label>
               </div>
-              <div style="display:flex;align-items:center;gap:0.5rem;margin-top:0.65rem">
+              <div class="s-band-test" id="s-andromeda-qualify-row" hidden>
                 <button class="btn" id="s-andromeda-qualify" type="button" data-i18n="shell.settings_search.test_auto_model">test auto model</button>
                 <span id="s-andromeda-model-status" class="s-card-hint" role="status" aria-live="polite"></span>
               </div>
@@ -2196,7 +2171,6 @@
           </div>
           <div class="s-card">
             <div class="s-card-head">
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
               <span data-i18n="shell.settings_general.profile">profile</span>
             </div>
             <div class="s-card-body">
@@ -2212,7 +2186,6 @@
           </div>
           <div class="s-card">
             <div class="s-card-head">
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
               <span data-i18n="shell.settings_general.chat_bar">chat bar</span>
               <button type="button" class="btn" id="s-vis-reset-btn" style="margin-left:auto" data-i18n="shell.settings_general.reset_all">reset all</button>
             </div>
@@ -2241,7 +2214,6 @@
           </div>
           <div class="s-card">
             <div class="s-card-head">
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
               <span data-i18n="common.password">password</span>
             </div>
             <div class="s-card-body">
@@ -2258,7 +2230,6 @@
         <div class="s-pane" id="s-pane-themes">
           <div class="s-card">
             <div class="s-card-head">
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M4.93 4.93a10 10 0 0 0 0 14.14"/></svg>
               <span data-i18n="shell.settings_themes.default_theme">default theme</span>
             </div>
             <div class="s-card-body" id="s-default-theme">
@@ -2273,17 +2244,18 @@
               <details class="s-appearance-details" id="s-accent-details">
                 <summary tabindex="0" data-i18n="shell.settings_themes.accent_color">accent color</summary>
                 <div class="accent-swatches" id="s-accent-swatches" role="group" aria-label="accent color presets" data-i18n-aria-label="shell.settings_themes.accent_color_presets"></div>
-                <label for="s-accent-hex" data-i18n="shell.settings_themes.custom_accent_color">custom accent color</label>
-                <div class="accent-custom">
-                  <input type="text" id="s-accent-hex" class="settings-input" placeholder="type a #hex color" spellcheck="false" style="width:160px" data-i18n-placeholder="shell.settings_themes.type_a_hex_color">
-                  <button type="button" class="btn" id="s-accent-reset" data-i18n="shell.settings_themes.reset">reset</button>
+                <div class="s-field">
+                  <label for="s-accent-hex" data-i18n="shell.settings_themes.custom_accent_color">custom accent color</label>
+                  <div class="accent-custom">
+                    <input type="text" id="s-accent-hex" class="settings-input" placeholder="type a #hex color" spellcheck="false" style="width:160px" data-i18n-placeholder="shell.settings_themes.type_a_hex_color">
+                    <button type="button" class="btn" id="s-accent-reset" data-i18n="shell.settings_themes.reset">reset</button>
+                  </div>
                 </div>
               </details>
             </div>
           </div>
           <div class="s-card">
             <div class="s-card-head">
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="13.5" cy="6.5" r=".5"/><circle cx="17.5" cy="10.5" r=".5"/><circle cx="8.5" cy="7.5" r=".5"/><circle cx="6.5" cy="12.5" r=".5"/><path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c.926 0 1.648-.746 1.648-1.688 0-.437-.18-.835-.437-1.125-.29-.289-.438-.652-.438-1.125a1.64 1.64 0 0 1 1.668-1.668h1.996c3.051 0 5.555-2.503 5.555-5.555C21.965 6.012 17.461 2 12 2z"/></svg>
               <span data-i18n="shell.settings_themes.presets_customization">presets &amp; customization</span>
             </div>
             <div class="s-card-body">
@@ -2296,7 +2268,6 @@
         <div class="s-pane" id="s-pane-voice">
           <div class="s-card">
             <div class="s-card-head">
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/></svg>
               <span data-i18n="shell.settings_voice.speech_to_text_stt">speech-to-text (STT)</span>
             </div>
             <div class="s-card-body">
@@ -2316,7 +2287,6 @@
           </div>
           <div class="s-card">
             <div class="s-card-head">
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"/></svg>
               <span data-i18n="shell.settings_voice.text_to_speech_tts">text-to-speech (TTS)</span>
             </div>
             <div class="s-card-body">
@@ -2337,7 +2307,6 @@
           </div>
           <div class="s-card">
             <div class="s-card-head">
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
               <span data-i18n="shell.settings_voice.openai_api_key">openai api key</span>
             </div>
             <div class="s-card-body">
@@ -2353,10 +2322,6 @@
         <!-- ── personas pane ── -->
         <div class="s-pane" id="s-pane-personas">
           <div class="s-card">
-            <div class="s-card-head">
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
-              <span data-i18n="common.personas">personas</span>
-            </div>
             <div class="s-card-body">
               <div id="persona-list" style="margin-bottom:0.75rem"></div>
               <div id="persona-form-title" class="s-form-title" hidden></div>
@@ -2411,7 +2376,6 @@
           </div>
           <div class="s-card">
             <div class="s-card-head">
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
               <span data-i18n="shell.settings_personas.cookbook_custom_slash_commands">cookbook (custom slash commands)</span>
             </div>
             <div class="s-card-body">
@@ -2683,7 +2647,6 @@
         <div class="s-pane" id="s-pane-developer">
           <div class="s-card">
             <div class="s-card-head">
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 20V10M12 20V4M6 20v-6"/></svg>
               <span data-i18n="shell.settings_developer.api_tokens">api tokens</span>
             </div>
             <div class="s-card-body">
@@ -2707,7 +2670,6 @@
           </div>
           <div class="s-card">
             <div class="s-card-head">
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
               <span data-i18n="shell.settings_developer.webhooks">webhooks</span>
             </div>
             <div class="s-card-body">
@@ -2719,7 +2681,6 @@
           </div>
           <div class="s-card">
             <div class="s-card-head">
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M7 8h.01M11 8h.01M15 8h.01M7 12h10M7 16h6"/></svg>
               <span data-i18n="common.shortcuts">shortcuts</span>
             </div>
             <div class="s-card-body" id="shortcut-settings">
@@ -2734,7 +2695,6 @@
           </div>
           <div class="s-card">
             <div class="s-card-head">
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
               <span data-i18n="common.openai_compatible_api">openai-compatible api</span>
             </div>
             <div class="s-card-body" style="font-size:0.8125rem;color:var(--muted)">
@@ -2747,12 +2707,7 @@
 
         <!-- ── approved Phase 10 language and region workbench ── -->
         <div class="s-pane locale-settings-pane" id="s-pane-notifications">
-          <header class="settings-pane-intro">
-            <div>
-              <h2 data-i18n="locale.title">language &amp; region</h2>
-            </div>
-            <span id="locale-settings-load-state" role="status" aria-live="polite"></span>
-          </header>
+          <p class="settings-pane-state" id="locale-settings-load-state" role="status" aria-live="polite"></p>
 
           <div class="locale-settings-workbench" id="locale-settings-workbench" aria-busy="true">
             <div class="locale-settings-controls">
@@ -2800,34 +2755,12 @@
                 <button class="btn primary" id="s-locale-save" type="button" data-i18n="locale.save">save language &amp; region</button>
               </div>
             </div>
-
-            <aside class="locale-settings-preview" aria-labelledby="locale-preview-title">
-              <header><h3 id="locale-preview-title" data-i18n="locale.live_preview">live preview</h3><span id="locale-preview-tag" data-i18n="shell.settings_notifications.en">en</span></header>
-              <div class="locale-preview-surface">
-                <span>alles</span>
-                <strong id="locale-preview-home" data-i18n="locale.preview.home">home</strong>
-                <time id="locale-preview-date"></time>
-                <div data-i18n="locale.preview.needs_attention">needs your attention</div>
-                <code id="locale-preview-path" dir="ltr">alles/data · 14:30</code>
-              </div>
-              <dl>
-                <div><dt data-i18n="locale.direction">direction</dt><dd id="locale-preview-direction" data-i18n="locale.direction_ltr">left to right</dd></div>
-                <div><dt data-i18n="locale.region">region</dt><dd id="locale-preview-region" data-i18n="common.automatic">automatic</dd></div>
-                <div><dt data-i18n="locale.timezone">timezone</dt><dd id="locale-preview-timezone" data-i18n="common.automatic">automatic</dd></div>
-                <div><dt data-i18n="locale.currency">currency</dt><dd id="locale-preview-currency" data-i18n="common.automatic">automatic</dd></div>
-              </dl>
-            </aside>
           </div>
         </div>
 
         <!-- ── approved Phase 10 manifest-driven Credits workbench ── -->
         <div class="s-pane credits-settings-pane" id="s-pane-credits">
-          <header class="settings-pane-intro">
-            <div>
-              <h2 data-i18n="credits.title">about &amp; credits</h2>
-            </div>
-            <span id="credits-settings-load-state" role="status" aria-live="polite"></span>
-          </header>
+          <p class="settings-pane-state" id="credits-settings-load-state" role="status" aria-live="polite"></p>
 
           <div class="credits-settings-workbench" id="credits-settings-workbench" aria-busy="true">
             <div class="credits-settings-controls">
@@ -2857,10 +2790,6 @@
         <!-- ── rules pane: personal automations ── -->
         <div class="s-pane" id="s-pane-rules">
           <div class="s-card">
-            <div class="s-card-head">
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
-              <span data-i18n="settings.automation_delivery">automation & delivery</span>
-            </div>
             <div class="s-card-body">
               <div id="rules-list" style="margin-bottom:0.85rem"></div>
               <div class="rule-presets" id="rule-presets"></div>
@@ -2885,10 +2814,10 @@
             <div class="s-card-head" data-i18n="shell.settings_rules.delivery_channels">delivery channels</div>
             <div class="s-card-body">
               <input type="text" id="s-notify-discord" aria-label="Discord webhook URL" class="settings-input" placeholder="discord webhook url" style="width:100%;margin-bottom:0.45rem" data-i18n-aria-label="shell.settings_rules.discord_webhook_url_2" data-i18n-placeholder="shell.settings_rules.discord_webhook_url">
-              <input type="text" id="s-notify-tgtoken" aria-label="Telegram bot token" class="settings-input" placeholder="telegram bot token" style="width:100%;margin-bottom:0.45rem" data-i18n-aria-label="shell.settings_rules.telegram_bot_token_2" data-i18n-placeholder="shell.settings_rules.telegram_bot_token">
-              <div class="tg-chat-row"><input type="text" id="s-notify-tgchat" aria-label="Telegram chat ID" class="settings-input" placeholder="telegram chat id" data-i18n-aria-label="shell.settings_rules.telegram_chat_id_2" data-i18n-placeholder="shell.settings_rules.telegram_chat_id"><button type="button" class="btn" id="s-notify-tgfind" data-i18n="shell.settings_rules.find_chat_id">find my chat id</button></div>
-              <p class="s-card-hint"><a href="https://t.me/BotFather" target="_blank" rel="noopener noreferrer" data-i18n="shell.settings_rules.make_telegram_bot">make a bot with BotFather</a></p>
-              <p class="s-card-hint" data-i18n="shell.settings_rules.telegram_steps">paste its token above, send the bot any message in telegram, then press find my chat id.</p>
+              <div class="s-toggle-row s-action-row">
+                <div><div class="s-toggle-label" data-i18n="shell.settings_rules.telegram_is_set_up_in_connections">telegram is set up in connections</div></div>
+                <button type="button" class="btn" id="s-notify-open-connections" data-i18n="shell.settings_rules.open_connections">open connections</button>
+              </div>
             </div>
           </div>
         </div>
@@ -3037,7 +2966,6 @@
 
         <div class="s-pane" id="s-pane-recall">
           <div class="s-card">
-            <div class="s-card-head" data-i18n="settings.personal_search">search personal records</div>
             <div class="s-card-body">
               <p class="s-card-hint" data-i18n="settings.personal_search_hint">the vault is never searched.</p>
               <div class="s-toggle-row"><div><div class="s-toggle-label" data-i18n="shell.settings_recall.enable_recall_index">enable recall index</div></div><div class="s-switch" id="s-pidx-enabled"></div></div>
@@ -3055,7 +2983,6 @@
         </div>
         <div class="s-pane" id="s-pane-proactive">
           <div class="s-card">
-            <div class="s-card-head" data-i18n="common.background_checks">background checks</div>
             <div class="s-card-body">
               <div class="s-toggle-row"><div><div class="s-toggle-label" data-i18n="shell.settings_proactive.enable_background_checks">enable background checks</div></div><div class="s-switch" id="s-prox-enabled"></div></div>
               <div class="s-toggle-row"><div><div class="s-toggle-label" data-i18n="shell.settings_proactive.tasks_reminders">tasks &amp; reminders</div></div><div class="s-switch" id="s-prox-cat-task"></div></div>
@@ -3088,7 +3015,6 @@
 
         <div class="s-pane" id="s-pane-intelligence">
           <div class="s-card">
-            <div class="s-card-head" data-i18n="settings.patterns">patterns & suggestions</div>
             <div class="s-card-body">
               <div class="s-toggle-row"><div><div class="s-toggle-label" data-i18n="settings.find_patterns">find patterns across apps</div><div class="s-toggle-desc" data-i18n="shell.settings_intelligence.a_periodic_pass_that_finds_patterns">spends tokens</div></div><div class="s-switch" id="s-intel-insights"></div></div>
               <div class="s-toggle-row"><div><div class="s-toggle-label" data-i18n="settings.use_patterns">use patterns in replies</div></div><div class="s-switch" id="s-intel-insights-inject"></div></div>

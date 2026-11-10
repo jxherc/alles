@@ -32,7 +32,7 @@ DOM_NAME = """el => {
 
 
 # every field the settings form shows, written out: a new, moved or removed field fails here
-# until this list says so (100 after the search address for other browsers joined andromeda)
+# until this list says so (98: the telegram token and chat id left delivery for the connections pane; 100 after the search address for other browsers joined andromeda; the custom engine form moved there from the search pane)
 EXPECTED_FIELDS = {
     "agent": [
         "#mcp-command",
@@ -57,6 +57,16 @@ EXPECTED_FIELDS = {
         "#s-andromeda-searxng-url",
         "#s-andromeda-serper-key",
         "#s-andromeda-tavily-key",
+        "#s-cse-body",
+        "#s-cse-key",
+        "#s-cse-key-header",
+        "#s-cse-key-prefix",
+        "#s-cse-name",
+        "#s-cse-results",
+        "#s-cse-snippet-field",
+        "#s-cse-title-field",
+        "#s-cse-url",
+        "#s-cse-url-field",
         "#s-hidden-site",
     ],
     "backup": [
@@ -126,20 +136,6 @@ EXPECTED_FIELDS = {
         "#rule-name",
         "#rule-trigger-arg",
         "#s-notify-discord",
-        "#s-notify-tgchat",
-        "#s-notify-tgtoken",
-    ],
-    "search": [
-        "#s-cse-body",
-        "#s-cse-key",
-        "#s-cse-key-header",
-        "#s-cse-key-prefix",
-        "#s-cse-name",
-        "#s-cse-results",
-        "#s-cse-snippet-field",
-        "#s-cse-title-field",
-        "#s-cse-url",
-        "#s-cse-url-field",
     ],
     "security": [
         "#s-pw-new",
@@ -199,7 +195,7 @@ def run():
     for field in fields:
         found.setdefault(field["pane"], []).append(field["selector"])
     assert {pane: sorted(ids) for pane, ids in found.items()} == EXPECTED_FIELDS
-    assert len(fields) == 100
+    assert len(fields) == 98
     profiles = [(w, t, False) for w in (1440, 768, 390) for t in ("light", "dark")]
     profiles += [(1440, t, True) for t in ("light", "dark")]
     rows = []
@@ -322,7 +318,7 @@ def run():
                 panes = page.locator(".s-nav-item[data-pane]").evaluate_all(
                     "nodes=>nodes.map(n=>n.dataset.pane)"
                 )
-                assert len(panes) == 22
+                assert len(panes) == 21
                 for pane in panes:
                     choose_settings_section(page, pane, touch=width == 390)
                     expect(page.locator("#s-pane-" + pane)).to_be_visible()

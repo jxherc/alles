@@ -72,7 +72,6 @@ class LocalizationSourceContractTests(unittest.TestCase):
     def test_static_localized_copy_uses_catalog_keys(self):
         html = (ROOT / "static" / "index.html").read_text("utf-8")
         required_keys = {
-            "locale.title",
             "locale.interface_language",
             "locale.format_title",
             "locale.region",

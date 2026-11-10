@@ -109,10 +109,8 @@ test('approved Phase 10 language and Credits workbenches use honest custom contr
   assert.match(source, /populateDropdown\(trigger, options/);
   assert.match(source, /_setLocaleChoiceValue\('language', value\)/);
   assert.match(source, /tp\('credits\.gap_remaining', gapCount\)/);
-  assert.match(localePane, /id="locale-preview-path"[^>]*>alles\/data · 14:30<\/code>/);
   assert.doesNotMatch(`${localePane}\n${source}`, /\/Users\/jxh\/alles/);
   assert.match(kokuen, /\.locale-settings-workbench[\s\S]{0,180}grid-template-columns/);
-  assert.match(kokuen, /@media \(max-width: 860px\)[\s\S]*\.locale-settings-preview[\s\S]*order: -1/);
 });
 
 test('Discord settings preserve drafts, reject stale loads, and roll back failed quiet-hours changes', () => {

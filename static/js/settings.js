@@ -5,7 +5,6 @@ import { creditsPane } from './settings/credits.js';
 import { createBackupPane } from './settings/backups.js';
 import { providersPane, _endpointJson } from './settings/providers.js';
 import { andromedaPane } from './settings/andromeda.js';
-import { loadSearchEngines, wireSearchEngines } from './settings/search_engines.js';
 import { agentPane, connectionsPane, machinePane } from './settings/connections.js';
 import { applyOrganization, saveOrganization, savedOrganization } from './settings/organization.js';
 export { _mergeHomeShortcutOrder } from './settings/home.js';
@@ -116,6 +115,9 @@ function _switchPane(name) {
     n.classList.toggle('active', n.dataset.pane === name));
   document.querySelectorAll('.s-nav-item').forEach(n =>
     n.setAttribute('aria-current', n.dataset.pane === name ? 'page' : 'false'));
+  // a pane opened by a link or key keeps its nav item in view
+  if (selected?.previousElementSibling?.classList.contains('s-nav-group')) selected.previousElementSibling.scrollIntoView({ block: 'nearest' });
+  selected?.scrollIntoView({ block: 'nearest' });
   document.querySelectorAll('.s-pane').forEach(p =>
     p.classList.toggle('active', p.id === `s-pane-${name}`));
   const content = document.querySelector('#settings-modal .s-content');
@@ -127,7 +129,6 @@ function _onPaneOpen(name) {
   _ownedPanes[name]?.load();
   if (name === 'ai')         loadAiPane();
   if (name === 'memory')     { initMemoryPanel(); loadOwnerInstructions(); }
-  if (name === 'search')     loadSearchPane();
   if (name === 'general' || name === 'security' || name === 'themes') loadAppearancePane();
   if (name === 'themes')     loadThemesPane();
   if (name === 'voice')      loadVoicePane();
@@ -158,6 +159,9 @@ export function openSettings(pane, _allesOnly = false) {
   const title = document.querySelector('#settings-modal .s-title');
   if (title) title.textContent = t('settings.title');
   if (!pane) pane = 'general';
+  // custom engines moved into andromeda's search sources: the old "search" link lands on them
+  const toCustomEngines = pane === 'search';
+  if (toCustomEngines) pane = 'andromeda';
   if (!_bound) { _initSettings(); _bound = true; }
   // update compat url labels
   const port = location.port || '6769';
@@ -167,6 +171,7 @@ export function openSettings(pane, _allesOnly = false) {
   document.getElementById('s-compat-url2')?.replaceChildren(document.createTextNode(base));
 
   _switchPane(pane);
+  if (toCustomEngines) requestAnimationFrame(() => document.getElementById('s-custom-search-head')?.scrollIntoView({ block: 'start' }));
   requestAnimationFrame(() => {
     // this runs a frame late: if focus already moved into settings (a fast click or key on
     // close), leave it there instead of yanking it back to the section picker
@@ -314,7 +319,6 @@ function _initSettings() {
   });
 
   // ── search pane ──
-  wireSearchEngines();
 
   // ── voice pane ──
   document.getElementById('s-voice-save-btn')?.addEventListener('click', saveVoiceSettings);
@@ -495,13 +499,6 @@ async function saveOwnerInstructions() {
     button.disabled = false;
     button.textContent = t('settings.owner_instructions_save');
   }
-}
-
-// ── search pane ───────────────────────────────────────────────────────────────
-async function loadSearchPane() {
-  try {
-    await loadSearchEngines();
-  } catch { toast(t('settings.search_load_failed'), 'error'); }
 }
 
 // ── appearance pane ───────────────────────────────────────────────────────────
@@ -1915,12 +1912,10 @@ async function loadRulesPane() {
     document.getElementById('rule-cancel-btn')?.addEventListener('click', _resetRuleForm);
     _renderRulePresets();
   }
-  // delivery channels (discord / telegram) persist as settings; the notify actions use them
+  // the discord webhook persists as a setting; the notify actions use it
   const s = await _loadPaneSettings(t('settings.section_rules_delivery'));
   if (!s || read !== _rulesPaneRead) return;
-  for (const [id, key] of [['s-notify-discord', 'notify_discord_webhook'],
-                           ['s-notify-tgtoken', 'notify_telegram_token'],
-                           ['s-notify-tgchat', 'notify_telegram_chat_id']]) {
+  for (const [id, key] of [['s-notify-discord', 'notify_discord_webhook']]) {
     const el = document.getElementById(id);
     if (!el) continue;
     if (s[key] !== undefined && document.activeElement !== el) el.value = s[key] || '';
@@ -1930,24 +1925,11 @@ async function loadRulesPane() {
       el.addEventListener('input', () => { clearTimeout(timer); timer = setTimeout(() => _patchSetting(key, el.value.trim()), 500); });
     }
   }
-  const find = document.getElementById('s-notify-tgfind');
-  if (find && !find.dataset.bound) {
-    find.dataset.bound = '1';
-    find.addEventListener('click', async () => {
-      find.disabled = true;
-      try {
-        const token = document.getElementById('s-notify-tgtoken').value.trim();
-        const response = await _fetchWithRecentOwner('/api/settings/telegram/find-chat', {
-          method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ token }),
-        });
-        const data = await response.json().catch(() => ({}));
-        if (!response.ok || typeof data?.chat_id !== 'string') throw new Error(data?.detail || t('settings.telegram_find_failed'));
-        document.getElementById('s-notify-tgchat').value = data.chat_id;
-        await _patchSetting('notify_telegram_chat_id', data.chat_id);
-        toast(t('settings.telegram_chat_found', { name: data.name || data.chat_id }), 'success');
-      } catch (error) { toast(error.message || t('settings.telegram_find_failed'), 'error'); }
-      finally { find.disabled = false; }
-    });
+  // the telegram bot and chat are the channel's own setup, in connections
+  const open = document.getElementById('s-notify-open-connections');
+  if (open && !open.dataset.bound) {
+    open.dataset.bound = '1';
+    open.addEventListener('click', () => _switchPane('tools'));
   }
   _renderRules();
 }

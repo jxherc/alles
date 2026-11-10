@@ -333,8 +333,10 @@ body.sidebar-hidden .sidebar { display: none; }
 }
 .andromeda-empty { border-top: 1px solid var(--faint); padding: 1rem 0; color: var(--muted); font-size: 0.8125rem; }
 .andromeda-actions { display: flex; flex-wrap: wrap; gap: var(--k-control-gap); margin-top: 1rem; }
-.andromeda-band-settings { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.55rem; }
-.andromeda-band-settings label { display: grid; gap: 0.28rem; color: var(--muted); font-size: 0.8125rem; }
+.andromeda-band-settings { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--k-control-gap); }
+.andromeda-band-settings label { display: grid; gap: var(--k-space-1); color: var(--muted); font-size: 0.8125rem; }
+.s-band-test { display: flex; flex-wrap: wrap; align-items: center; gap: var(--k-control-gap); margin-top: var(--k-space-3); }
+.s-searxng-actions { display: flex; flex-wrap: wrap; gap: var(--k-control-gap); }
 .server-service-card {
   display: flex;
   align-items: center;
@@ -4138,9 +4140,6 @@ body:has(#mail-view[style*="flex"] #mail-undo-stack > .mail-undo-bar + .mail-und
 .mail-or { font-size: 0.8125rem; color: var(--muted); text-align: center; }
 .mail-oauth-toggle { align-self: flex-start; }
 .conn-token-link { display: flex; justify-content: center; width: 100%; margin-bottom: 0.75rem; box-sizing: border-box; text-decoration: none; }
-.tg-chat-row { display: flex; gap: 0.5rem; }
-.tg-chat-row .settings-input { flex: 1; min-width: 0; }
-.tg-chat-row + .s-card-hint a { color: var(--text); }
 .mail-oauth-steps { display: flex; flex-direction: column; gap: 0.5rem; padding: 0.75rem; border: 1px solid var(--faint); border-radius: var(--k-radius-control); background: var(--panel); color: var(--muted); font-size: 0.8125rem; line-height: 1.5; }
 .mail-oauth-steps p { margin: 0; }
 .mail-oauth-list { display: flex; flex-direction: column; gap: 0.5rem; margin: 0; padding-inline-start: 1.25rem; }
@@ -9026,7 +9025,7 @@ input.cp-swatch-input { width: 44px; min-width: 44px; height: 44px; border: 1px 
 .te-slider input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; appearance: none; width: 13px; height: 13px; border-radius: 50%; background: var(--text); cursor: pointer; }
 .te-slider input[type=range]::-moz-range-thumb { width: 13px; height: 13px; border: none; border-radius: 50%; background: var(--text); cursor: pointer; }
 .te-toggle-btn { margin-top: 0.6rem; }
-.te-custom-row { display: flex; gap: 0.4rem; margin-bottom: 0.5rem; }
+.te-custom-row { display: flex; gap: var(--k-control-gap); }
 .te-custom-row .settings-input { flex: 1; }
 .te-custom-list { display: flex; flex-wrap: wrap; gap: 0.4rem; }
 .te-custom-chip { display: inline-flex; align-items: center; gap: 0.3rem; border: 1px solid var(--faint); border-radius: var(--k-radius-control); padding: 0.15rem 0.2rem 0.15rem 0.5rem; font-size: 0.8125rem; }

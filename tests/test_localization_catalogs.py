@@ -42,7 +42,7 @@ class LocalizationCatalogTests(unittest.TestCase):
     def test_load_catalog_returns_local_reviewed_content(self):
         catalog = load_catalog("zh-hant")
         self.assertEqual(catalog["language"], "zh-Hant")
-        self.assertEqual(catalog["messages"]["locale.title"], "語言與地區")
+        self.assertEqual(catalog["messages"]["locale.interface_language"], "介面語言")
 
     def test_missing_message_key_fails_parity(self):
         temporary, root = self._catalog_copy()

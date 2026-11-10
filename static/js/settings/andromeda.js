@@ -8,6 +8,7 @@ import { confirm as confirmDialog } from '../dialog.js';
 import { fetchWithRecentOwner } from '../recent_owner.js';
 import { getDropdownValue, setDropdownValue, populateDropdown } from '../dropdown.js?v=217';
 import { t, tp } from '../i18n.js';
+import { loadSearchEngines, wireSearchEngines, SEARCH_ENGINES_EVENT } from './search_engines.js';
 
 export const ANDROMEDA_SETTINGS_EVENT = 'alles:andromeda-settings';
 const ANSWER_ROLE = 'andromeda_answer';
@@ -294,14 +295,19 @@ async function loadSearxng(isCurrent = () => true) {
   const actions = $('s-andromeda-searxng-actions');
   if (!status || !meta || !actions) return;
   actions.replaceChildren();
+  meta.hidden = true;
   status.dataset.state = '';
   try {
     const service = await json('/api/system/searxng');
     if (!isCurrent()) return;
     status.textContent = searxngState(service);
-    meta.textContent = `${service.bind} · ${service.version} · ${service.license}${service.data_kept ? t('andromeda.x_sx_data_kept') : ''}`;
+    // address, version and licence mean something once it is installed
+    meta.hidden = !service.installed;
+    meta.textContent = service.installed
+      ? `${service.bind} · ${service.version} · ${service.license}${service.data_kept ? t('andromeda.x_sx_data_kept') : ''}`
+      : '';
     if (!service.installed) {
-      if (service.support_verified) addSearxngAction(actions, 'install', t('andromeda.x_act_install'), !service.available);
+      if (service.support_verified && service.available) addSearxngAction(actions, 'install', t('andromeda.x_act_install'));
       return;
     }
     if (!service.owned) return;
@@ -317,6 +323,7 @@ async function loadSearxng(isCurrent = () => true) {
     status.textContent = plainError(error.message || t('andromeda.x_sx_status_unavailable'));
     status.dataset.state = 'error';
     meta.textContent = t('andromeda.x_external_remain');
+    meta.hidden = false;
   }
 }
 
@@ -393,6 +400,15 @@ function showBandModels() {
     }
     populateDropdown(select, options, selected);
   });
+  syncBandRows();
+}
+
+// the role rows need a model to pick, and the test needs an auto model to test
+function syncBandRows() {
+  const rows = $('s-andromeda-band-models');
+  if (rows) rows.hidden = !_models.some(endpoint => (endpoint.models || []).length);
+  const row = $('s-andromeda-qualify-row');
+  if (row) row.hidden = !_bandChoices.has(`auto:${value('s-andromeda-model-auto')}`);
 }
 
 async function saveBandModels() {
@@ -401,10 +417,10 @@ async function saveBandModels() {
     const choice = _bandChoices.get(`${select.dataset.band}:${getDropdownValue(select)}`);
     if (choice) choices[select.dataset.band] = choice;
   });
-  const status = $('s-andromeda-model-status');
   const saved = await write({ andromeda_model_bands: choices });
-  if (status) status.textContent = saved ? t('settings.andromeda_choices_saved') : '';
-  if (!saved) showBandModels();
+  if (saved) toast(t('common.saved'), 'success');
+  else showBandModels();
+  syncBandRows();
 }
 
 async function qualifyAutoModel() {
@@ -490,6 +506,8 @@ function wire() {
   $('s-andromeda-band')?.addEventListener('change', () => saveDropdown('s-andromeda-band', 'andromeda_model_band', 'standard'));
   document.querySelectorAll('.s-andromeda-model').forEach(select => select.addEventListener('change', saveBandModels));
   $('s-andromeda-qualify')?.addEventListener('click', qualifyAutoModel);
+  wireSearchEngines();
+  window.addEventListener(SEARCH_ENGINES_EVENT, () => { void refreshEngines(); });
   $('s-hidden-sites-form')?.addEventListener('submit', async event => {
     event.preventDefault();
     const input = $('s-hidden-site');
@@ -575,6 +593,7 @@ export const andromedaPane = createSettingsPane({
     _models = Array.isArray(models) ? models : [];
     showEngines();
     showSources();
+    loadSearchEngines().catch(() => { if (isCurrent()) toast(t('settings.search_load_failed'), 'error'); });
     showAnswerSettings();
     showBandModels();
     showAnswerModel();

@@ -3791,7 +3791,7 @@ textarea[data-kokuen-entry="autogrow"] {
   cursor: pointer;
 }
 
-#settings-modal[data-kokuen-surface="settings"] :is(.s-appearance-details, .te-disclosure, .home-settings-preview) > summary::after {
+#settings-modal[data-kokuen-surface="settings"] :is(.s-appearance-details, .te-disclosure) > summary::after {
   margin-left: auto;
   width: 6px;
   height: 6px;
@@ -3802,7 +3802,7 @@ textarea[data-kokuen-entry="autogrow"] {
   transform: rotate(45deg);
 }
 
-#settings-modal[data-kokuen-surface="settings"] :is(.s-appearance-details, .te-disclosure, .home-settings-preview)[open] > summary::after {
+#settings-modal[data-kokuen-surface="settings"] :is(.s-appearance-details, .te-disclosure)[open] > summary::after {
   transform: rotate(225deg);
 }
 
@@ -3848,9 +3848,13 @@ textarea[data-kokuen-entry="autogrow"] {
   padding: 0;
   border: 0;
   background: transparent;
+}
+
+/* every section heading in settings is the section title role (0081): one size, one weight */
+#settings-modal[data-kokuen-surface="settings"] :where(.s-card-head, .home-settings-section h3, .locale-settings-section h3, .credits-settings-tools h3, .credits-detail h3) {
   color: var(--k-text);
-  font-size: 0.875rem;
-  font-weight: 500;
+  font-size: 1rem;
+  font-weight: 600;
 }
 
 #settings-modal[data-kokuen-surface="settings"] .s-card-body {
@@ -3893,46 +3897,26 @@ textarea[data-kokuen-entry="autogrow"] {
 }
 
 /* Phase 10: approved language, regional-format, and Credits workbenches. */
-#settings-modal[data-kokuen-surface="settings"] :where(.locale-settings-pane, .credits-settings-pane) {
+#settings-modal[data-kokuen-surface="settings"] .credits-settings-pane {
   max-width: 980px;
   margin-inline: auto;
 }
 
-#settings-modal[data-kokuen-surface="settings"] .settings-pane-intro {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: var(--k-space-5);
-  margin-bottom: var(--k-space-5);
-}
-
-#settings-modal[data-kokuen-surface="settings"] .settings-pane-intro h2 {
-  margin: 0;
-  color: var(--k-text);
-  font-size: 1rem;
-  font-weight: 580;
-}
-
-#settings-modal[data-kokuen-surface="settings"] .settings-pane-intro p {
-  max-width: var(--k-measure);
-  margin: var(--k-space-1) 0 0;
-  color: var(--k-muted);
-  font-size: 0.8125rem;
-  line-height: 1.45;
-}
-
-#settings-modal[data-kokuen-surface="settings"] :where(#locale-settings-load-state, #credits-settings-load-state) {
-  flex: 0 0 auto;
+#settings-modal[data-kokuen-surface="settings"] .settings-pane-state {
+  margin: 0 0 var(--k-space-4);
   color: var(--k-quiet);
   font-size: 0.8125rem;
   line-height: 1.45;
 }
 
+#settings-modal[data-kokuen-surface="settings"] .settings-pane-state:empty {
+  display: none;
+}
+
 #settings-modal[data-kokuen-surface="settings"] .locale-settings-workbench {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 220px;
+  grid-template-columns: minmax(0, 1fr);
   gap: var(--k-space-5);
-  align-items: start;
 }
 
 #settings-modal[data-kokuen-surface="settings"] :where(.locale-settings-workbench, .credits-settings-workbench)[aria-busy="true"] {
@@ -3950,9 +3934,6 @@ textarea[data-kokuen-entry="autogrow"] {
 
 #settings-modal[data-kokuen-surface="settings"] :where(.locale-settings-section, .credits-settings-tools) h3 {
   margin: 0;
-  color: var(--k-text);
-  font-size: 0.875rem;
-  font-weight: 580;
 }
 
 #settings-modal[data-kokuen-surface="settings"] .locale-settings-section > p {
@@ -4047,96 +4028,6 @@ textarea[data-kokuen-entry="autogrow"] {
 #settings-modal[data-kokuen-surface="settings"] #locale-settings-save-state {
   color: var(--k-muted);
   font-size: 0.8125rem;
-}
-
-#settings-modal[data-kokuen-surface="settings"] .locale-settings-preview {
-  position: sticky;
-  top: 0;
-  padding: var(--k-space-3);
-  border: 1px solid var(--k-line);
-  border-radius: var(--k-radius-surface);
-}
-
-#settings-modal[data-kokuen-surface="settings"] .locale-settings-preview > header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--k-space-3);
-  margin-bottom: var(--k-space-3);
-}
-
-#settings-modal[data-kokuen-surface="settings"] .locale-settings-preview h3 {
-  margin: 0;
-  color: var(--k-text);
-  font-size: 0.875rem;
-  font-weight: 560;
-}
-
-#settings-modal[data-kokuen-surface="settings"] :where(#locale-preview-tag, .locale-settings-preview dt) {
-  color: var(--k-muted);
-  font-size: 0.8125rem;
-}
-
-#settings-modal[data-kokuen-surface="settings"] .locale-preview-surface {
-  display: grid;
-  gap: var(--k-space-2);
-  padding: var(--k-space-3);
-  border: 1px solid var(--k-line);
-  border-radius: var(--k-radius-control);
-  background: var(--k-page);
-}
-
-#settings-modal[data-kokuen-surface="settings"] .locale-preview-surface > span {
-  color: var(--k-muted);
-  font-size: 0.8125rem;
-}
-
-#settings-modal[data-kokuen-surface="settings"] .locale-preview-surface > strong {
-  color: var(--k-text);
-  font-size: 1.125rem;
-  font-weight: 580;
-}
-
-#settings-modal[data-kokuen-surface="settings"] .locale-preview-surface :where(time, div, small, code) {
-  color: var(--k-muted);
-  font-size: 0.8125rem;
-  line-height: 1.4;
-}
-
-#settings-modal[data-kokuen-surface="settings"] .locale-preview-surface div {
-  margin-top: var(--k-space-2);
-  padding: var(--k-space-2) 0;
-  border-top: 1px solid var(--k-line);
-  border-bottom: 1px solid var(--k-line);
-  color: var(--k-soft);
-}
-
-#settings-modal[data-kokuen-surface="settings"] .locale-preview-surface code {
-  overflow-wrap: anywhere;
-  font-family: var(--k-mono);
-}
-
-#settings-modal[data-kokuen-surface="settings"] .locale-settings-preview dl {
-  display: grid;
-  gap: var(--k-space-2);
-  margin: var(--k-space-3) 0 0;
-}
-
-#settings-modal[data-kokuen-surface="settings"] .locale-settings-preview dl div {
-  display: flex;
-  justify-content: space-between;
-  gap: var(--k-space-3);
-}
-
-#settings-modal[data-kokuen-surface="settings"] .locale-settings-preview :where(dt, dd) {
-  margin: 0;
-}
-
-#settings-modal[data-kokuen-surface="settings"] .locale-settings-preview dd {
-  color: var(--k-soft);
-  font-size: 0.8125rem;
-  text-align: end;
-  overflow-wrap: anywhere;
 }
 
 #settings-modal[data-kokuen-surface="settings"] .credits-settings-workbench {
@@ -4276,9 +4167,6 @@ textarea[data-kokuen-entry="autogrow"] {
 
 #settings-modal[data-kokuen-surface="settings"] .credits-detail h3 {
   margin: 0;
-  color: var(--k-text);
-  font-size: 1rem;
-  font-weight: 580;
 }
 
 #settings-modal[data-kokuen-surface="settings"] .credits-detail > p {
@@ -4372,13 +4260,8 @@ html[dir="rtl"] :where(
 }
 
 @media (max-width: 860px) {
-  #settings-modal[data-kokuen-surface="settings"] .locale-settings-workbench,
   #settings-modal[data-kokuen-surface="settings"] .credits-settings-workbench {
     grid-template-columns: minmax(0, 1fr);
-  }
-
-  #settings-modal[data-kokuen-surface="settings"] .locale-settings-preview {
-    position: static;
   }
 
   #settings-modal[data-kokuen-surface="settings"] .credits-list > .credits-detail {
@@ -4393,14 +4276,6 @@ html[dir="rtl"] :where(
 }
 
 @media (max-width: 540px) {
-  #settings-modal[data-kokuen-surface="settings"] .settings-pane-intro {
-    gap: var(--k-space-3);
-  }
-
-  #settings-modal[data-kokuen-surface="settings"] :where(#locale-settings-load-state, #credits-settings-load-state) {
-    display: none;
-  }
-
   #settings-modal[data-kokuen-surface="settings"] .locale-format-row {
     grid-template-columns: minmax(0, 1fr);
     gap: var(--k-space-3);
@@ -4459,7 +4334,7 @@ html[dir="rtl"] :where(
   flex: 1;
   min-height: 0;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 190px;
+  grid-template-columns: minmax(0, 1fr);
   align-items: start;
   gap: var(--k-space-5);
   overflow-y: auto;
@@ -4478,9 +4353,6 @@ html[dir="rtl"] :where(
 
 #settings-modal[data-kokuen-surface="settings"] .home-settings-section h3 {
   margin: 0 0 var(--k-space-1);
-  color: var(--k-text);
-  font-size: 0.875rem;
-  font-weight: 500;
 }
 
 #settings-modal[data-kokuen-surface="settings"] .home-settings-section > p {
@@ -4490,8 +4362,7 @@ html[dir="rtl"] :where(
   line-height: 1.5;
 }
 
-#settings-modal[data-kokuen-surface="settings"] .home-settings-list,
-#settings-modal[data-kokuen-surface="settings"] .home-settings-density {
+#settings-modal[data-kokuen-surface="settings"] .home-settings-list {
   overflow: hidden;
   border: 0;
   border-radius: 0;
@@ -4639,111 +4510,6 @@ html[dir="rtl"] :where(
   cursor: default;
 }
 
-#settings-modal[data-kokuen-surface="settings"] .home-settings-density {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  border-radius: 0;
-}
-
-#settings-modal[data-kokuen-surface="settings"] .home-settings-density button {
-  min-height: 58px;
-  display: grid;
-  font: inherit;
-  font-size: 0.8125rem;
-  align-content: center;
-  gap: var(--k-space-1);
-  padding: var(--k-space-2) var(--k-space-3);
-  border: 0;
-  border-right: 1px solid var(--k-line);
-  background: transparent;
-  color: var(--k-muted);
-  text-align: left;
-  cursor: pointer;
-}
-
-#settings-modal[data-kokuen-surface="settings"] .home-settings-density > button {
-  scroll-margin-block: var(--k-space-1);
-  border-radius: 0;
-}
-
-#settings-modal[data-kokuen-surface="settings"] .home-settings-density button:last-child {
-  border-right: 0;
-}
-
-#settings-modal[data-kokuen-surface="settings"] .home-settings-density button[aria-checked="true"] {
-  background: transparent;
-  color: var(--k-text);
-  -webkit-text-stroke: 0.35px currentColor;
-}
-
-#settings-modal[data-kokuen-surface="settings"] .home-settings-density span {
-  font-size: 0.8125rem;
-  font-weight: 500;
-}
-
-#settings-modal[data-kokuen-surface="settings"] .home-settings-density small {
-  color: var(--k-muted);
-  font-size: 0.8125rem;
-}
-
-#settings-modal[data-kokuen-surface="settings"] .home-settings-preview {
-  position: sticky;
-  top: 0;
-  padding: var(--k-space-3);
-  border: 1px solid var(--k-line);
-  border-radius: var(--k-radius-surface);
-  background: var(--k-page);
-}
-
-#settings-modal[data-kokuen-surface="settings"] .home-settings-preview summary {
-  min-height: var(--k-control);
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--k-space-2);
-  cursor: pointer;
-}
-
-#settings-modal[data-kokuen-surface="settings"] #home-settings-preview-title {
-  margin: 0;
-  color: var(--k-text);
-  font-size: 0.8125rem;
-  font-weight: 500;
-}
-
-#settings-modal[data-kokuen-surface="settings"] #home-settings-preview-count,
-#settings-modal[data-kokuen-surface="settings"] .home-settings-preview p,
-#settings-modal[data-kokuen-surface="settings"] .home-settings-preview small {
-  color: var(--k-muted);
-  font-size: 0.8125rem;
-}
-
-#settings-modal[data-kokuen-surface="settings"] .home-settings-preview p {
-  margin: var(--k-space-2) 0 var(--k-space-4);
-  line-height: 1.45;
-}
-
-#settings-modal[data-kokuen-surface="settings"] #home-settings-preview-list {
-  display: grid;
-  gap: var(--k-space-3);
-}
-
-#settings-modal[data-kokuen-surface="settings"] #home-settings-preview-list strong,
-#settings-modal[data-kokuen-surface="settings"] #home-settings-preview-list small {
-  display: block;
-}
-
-#settings-modal[data-kokuen-surface="settings"] #home-settings-preview-list strong {
-  color: var(--k-soft);
-  font-size: 0.8125rem;
-  font-weight: 500;
-}
-
-#settings-modal[data-kokuen-surface="settings"] #home-settings-preview-list small {
-  margin-top: var(--k-space-1);
-  line-height: 1.4;
-}
-
 #settings-modal[data-kokuen-surface="settings"] .home-settings-save {
   flex-shrink: 0;
   display: flex;
@@ -4772,40 +4538,9 @@ html[dir="rtl"] :where(
   color: var(--k-quiet);
 }
 
-@media (max-width: 860px) {
-  #settings-modal[data-kokuen-surface="settings"] .home-settings-workbench {
-    grid-template-columns: minmax(0, 1fr);
-  }
-
-  #settings-modal[data-kokuen-surface="settings"] .home-settings-preview {
-    position: static;
-  }
-
-  #settings-modal[data-kokuen-surface="settings"] #home-settings-preview-list {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-  }
-}
-
 @media (max-width: 540px) {
   #settings-modal[data-kokuen-surface="settings"] .home-settings-intro {
     display: none;
-  }
-
-  #settings-modal[data-kokuen-surface="settings"] .home-settings-density {
-    grid-template-columns: 1fr;
-  }
-
-  #settings-modal[data-kokuen-surface="settings"] .home-settings-density button {
-    border-right: 0;
-    border-bottom: 1px solid var(--k-line);
-  }
-
-  #settings-modal[data-kokuen-surface="settings"] .home-settings-density button:last-child {
-    border-bottom: 0;
-  }
-
-  #settings-modal[data-kokuen-surface="settings"] #home-settings-preview-list {
-    grid-template-columns: 1fr;
   }
 
   #settings-modal[data-kokuen-surface="settings"] .home-settings-save {
@@ -7259,6 +6994,10 @@ html[data-kokuen-version="5"] :is(.s-switch, .home-settings-switch, .news-switch
 .s-search-status[data-state="error"],
 .s-cse-status[data-state="error"] {
   color: var(--k-danger);
+}
+
+.s-custom-engines {
+  margin-top: var(--k-space-4);
 }
 
 /* a text action keeps its label on the content edge, like "change address" */
