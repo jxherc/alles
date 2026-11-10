@@ -144,6 +144,30 @@ def run():
                     page.keyboard.press("Escape")
                     expect(pick).to_be_focused()
                     expect(page.locator("#cal-new-btn")).to_be_visible()
+                    if page.evaluate("innerWidth <= 720"):
+                        # a phone: the search field waits behind its 44px button
+                        search = page.locator("#cal-search-btn")
+                        expect(search).to_have_attribute("aria-label", "search events")
+                        box = search.bounding_box()
+                        assert box["width"] >= 44 and box["height"] >= 44, box
+                        expect(page.locator("#cal-search")).to_be_hidden()
+                        if width == 390:
+                            top = page.evaluate(
+                                "document.querySelector('#calendar-list .cal-grid').getBoundingClientRect().top"
+                            )
+                            assert top <= 230, top
+                            rows = page.evaluate(
+                                """() => ['#cal-prev', '#cal-view', '#cal-new-btn'].map(s => {
+                                const r = document.querySelector(s).getBoundingClientRect();
+                                return [Math.round(r.left), Math.round(r.top)]; })"""
+                            )
+                            assert rows[0][0] == rows[1][0] == 16, rows  # the page gutter
+                            assert rows[1][1] > rows[0][1] and rows[2][1] == rows[1][1], rows
+                        search.press("Enter")
+                        expect(page.locator("#cal-search")).to_be_focused()
+                        page.locator("#cal-search").press("Escape")
+                        expect(page.locator("#cal-search")).to_be_hidden()
+                        expect(search).to_be_focused()
                     capture("resting")
                     for mode in ("week", "day", "agenda", "year", "month"):
                         pick.focus()
@@ -243,7 +267,14 @@ def run():
                     event_id = saved.value.json()["id"]
                     expect(page.locator("#cal-title")).to_have_count(0)
                     page.reload(wait_until="networkidle")
-                    page.locator(f'#calendar-list .cal-chip[data-id="{event_id}"]').press("Enter")
+                    if page.evaluate("innerWidth <= 700"):
+                        # dots, not chips: the cell opens the day, and the event opens from there
+                        page.locator("#calendar-list .cal-cell.today .cal-day-open").press("Enter")
+                        page.locator(
+                            f'#calendar-list :is(.cal-tev, .cal-allday-ev)[data-id="{event_id}"]'
+                        ).press("Enter")
+                    else:
+                        page.locator(f'#calendar-list .cal-chip[data-id="{event_id}"]').press("Enter")
                     expect(page.locator("#cal-title")).to_have_value(event_title)
                     expect(page.locator("#cal-desc")).to_have_value("owned saved details 中文")
                     page.locator("#cal-back").press("Enter")

@@ -89,7 +89,7 @@ def run():
                 # a phone month cell fits one line; the rest sit behind "+N more", which
                 # opens the day. the fit runs a frame after the grid draws
                 expect(
-                    page.locator(f'.cal-chip[data-id="{eid}"], .cal-more[data-day="{day}"]').first
+                    page.locator(f'.cal-chip[data-id="{eid}"], :is(.cal-more, .cal-day-open)[data-day="{day}"]').first
                 ).to_be_visible()
                 page.evaluate(
                     "() => new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)))"
@@ -97,11 +97,11 @@ def run():
                 chip = page.locator(f'.cal-chip[data-id="{eid}"]')
                 if chip.count():
                     return chip.first
-                return page.locator(f'.cal-more[data-day="{day}"]')
+                return page.locator(f':is(.cal-more, .cal-day-open)[data-day="{day}"]')
 
             def open_event(eid, day):
                 target = month_event(eid, day)
-                if "cal-more" in (target.get_attribute("class") or ""):
+                if any(name in (target.get_attribute("class") or "") for name in ("cal-more", "cal-day-open")):
                     target.click()
                     target = page.locator(f':is(.cal-tev, .cal-allday-ev)[data-id="{eid}"]').first
                     # the next reload should land on the month again, like the gate expects

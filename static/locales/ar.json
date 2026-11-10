@@ -9137,6 +9137,14 @@
       "many": "{count} نجمة",
       "other": "{count} نجمة"
     },
+    "calendar.day_events": {
+      "zero": "{day}، {count} أحداث",
+      "one": "{day}، {count} حدث",
+      "two": "{day}، {count} حدثان",
+      "few": "{day}، {count} أحداث",
+      "many": "{day}، {count} حدثًا",
+      "other": "{day}، {count} حدث"
+    },
     "calendar.more_on_day": {
       "zero": "{count} أخرى في {day}",
       "one": "{count} أخرى في {day}",

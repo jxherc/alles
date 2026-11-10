@@ -534,9 +534,11 @@ function _bindNav() {
     if (event.target.closest?.('#cal-search') && !event.target.value && phoneSearch()) setSearchOpen(false);
   });
   // the month cap depends on the width, so a rotate or resize across it redraws the grid
-  window.matchMedia?.(MONTH_NARROW).addEventListener?.('change', () => {
-    if (_view === 'month' && document.querySelector('#calendar-list > .cal-grid')) render();
-  });
+  for (const query of [MONTH_NARROW, MONTH_DOTS]) {
+    window.matchMedia?.(query).addEventListener?.('change', () => {
+      if (_view === 'month' && document.querySelector('#calendar-list > .cal-grid')) render();
+    });
+  }
   const compactToolbar = window.matchMedia?.('(max-width: 760px)');
   compactToolbar?.addEventListener('change', () => {
     if (compactToolbar.matches && tools?.contains(document.activeElement)) setToolsOpen(true);
@@ -1229,6 +1231,11 @@ async function _toggleCalTask(id, refocus = false) {
 }
 // month cells fit 4 lines, 3 on a phone; the rest is counted on a "+N more" that opens the day
 const MONTH_NARROW = '(max-width: 600px)';
+// at 700px and narrower a day is its number and up to 3 dots in its calendars' colors: a cell of
+// about 54px can't read an event's words
+const MONTH_DOTS = '(max-width: 700px)';
+const monthDots = () => Boolean(window.matchMedia?.(MONTH_DOTS).matches);
+const _dayFull = day => formatCalendarDate(calendarPlacementDate(day), { weekday: 'long', month: 'short', day: 'numeric' }).toLowerCase();
 export const monthCellFit = (count, narrow) => Math.min(count, narrow ? 3 : 4);
 // the date row is one 44px strip in every cell, covered by a button that opens the day: a tap
 // on the date does the same everywhere, and "+N more" lives in that strip instead of on a line
@@ -1340,7 +1347,8 @@ function renderMonth() {
   for (let d = 1; d <= daysInMonth; d++) cells.push(new Date(year, month, d));
   while (cells.length % 7) cells.push(null);
 
-  let html = '<div class="cal-grid"><div class="cal-row" role="row">';
+  const dots = monthDots();
+  let html = `<div class="cal-grid${dots ? ' dots' : ''}"><div class="cal-row" role="row">`;
   for (const w of _weekdayLabels()) html += `<div class="cal-weekday" role="columnheader">${esc(w)}</div>`;
   html += '</div>';
   for (const [index, cell] of cells.entries()) {
@@ -1358,6 +1366,16 @@ function renderMonth() {
     ];
     counts[key] = items.length;
     lines[key] = items;
+    if (dots) {
+      // the whole cell is one button that opens the day; a screen reader hears the day's count
+      const colors = [...evts.map(evHex), ...(tasksByDay[key] || []).map(() => 'var(--muted)'), ...(bmap[_bdayKey(cell)] || []).map(() => 'var(--cat-pink)')];
+      const label = items.length ? trp('calendar.day_events', items.length, { day: _dayFull(key) }) : tr('calendar.open_day', { day: _dayLabel(key) });
+      html += `<div class="cal-cell${sameDay(cell, today) ? ' today' : ''}" data-date="${key}">
+      <div class="cal-cell-num" style="${NUM_STYLE}">${cell.getDate()}</div>
+      <div class="cal-dots" aria-hidden="true">${colors.slice(0, 3).map(color => `<i style="background:${color}"></i>`).join('')}</div>
+      <button type="button" class="cal-day-open" data-day="${key}" tabindex="-1" aria-label="${esc(label)}" style="${DAY_BTN_STYLE}"></button></div>`;
+      continue;
+    }
     const fit = monthCellFit(items.length, narrow);
     html += `<div class="cal-cell${sameDay(cell, today) ? ' today' : ''}" data-date="${key}">
       <div class="cal-cell-head" style="${HEAD_STYLE}"><div class="cal-cell-num" style="${NUM_STYLE}">${cell.getDate()}</div>${_dayBtn(key, items.length - fit)}</div>
@@ -1370,7 +1388,7 @@ function renderMonth() {
   const grid = el.querySelector('.cal-grid');
   _monthFitWatch?.disconnect();
   let seen = '';
-  _monthFitWatch = typeof ResizeObserver === 'function' ? new ResizeObserver(([entry]) => {
+  _monthFitWatch = !dots && typeof ResizeObserver === 'function' ? new ResizeObserver(([entry]) => {
     if (!grid.isConnected) { _monthFitWatch?.disconnect(); return; }
     // only a real size change refills; refilling moves lines, which can't feed back forever
     // because the next call sees the same size and stops
@@ -1401,6 +1419,8 @@ function renderMonth() {
     }
     const chip = ev.target.closest('.cal-chip');
     if (chip) { openEvent(chip.dataset.id, chip.dataset.occ); return; }
+    // dots only show that a day has things: the cell opens the day, enter on it too
+    if (dots) { _openDay(c.dataset.date); return; }
     createAt(c.dataset.date);
   }));
 }

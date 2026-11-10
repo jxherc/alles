@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 from datetime import date, timedelta
 from pathlib import Path
 
@@ -162,9 +163,15 @@ def month(page, eid, sat, span, outside, profile, output):
             expect(chip).to_have_text(TITLE)
             shown[key] = "chip"
         else:
-            # a phone cell can be too short for even one line; then "+1 more" stands in for it
-            # (it reads "+1" in a narrow cell; its name is "1 more" either way)
-            expect(cell.locator(".cal-more")).to_have_attribute("aria-label", "1 more")
+            if cell.locator(".cal-dots").count():
+                # 700px and narrower: a dot for the event, and the cell's one button names the count
+                expect(cell.locator(".cal-dots i")).to_have_count(1)
+                expect(cell.locator(".cal-day-open")).to_have_attribute(
+                    "aria-label", re.compile(r", 1 event$")
+                )
+            else:
+                # a short cell can hold no line at all; then "+1 more" stands in for it
+                expect(cell.locator(".cal-more")).to_have_attribute("aria-label", "1 more")
             shown[key] = "more"
     for key in outside:
         cell = page.locator(f'.cal-cell[data-date="{key}"]')
@@ -181,7 +188,7 @@ def month(page, eid, sat, span, outside, profile, output):
         opens_editor(page, first.locator(f'.cal-chip[data-id="{eid}"]'))
     else:
         # "+N more" opens that day with focus on its first all-day item: the trip
-        first.locator(".cal-more").click()
+        first.locator(".cal-more, .cal-day-open").click()
         expect(page.locator("#cal-view")).to_have_attribute("data-value", "day")
         found = page.locator(f'.cal-tg-allday[data-date="{span[0]}"] .cal-allday-ev')
         expect(found).to_have_attribute("data-id", eid)

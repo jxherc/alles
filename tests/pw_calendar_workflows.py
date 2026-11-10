@@ -189,7 +189,7 @@ def run():
                 day = occurrence or event_day(eid)
                 expect(
                     page.locator(
-                        f'.cal-chip[data-id="{eid}"]{occ}, .cal-more[data-day="{day}"]'
+                        f'.cal-chip[data-id="{eid}"]{occ}, :is(.cal-more, .cal-day-open)[data-day="{day}"]'
                     ).first
                 ).to_be_visible()
                 # the month trims lines a frame after it draws; read it once that's done
@@ -199,7 +199,7 @@ def run():
                 if not chip.count():
                     # a month cell only fits so many lines (one on a phone); the rest sit
                     # behind "+N more", which opens that day
-                    page.locator(f'.cal-more[data-day="{day}"]').click()
+                    page.locator(f':is(.cal-more, .cal-day-open)[data-day="{day}"]').click()
                     chip = page.locator(f':is(.cal-tev, .cal-allday-ev)[data-id="{eid}"]{occ}')
                 chip.first.click()
                 expect(page.locator("#cal-title")).to_be_visible()
@@ -305,10 +305,16 @@ def run():
                 if profile != "desktop" and not page.locator("#cal-search").is_visible():
                     page.locator("#cal-search-btn").tap()
                 page.locator("#cal-search").fill("跨日")
-                expect(page.locator(f'.cal-chip[data-id="{eid}"]:not([data-old])')).to_be_visible()
-                page.locator("#cal-search").click()
-                tab_to(f'.cal-chip[data-id="{eid}"]')
-                page.keyboard.press("Enter")
+                if profile == "desktop":
+                    expect(page.locator(f'.cal-chip[data-id="{eid}"]:not([data-old])')).to_be_visible()
+                    page.locator("#cal-search").click()
+                    tab_to(f'.cal-chip[data-id="{eid}"]')
+                    page.keyboard.press("Enter")
+                else:
+                    # 700px and narrower draws dots, not chips: the search narrows the dots, and the
+                    # event opens from its day
+                    page.wait_for_timeout(600)
+                    open_event(eid)
                 expect(page.locator("#cal-title")).to_have_value(title)
                 set_date("#cal-start", 28, 23, 45)
                 set_date("#cal-end", 29, 0, 30)
@@ -316,8 +322,10 @@ def run():
                 calendar(reload=True)
                 assert saved(eid)["start_dt"] == "2026-09-28T23:45"
                 assert saved(eid)["end_dt"] == "2026-09-29T00:30"
-                page.locator(f'.cal-chip[data-id="{eid}"]').first.scroll_into_view_if_needed()
-                targets = page.locator(".cal-chip").evaluate_all("""elements => elements.map(e => {
+                if profile != "desktop":
+                    # dots: the whole cell is one 44px button inside the screen
+                    page.locator(".cal-cell:not(.empty) .cal-day-open").first.scroll_into_view_if_needed()
+                targets = page.locator(".cal-chip" if profile == "desktop" else ".cal-day-open").evaluate_all("""elements => elements.map(e => {
                     const b = e.getBoundingClientRect(), p = e.closest('.cal-cell').getBoundingClientRect();
                     return {width:b.width,height:b.height,left:b.left,right:b.right,cellLeft:p.left,cellRight:p.right};
                 })""")
@@ -444,7 +452,7 @@ def run():
                 page.locator("#cal-load-error").get_by_role("button", name="retry").click()
                 expect(page.locator("#cal-load-error")).to_have_count(0)
                 # a phone cell with more than one line shows only its "+N more"
-                expect(page.locator(".cal-chip, .cal-more").first).to_be_visible()
+                expect(page.locator(".cal-chip, .cal-more, .cal-day-open").first).to_be_visible()
                 calendar(reload=True)
                 passed()
 
@@ -732,7 +740,12 @@ def run():
                 save()
                 all_day = next(row for row in rows() if row["title"] == label + " all day")
                 calendar(reload=True)
-                expect(page.locator(f'.cal-chip[data-id="{all_day["id"]}"]')).to_have_count(3)
+                if profile == "desktop":
+                    expect(page.locator(f'.cal-chip[data-id="{all_day["id"]}"]')).to_have_count(3)
+                else:
+                    # dots: each of the three days shows one
+                    for key in ("2026-09-27", "2026-09-28", "2026-09-29"):
+                        assert page.locator(f'.cal-cell[data-date="{key}"] .cal-dots i').count() >= 1, key
                 open_event(all_day["id"])
                 expect(page.locator("#cal-end")).to_have_attribute("data-value", "2026-09-29")
                 page.locator("#cal-desc").fill("Preserve all three dates")

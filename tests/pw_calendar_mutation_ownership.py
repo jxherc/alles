@@ -106,7 +106,7 @@ def run():
                 page.locator("#cal-today").click()
                 chip = page.locator(f'.cal-chip[data-id="{eid}"]')
                 expect(
-                    page.locator(f'.cal-chip[data-id="{eid}"], .cal-more[data-day="{day}"]').first
+                    page.locator(f'.cal-chip[data-id="{eid}"], :is(.cal-more, .cal-day-open)[data-day="{day}"]').first
                 ).to_be_visible()
                 # the month trims lines a frame after it draws; read it once that's done
                 page.evaluate(
@@ -116,7 +116,7 @@ def run():
                     chip.press("Enter")
                 else:
                     # a short month cell (phone, 200% zoom) keeps the rest behind "+N more"
-                    page.locator(f'.cal-more[data-day="{day}"]').press("Enter")
+                    page.locator(f':is(.cal-more, .cal-day-open)[data-day="{day}"]').press("Enter")
                     page.locator(f'.cal-tev[data-id="{eid}"]').click()
                 expect(page.locator("#cal-inv-btn")).to_be_visible()
 

@@ -8949,6 +8949,10 @@ const BUILTIN_ENGLISH = {
       "one": "{count} star",
       "other": "{count} stars"
     },
+    "calendar.day_events": {
+      "one": "{day}, {count} event",
+      "other": "{day}, {count} events"
+    },
     "calendar.more_on_day": {
       "one": "{count} more on {day}",
       "other": "{count} more on {day}"

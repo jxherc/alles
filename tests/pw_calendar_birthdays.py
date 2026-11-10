@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 from datetime import date, timedelta
 from pathlib import Path
 
@@ -138,9 +139,15 @@ def month(page, when, profile, output):
         expect(bday.locator("svg")).to_have_count(1)
         shown = "line"
     else:
-        # a phone cell can be too short for even one line; then "+1 more" stands in for it
-        # (it reads "+1" in a narrow cell; its name is "1 more" either way)
-        expect(cell.locator(".cal-more")).to_have_attribute("aria-label", "1 more")
+        if cell.locator(".cal-dots").count():
+            # 700px and narrower: a dot for the birthday, and the cell's one button names the count
+            expect(cell.locator(".cal-dots i")).to_have_count(1)
+            expect(cell.locator(".cal-day-open")).to_have_attribute(
+                "aria-label", re.compile(r", 1 event$")
+            )
+        else:
+            # a short cell can hold no line at all; then "+1 more" stands in for it
+            expect(cell.locator(".cal-more")).to_have_attribute("aria-label", "1 more")
         shown = "more"
     expect(page.locator(".cal-cell", has_text=NAME)).to_have_count(1 if shown == "line" else 0)
     if profile == "desktop":
@@ -150,7 +157,7 @@ def month(page, when, profile, output):
     )
     page.screenshot(path=str(output / f"{profile}-month-{when}.png"), full_page=True)
     if shown == "more":
-        cell.locator(".cal-more").click()
+        cell.locator(".cal-more, .cal-day-open").click()
         expect(page.locator(f'.cal-tg-allday[data-date="{when}"] .cal-bday')).to_have_text(NAME)
         pick_view(page, "month")
     return shown

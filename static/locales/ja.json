@@ -8801,6 +8801,7 @@
     "books.imported": {"other": "{count} 冊をインポートしました"},
     "books.read_this_year": {"other": "今年 {count} 冊読了"},
     "books.stars": {"other": "星 {count} 個"},
+    "calendar.day_events": {"other": "{day}、予定 {count} 件"},
     "calendar.more_on_day": {"other": "{day} にあと {count} 件"},
     "calendar.plus_more": {"other": "ほか {count} 件"},
     "calendar.remind_minutes_before": {"other": "{count} 分前に通知"},

@@ -8801,6 +8801,7 @@
     "books.imported": {"one": "{count} livre importé", "many": "{count} de livres importés", "other": "{count} livres importés"},
     "books.read_this_year": {"one": "{count} lu cette année", "many": "{count} lus cette année", "other": "{count} lus cette année"},
     "books.stars": {"one": "{count} étoile", "many": "{count} de étoiles", "other": "{count} étoiles"},
+    "calendar.day_events": {"one": "{day}, {count} événement", "many": "{day}, {count} événements", "other": "{day}, {count} événements"},
     "calendar.more_on_day": {"one": "{count} de plus le {day}", "many": "{count} de plus le {day}", "other": "{count} de plus le {day}"},
     "calendar.plus_more": {"one": "+{count} de plus", "many": "+{count} de plus", "other": "+{count} de plus"},
     "calendar.remind_minutes_before": {"one": "rappeler {count} minute avant", "many": "rappeler {count} de minutes avant", "other": "rappeler {count} minutes avant"},

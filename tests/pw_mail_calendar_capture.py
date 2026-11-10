@@ -163,7 +163,7 @@ def run():
                     day = result["start_dt"][:10]
                     expect(
                         page.locator(
-                            f'.cal-chip[data-id="{result["id"]}"], .cal-more[data-day="{day}"]'
+                            f'.cal-chip[data-id="{result["id"]}"], :is(.cal-more, .cal-day-open)[data-day="{day}"]'
                         ).first
                     ).to_be_visible()
                     page.evaluate(
@@ -172,7 +172,7 @@ def run():
                     if not page.locator(f'.cal-chip[data-id="{result["id"]}"]').count():
                         # a phone month cell fits one line; the rest sit behind "+N more",
                         # which opens the day (and the day view stays across the reloads below)
-                        page.locator(f'.cal-more[data-day="{day}"]').click()
+                        page.locator(f':is(.cal-more, .cal-day-open)[data-day="{day}"]').click()
                     chip = page.locator(
                         f':is(.cal-chip, .cal-tev, .cal-allday-ev)[data-id="{result["id"]}"]'
                     )

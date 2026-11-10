@@ -6465,6 +6465,11 @@ body.afterlife-aide-projects[data-space="aide"] .aide-scheduled-view {
   min-width: 22px; height: 22px; padding: 0 4px; box-sizing: border-box; border-radius: 11px;
   display: inline-flex; align-items: center; justify-content: center; font-weight: 600;
 }
+/* 700px and narrower: a day is its number and up to 3 dots in its calendars' colors, and the whole
+   cell is the one button that opens the day (decision 0075) */
+.cal-grid.dots .cal-cell { position: relative; min-height: 64px; }
+.cal-dots { display: flex; gap: var(--k-space-1); margin: var(--k-space-1) 0 0 6px; }   /* 6px: the number's own inset */
+.cal-dots i { display: block; width: 6px; height: 6px; border-radius: 50%; }
 /* a day's chips are one stack: --k-row-gap between them and under the date strip (0051) */
 .cal-cell-events { display: flex; flex-direction: column; gap: var(--k-row-gap); margin-top: var(--k-row-gap); }
 .cal-chip {
