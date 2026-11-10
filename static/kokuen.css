@@ -2483,7 +2483,7 @@ html[data-theme="light"] :where(
 }
 
 #app-drawer[data-kokuen-surface="apps"] .app-drawer-item {
-  min-height: 52px;
+  min-height: var(--k-control);
   border: 0;
   border-radius: var(--k-radius-control);
   background: transparent;
@@ -2663,6 +2663,8 @@ html[data-kokuen-version="5"] #app-drawer[data-kokuen-surface="apps"] {
   width: min(420px, 100vw);
   min-height: 100dvh;
   padding: var(--k-space-4) var(--k-space-4) var(--k-space-5);
+  display: flex;
+  flex-direction: column;
   overflow-y: auto;
   border: 0;
   border-right: 1px solid var(--k-line-strong);
@@ -2709,7 +2711,9 @@ html[data-kokuen-version="5"] #app-drawer .app-drawer-footer button:is(:hover, :
 }
 
 html[data-kokuen-version="5"] #app-drawer .app-drawer-content {
-  padding-top: var(--k-space-5);
+  flex: 1 1 auto;
+  min-height: 0;
+  padding-top: var(--k-space-3);
 }
 
 html[data-kokuen-version="5"] #app-drawer .app-drawer-content h2 {
@@ -2725,12 +2729,12 @@ html[data-kokuen-version="5"] #app-drawer .app-drawer-content h2 {
 html[data-kokuen-version="5"] #app-drawer .app-drawer-grid {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
-  gap: var(--k-space-5);
-  margin-top: var(--k-space-5);
+  gap: var(--k-space-3);
+  margin-top: var(--k-space-3);
 }
 
 html[data-kokuen-version="5"] #app-drawer .app-drawer-group h3 {
-  margin: 0 0 var(--k-space-2);
+  margin: 0 0 var(--k-space-1);
   color: var(--k-muted);
   font-size: 0.875rem;
   font-weight: 520;
@@ -2738,12 +2742,13 @@ html[data-kokuen-version="5"] #app-drawer .app-drawer-group h3 {
 
 html[data-kokuen-version="5"] #app-drawer .app-drawer-list {
   display: grid;
-  gap: var(--k-space-1);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--k-row-gap) var(--k-control-gap);
 }
 
 html[data-kokuen-version="5"] #app-drawer .app-drawer-item {
   width: 100%;
-  min-height: 52px;
+  min-height: var(--k-control);
   display: grid;
   grid-template-columns: 22px minmax(0, 1fr);
   align-items: center;
@@ -2778,6 +2783,14 @@ html[data-kokuen-version="5"] #app-drawer .app-drawer-item b {
   font-weight: 540;
 }
 
+html[data-kokuen-version="5"] #app-drawer .app-drawer-item[aria-current="page"] {
+  color: var(--k-text);
+}
+
+html[data-kokuen-version="5"] #app-drawer .app-drawer-item[aria-current="page"] b {
+  font-weight: 640;
+}
+
 html[data-kokuen-version="5"] #app-drawer .app-drawer-item small {
   margin-top: var(--k-space-1);
   color: var(--k-muted);
@@ -2786,8 +2799,9 @@ html[data-kokuen-version="5"] #app-drawer .app-drawer-item small {
 }
 
 html[data-kokuen-version="5"] #app-drawer .app-drawer-footer {
+  flex: 0 0 auto;
   justify-content: flex-start;
-  margin-top: var(--k-space-5);
+  margin-top: var(--k-space-3);
 }
 
 /* Shared hit area and state geometry. Inline text links retain the documented

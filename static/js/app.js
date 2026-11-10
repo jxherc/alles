@@ -1646,9 +1646,19 @@ function _syncShellTrigger(root = null) {
   drawerLabel.textContent = appLabel(label);
   drawerLabel.dataset.app = label;
   syncAppRail(label);
+  markDrawerCurrent(label);
   syncAskPanel();
   trigger.setAttribute('aria-label', t('shell.switch_app_from', { label: appLabel(label) }));
   trigger.hidden = false;
+}
+
+// the open app carries the page mark in the sheet too (home is "alles" in the shell's words)
+function markDrawerCurrent(label) {
+  const current = label === 'alles' ? 'home' : label;
+  document.querySelectorAll('#app-drawer-grid .app-drawer-item').forEach(item => {
+    if (item.dataset.app === current) item.setAttribute('aria-current', 'page');
+    else item.removeAttribute('aria-current');
+  });
 }
 
 function _renderAppDrawer() {
@@ -1668,6 +1678,7 @@ function _renderAppDrawer() {
       button.type = 'button';
       button.className = 'app-drawer-item';
       button.dataset.view = destination.view;
+      button.dataset.app = destination.name;
       button.innerHTML = `<span class="app-drawer-icon" aria-hidden="true">${appGlyph(destination.view)}</span><span><b>${appLabel(destination.name)}</b></span>`;
       button.addEventListener('click', async () => {
         const staysOnPage = singleHost() || viewToSub(destination.view) === currentSub();
@@ -1688,6 +1699,7 @@ function openAppDrawer() {
   const drawer = document.getElementById('app-drawer');
   const scrim = document.getElementById('app-drawer-scrim');
   if (!drawer || !scrim) return;
+  markDrawerCurrent(document.getElementById('app-drawer-label')?.dataset.app || '');
   drawer.classList.remove('is-closing');
   scrim.classList.remove('is-closing');
   drawer.hidden = false;

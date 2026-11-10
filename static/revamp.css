@@ -2741,7 +2741,7 @@ html:not(#_):not(#_) :is(.read-empty, .watch-empty) {
     animation: drawer-out 240ms var(--k-ease-out) both;
   }
 
-  html:not(#_) #app-drawer.is-closing { display: block !important; }
+  html:not(#_) #app-drawer.is-closing { display: flex !important; }
   html:not(#_) body.aide-central[data-space="aide"].sidebar-closing .sidebar { display: flex !important; }
 
   html:not(#_) :is(#app-drawer-scrim, body.aide-central[data-space="aide"] .nav-backdrop) {
