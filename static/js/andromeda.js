@@ -68,6 +68,8 @@ function freshState() {
     resultStatus: 'empty', providerDisabled: false, documentScope: null,
     // earlier questions in this thread, sent with the overview so "it" means something
     context: [], followUpOf: '', deep: false,
+    // news rows and pictures shown among the web results: kind -> its rows
+    strips: {},
   };
 }
 
@@ -973,8 +975,8 @@ function imageAspect(result) {
 // a click shows the picture large with its source and a way to its page, and the arrows step
 // through the results without closing (google images). the small picture shows at once; the
 // full one takes its place when the proxy could fetch it
-function openImagePreview(start) {
-  const first = _state.results[start];
+function openImagePreview(start, list = _state.results) {
+  const first = list[start];
   if (!first) return;
   let at = start, fullUrl = '', loading = null;
   const dropFull = () => {
@@ -1009,7 +1011,7 @@ function openImagePreview(start) {
       visit.textContent = tr('andromeda.visit_page');
       close.before(visit);
       const show = index => {
-        const result = _state.results[index];
+        const result = list[index];
         if (!result) return;
         at = index;
         dropFull();
@@ -1030,7 +1032,7 @@ function openImagePreview(start) {
         if (page) visit.href = page.href;
         const focused = document.activeElement;
         previous.disabled = index === 0;
-        next.disabled = index === _state.results.length - 1;
+        next.disabled = index === list.length - 1;
         // a step button that just switched itself off would drop the focus out of the dialog
         if (focused?.disabled) (previous.disabled ? next : previous).focus();
         const full = mediaUrl(result.image_url || '');
@@ -1174,6 +1176,7 @@ export function renderAndromedaResults(results, state = 'ready', currentCategory
     }
     list.appendChild(empty);
   }
+  if (currentCategory === 'all') placeStrips();
   const actions = el('andromeda-actions');
   if (actions) actions.hidden = !_state.rawQuery;
   syncAskAide(currentCategory);
@@ -2106,6 +2109,84 @@ async function loadRelated(query, searchGeneration, signal) {
   el('andromeda-related').hidden = false;
 }
 
+// ── news rows and a row of pictures among the web results ──
+// a search that asks for the news or for pictures gets a few of them here. the server decides
+// from the words and sends the rows with the results, so they show in one go and nothing moves
+function clearStrips() {
+  _state.strips = {};
+  el('andromeda-results')?.querySelectorAll(':scope > .andromeda-strip').forEach(node => node.remove());
+}
+
+function stripNode(kind, items) {
+  const section = document.createElement('section');
+  section.className = `andromeda-strip andromeda-strip-${kind}`;
+  section.dataset.strip = kind;
+  const head = document.createElement('h2');
+  const more = document.createElement('button');
+  more.type = 'button';
+  more.className = 'andromeda-strip-more';
+  const label = document.createElement('span');
+  label.textContent = tr(`andromeda.${kind}`);
+  more.appendChild(label);
+  more.insertAdjacentHTML('beforeend', _si('chevron-right'));
+  more.addEventListener('click', () => setCategory(kind));
+  head.appendChild(more);
+  const list = document.createElement('div');
+  list.className = 'andromeda-strip-list';
+  if (kind === 'images') {
+    for (const result of items) {
+      const frame = mediaFrame(result);
+      const image = frame.querySelector('img');
+      if (!image) continue;
+      const card = makeExternalLink(result, 'andromeda-strip-image');
+      card.textContent = '';
+      card.setAttribute('aria-label', result.title || tr('andromeda.image_result'));
+      card.setAttribute('aria-haspopup', 'dialog');
+      card.style.setProperty('--ar', imageAspect(result));
+      card.addEventListener('click', event => {
+        // a plain click previews; cmd, ctrl, shift or the middle button still open the page itself
+        if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+        event.preventDefault();
+        openImagePreview(items.indexOf(result), items);
+      });
+      frame.style.aspectRatio = '';
+      // a tile whose picture is gone says nothing here: it leaves and the row closes up
+      image.addEventListener('error', () => card.remove(), { once: true });
+      card.appendChild(frame);
+      list.appendChild(card);
+    }
+  } else {
+    for (const result of items) {
+      const row = document.createElement('article');
+      row.className = 'andromeda-strip-story';
+      const meta = document.createElement('span');
+      meta.className = 'andromeda-strip-story-meta';
+      const site = result.publisher || (safeUrl(result.url)?.hostname || '').replace(/^www\./, '');
+      meta.textContent = [site, formatPublishedDate(result.published)].filter(Boolean).join(' · ');
+      row.append(makeExternalLink(result, 'andromeda-strip-story-title'), meta);
+      list.appendChild(row);
+    }
+  }
+  section.append(head, list);
+  return section;
+}
+
+// the news sits above the results and the pictures after the third one, as on any results page
+function placeStrips() {
+  const { news, images } = _state.strips || {};
+  const stories = Array.isArray(news) ? news : [];
+  const pictures = Array.isArray(images) ? images : [];
+  // the list was just drawn again without them: with none to place there is nothing to do
+  if (!stories.length && !pictures.length) return;
+  const list = el('andromeda-results');
+  if (!list) return;
+  list.querySelectorAll(':scope > .andromeda-strip').forEach(node => node.remove());
+  const rows = [...list.querySelectorAll(':scope > .andromeda-result')];
+  if (!rows.length) return;
+  if (stories.length) rows[0].before(stripNode('news', stories));
+  if (pictures.length) (rows[2] || rows.at(-1)).after(stripNode('images', pictures));
+}
+
 function setPeriod(value) {
   _period = PERIODS.has(value) ? value : '';
   setDropdownValue(el('andromeda-period'), _period);
@@ -2312,6 +2393,7 @@ export async function runAndromedaSearch(queryValue = '', options = {}) {
   renderAnswer(el('andromeda-answer'), null);
   clearKnowledge();
   clearRelated();
+  clearStrips();
   renderSpelling('');
   if (early) adoptCorrection(early, query, currentCategory, options);
   // calculator, converter, weather, dictionary... runs beside the search, never in front of it
@@ -2363,6 +2445,7 @@ export async function runAndromedaSearch(queryValue = '', options = {}) {
     // wikipedia answers long before a search engine does; a slow one gets 150 ms more
     const panel = await Promise.race([knowledgeReady, new Promise(done => setTimeout(done, 150, undefined))]);
     if (searchGeneration !== _searchGeneration) return;
+    _state.strips = plain && result.strips && typeof result.strips === 'object' ? result.strips : {};
     renderAndromedaResults(_state.results, result.status, currentCategory);
     // the engine says whether it can filter by date; a filter it can't apply is not offered
     const period = el('andromeda-period');

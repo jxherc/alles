@@ -262,6 +262,112 @@ def order_results(rows, query: str) -> list:
     return first + rest
 
 
+# a search that asks for the news or for pictures gets a few of them on the web results page,
+# the way a search engine shows top stories and a row of images. these are the words only: the
+# page asks the news or images tab's own engine after the results are in, so a search that
+# names neither costs nothing more. the rows are asked for beside the web search and travel in
+# its reply, so the page shows results and rows in one go and nothing moves afterwards (asked
+# for after the results, a strip that came back empty collapsed and pulled the whole list up
+# 289px). the word has to be what is asked for, so it counts at the
+# end of the search or before "of" ("toronto news", "pictures of cats", 猫的图片) and not
+# inside a phrase about something else ("image processing in python", "breaking bad", 图片压缩)
+_STRIP_WORDS = {
+    "news": (
+        {"news", "headlines", "noticias", "actualités", "actualites", "nouvelles"},
+        ("新闻", "新聞", "头条", "頭條", "ニュース", "뉴스", "أخبار"),
+    ),
+    "images": (
+        {"picture", "pictures", "photo", "photos", "image", "images", "pics", "wallpaper"}
+        | {"wallpapers", "logo", "fotos", "imágenes", "imagenes"},
+        (
+            "图片",
+            "圖片",
+            "照片",
+            "壁纸",
+            "壁紙",
+            "头像",
+            "頭像",
+            "写真",
+            "画像",
+            "사진",
+            "이미지",
+            "صور",
+        ),
+    ),
+}
+# these name the kind of picture wanted, so they stay in what the images tab is asked for
+_STRIP_KEPT = {"logo", "wallpaper", "wallpapers", "壁纸", "壁紙", "头像", "頭像"}
+# with only one of these left, the search was for the news itself: "latest news", 最新新闻
+_STRIP_BARE = {"latest", "breaking", "top", "local", "today", "world", "最新", "今日", "今天"}
+MAX_STRIP_QUERY = 120
+STRIP_ROWS = {"news": 3, "images": 8}
+# two pictures or one headline look like a mistake, not a section
+STRIP_MIN_ROWS = {"news": 2, "images": 4}
+# how long a strip may keep the results waiting once the web search itself is done
+STRIP_GRACE_SECONDS = 0.3
+
+
+def strip_topics(query: str) -> dict[str, str]:
+    """the extra rows the web results page shows for these words, and what to ask each tab for:
+    {"news": "toronto"} for "toronto news". the tab is asked for the thing, not for the word
+    "news": with it, the news engine returns pages that have "news" in their title."""
+    query = " ".join(str(query or "").split())
+    if not query or len(query) > MAX_STRIP_QUERY or "://" in query:
+        return {}
+    words = query.split()
+    lowered = [word.casefold() for word in words]
+    found = {}
+    for kind, (spaced, joined) in _STRIP_WORDS.items():
+        topic = ""
+        if len(words) > 1 and lowered[-1] in spaced:
+            topic = " ".join(words[:-1])  # "toronto news"
+        elif len(words) > 2 and lowered[0] in spaced and lowered[1] in ("of", "de", "du", "des"):
+            topic = " ".join(words[2:])  # "pictures of cats"
+        elif len(words) > 2 and lowered[-2] in spaced and lowered[-1] in ("today", "now"):
+            topic = " ".join(words[:-2])  # "ai news today"
+        else:
+            # in chinese, japanese and korean the thing asked for comes last: 猫的图片, not 图片压缩
+            for word in joined:
+                if query.endswith(word) and query != word:
+                    topic = (
+                        query[: -len(word)].rstrip().removesuffix("的").removesuffix("の").strip()
+                    )
+                    break
+        if not topic:
+            continue
+        kept = lowered[-1] in _STRIP_KEPT or any(query.endswith(word) for word in _STRIP_KEPT)
+        found[kind] = query if kept or topic.casefold() in _STRIP_BARE else topic
+    return found
+
+
+def strips(query: str) -> list[str]:
+    """which extra rows the web results page shows for these words: "news", "images"."""
+    return list(strip_topics(query))
+
+
+async def strip_rows(query: str, kind: str, period: str = "") -> list[dict]:
+    """a few rows of the news or images tab for the web results page, or [] when the tab's
+    engine has too few to make a section."""
+    try:
+        found = await normal_search(
+            query,
+            enabled=True,
+            max_results=STRIP_ROWS[kind],
+            category=kind,
+            provider="",
+            **({"period": period} if period and kind == "news" else {}),
+        )
+    except Exception:
+        # a convenience beside the results: the results page must not notice
+        return []
+    rows = [
+        row
+        for row in found.get("results") or []
+        if kind != "images" or row.get("thumbnail_url") or row.get("image_url")
+    ][: STRIP_ROWS[kind]]
+    return rows if len(rows) >= STRIP_MIN_ROWS[kind] else []
+
+
 # an engine that understands meaning (exa) and one that matches words (the free engine reads
 # bing's index through yahoo) miss different things: exa answered 沙底下一个女 with the film
 # "woman in the dunes", the word engine with the character 娑; for "how to tie a tie" only the
