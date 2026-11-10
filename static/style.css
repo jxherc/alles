@@ -7937,7 +7937,6 @@ html[data-kokuen-version="5"] :is(.cal-tev[data-id], .cal-tstack):focus-visible 
 .wiki-slash-id { font-size: 0.8125rem; color: var(--muted); }
 
 /* tags */
-.wiki-tags { display: flex; flex-wrap: wrap; gap: 0.25rem; padding: 0 0.8rem 0.55rem; max-height: 80px; overflow-y: auto; }
 .wiki-tag {
   font-size: 0.8125rem; color: var(--muted); cursor: pointer;
   border: 1px solid var(--faint); border-radius: var(--k-radius-control); padding: 0.08rem 0.34rem;
@@ -10630,13 +10629,16 @@ body[data-app="docs"] .main > .topbar { display: none !important; }
 .wiki-tags {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.2rem;
-  padding: 0 0.35rem 0.35rem;
+  gap: var(--k-row-gap);
+  padding: 0;
+  max-height: 80px;
+  overflow-y: auto;
 }
 
 .wiki-tag,
 .docs-tag-clear {
   border: 0;
+  padding-inline: var(--k-space-2);
   background: none;
   color: var(--muted);
   font: inherit;
@@ -10924,7 +10926,6 @@ body[data-app="docs"] .main > .topbar { display: none !important; }
   gap: 0.75rem;
   padding: 0.65rem 0.75rem;
   border: 1px solid var(--faint);
-  border-radius: var(--k-radius-control);
   background: transparent;
   color: var(--muted);
   text-align: left;
