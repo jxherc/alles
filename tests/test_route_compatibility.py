@@ -251,6 +251,9 @@ _SEARCH_EXTENSION_ADDITIONS = {"GET /api/andromeda/search-extension"}
 # completions under andromeda's search box while typing
 _ANDROMEDA_SUGGEST_ADDITIONS = {"GET /api/andromeda/suggest"}
 
+# the panel beside andromeda's results that says what the searched thing is
+_ANDROMEDA_KNOWLEDGE_ADDITIONS = {"GET /api/andromeda/knowledge"}
+
 
 def _route_rows():
     """the surface before pi, which the older additive checks below are pinned to."""
@@ -284,6 +287,7 @@ def _route_rows():
         | _APP_PATH_ADDITIONS
         | _SEARCH_EXTENSION_ADDITIONS
         | _ANDROMEDA_SUGGEST_ADDITIONS
+        | _ANDROMEDA_KNOWLEDGE_ADDITIONS
     )
     return sorted((set(_current_rows()) - later) | _DSH_REMOVED)
 
@@ -432,6 +436,7 @@ class RouteCompatibilityBaselineTest(unittest.TestCase):
                 - _APP_PATH_ADDITIONS
                 - _SEARCH_EXTENSION_ADDITIONS
                 - _ANDROMEDA_SUGGEST_ADDITIONS
+                - _ANDROMEDA_KNOWLEDGE_ADDITIONS
             ),
             960,
         )
@@ -504,6 +509,7 @@ class RouteCompatibilityBaselineTest(unittest.TestCase):
                 - _APP_PATH_ADDITIONS
                 - _SEARCH_EXTENSION_ADDITIONS
                 - _ANDROMEDA_SUGGEST_ADDITIONS
+                - _ANDROMEDA_KNOWLEDGE_ADDITIONS
             ),
             974,
         )
@@ -565,6 +571,9 @@ class RouteCompatibilityBaselineTest(unittest.TestCase):
     def test_andromeda_suggest_route_is_additive(self):
         self.assertTrue(_ANDROMEDA_SUGGEST_ADDITIONS <= set(_current_rows()))
 
+    def test_andromeda_knowledge_route_is_additive(self):
+        self.assertTrue(_ANDROMEDA_KNOWLEDGE_ADDITIONS <= set(_current_rows()))
+
     def test_docs_over_the_local_network_routes_are_additive(self):
         self.assertTrue(_DOCS_LAN_ADDITIONS <= set(_current_rows()))
         self.assertTrue(_DAV_SYNC_ADDITIONS <= set(_current_rows()))
@@ -574,8 +583,8 @@ class RouteCompatibilityBaselineTest(unittest.TestCase):
     def test_full_method_path_surface_matches_current_snapshot(self):
         rows = _current_rows()
         digest = hashlib.sha256(("\n".join(rows) + "\n").encode()).hexdigest()
-        self.assertEqual(len(rows), 1045)
-        self.assertEqual(digest, "18036365507926a8374654eeb6119a738a2a7d00db13be0722432fb9baf00e03")
+        self.assertEqual(len(rows), 1046)
+        self.assertEqual(digest, "ae9f64815180ed1b16a0a4e3fc6d9db357fc16fcb85bce96c66148ceb994d50a")
         groups = Counter(
             "api"
             if row.split(" ", 1)[1].startswith("/api/")
@@ -584,7 +593,7 @@ class RouteCompatibilityBaselineTest(unittest.TestCase):
             else "public"
             for row in rows
         )
-        self.assertEqual(groups, {"api": 1009, "v1": 2, "public": 34})
+        self.assertEqual(groups, {"api": 1010, "v1": 2, "public": 34})
         self.assertIn("POST /api/money/recurring/{rid}/delete", rows)
         self.assertIn("POST /api/money/recurring/{rid}/delete/retry", rows)
 

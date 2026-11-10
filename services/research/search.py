@@ -27,6 +27,10 @@ _UA = (
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
     "(KHTML, like Gecko) Chrome/122.0 Safari/537.36"
 )
+# wikipedia refuses clients that don't say who they are (403 "respect our robot policy", seen
+# nov 10) and asks for a name with a link, never a browser's:
+# https://foundation.wikimedia.org/wiki/Policy:User-Agent_policy
+WIKIPEDIA_UA = "alles (https://github.com/jxherc/alles)"
 _KNOWN_PROVIDERS = frozenset({*BY_ID, "wikipedia"})
 # the keyless engines for web results, best first. ddgs runs them in this order and only goes
 # down the list while it still needs rows, so a page comes from the best engine that answers.
@@ -702,7 +706,7 @@ async def _search_duckduckgo(query, max_results=6, category="all"):
 
 async def _search_wikipedia(query, max_results=6):
     async with httpx.AsyncClient(
-        timeout=12, follow_redirects=True, headers={"user-agent": _UA}
+        timeout=12, follow_redirects=True, headers={"user-agent": WIKIPEDIA_UA}
     ) as c:
         r = await c.get(
             "https://en.wikipedia.org/w/api.php",

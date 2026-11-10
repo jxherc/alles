@@ -1,7 +1,7 @@
 import { escapeHtml as esc, appLabel, plainError, writeClipboard } from './util.js';
 import { initCustomDropdowns, setDropdownValue } from './dropdown.js?v=217';
 import { confirm as confirmDialog, view as viewDialog } from './dialog.js';
-import { formatDate, formatDateTime, t as tr, tp as trp } from './i18n.js';
+import { formatDate, formatDateTime, localizationState, t as tr, tp as trp } from './i18n.js';
 import { whenDay } from './when.js';
 import { answerCovers, renderAnswer } from './andromeda_answers.js';
 import { createMenuController } from './kokuen.js?v=5';
@@ -2065,6 +2065,81 @@ function renderCorrection({ from, to }, typed) {
 }
 
 let _answerSeq = 0;
+function clearKnowledge() {
+  const node = el('andromeda-knowledge');
+  if (!node) return;
+  node.hidden = true;
+  node.replaceChildren();
+}
+
+// what the searched thing is, from wikipedia; null for a search that names no single page
+async function loadKnowledge(query, signal) {
+  try {
+    const lang = localizationState().language || '';
+    const found = await jsonRequest(`/api/andromeda/knowledge?q=${encodeURIComponent(query)}&lang=${encodeURIComponent(lang)}`, { signal });
+    return found?.panel || null;
+  } catch {
+    return null;
+  }
+}
+
+// beside the results there is room for it at any time; over them it would push the results
+// down, so there it only shows when it is ready with them
+const knowledgeBeside = () => {
+  const body = el('andromeda-knowledge')?.parentElement;
+  return !!body && getComputedStyle(body).getPropertyValue('--knowledge-beside').trim() === '1';
+};
+
+function showKnowledge(panel) {
+  const node = el('andromeda-knowledge');
+  const page = safeUrl(panel?.url);
+  if (!node || !page || !panel.title || !panel.extract) return;
+  node.replaceChildren();
+  node.lang = panel.language || '';
+  const src = mediaUrl(panel.image);
+  if (src) {
+    const frame = document.createElement('span');
+    frame.className = 'andromeda-knowledge-media';
+    const width = Number(panel.image_width);
+    const height = Number(panel.image_height);
+    if (width > 0 && height > 0) frame.style.setProperty('--ratio', `${width} / ${height}`);
+    node.appendChild(frame);
+    // the proxy answers a dead picture with a "no picture" drawing; here that is worse than none
+    void fetch(src).then(async reply => {
+      if (!reply.ok || reply.headers.get('x-andromeda-media-state')) throw new Error('no picture');
+      const image = document.createElement('img');
+      image.alt = '';
+      image.decoding = 'async';
+      image.src = URL.createObjectURL(await reply.blob());
+      image.addEventListener('load', () => URL.revokeObjectURL(image.src), { once: true });
+      image.addEventListener('error', () => frame.remove(), { once: true });
+      frame.appendChild(image);
+    }).catch(() => frame.remove());
+  }
+  const copy = document.createElement('div');
+  copy.className = 'andromeda-knowledge-copy';
+  const head = document.createElement('h2');
+  head.id = 'andromeda-knowledge-title';
+  head.className = 'andromeda-knowledge-head';
+  head.appendChild(makeExternalLink({ url: page.href, title: panel.title }, 'andromeda-knowledge-title'));
+  copy.appendChild(head);
+  if (panel.description) {
+    const kind = document.createElement('p');
+    kind.className = 'andromeda-knowledge-kind';
+    kind.textContent = panel.description;
+    copy.appendChild(kind);
+  }
+  const body = document.createElement('p');
+  body.className = 'andromeda-knowledge-text';
+  body.textContent = panel.extract;
+  const source = document.createElement('p');
+  source.className = 'andromeda-knowledge-source';
+  source.textContent = page.hostname;
+  copy.append(body, source);
+  node.appendChild(copy);
+  node.hidden = false;
+}
+
 async function loadAnswer(query, searchGeneration, exact = false) {
   const seq = ++_answerSeq;
   try {
@@ -2187,10 +2262,14 @@ export async function runAndromedaSearch(queryValue = '', options = {}) {
   if (hiddenNotice) hiddenNotice.hidden = true;
   renderWatch(null);
   renderAnswer(el('andromeda-answer'), null);
+  clearKnowledge();
   renderSpelling('');
   if (early) adoptCorrection(early, query, currentCategory, options);
   // calculator, converter, weather, dictionary... runs beside the search, never in front of it
   let answerReady = currentCategory === 'all' ? loadAnswer(searched, searchGeneration, asExact) : Promise.resolve(null);
+  // a follow-up or a search inside a document is about something else than the words alone
+  const plain = currentCategory === 'all' && !_state.followUpOf && !_state.documentScope;
+  let knowledgeReady = plain ? loadKnowledge(searched, _searchAbort.signal) : Promise.resolve(null);
   const wantsOverview = currentCategory === 'all' && _prefs.overview && !noAi;
   // the overview is there from the first moment, with its loading lines; it steps aside only
   // when the results say a card already answers or the search is a site name or link
@@ -2223,6 +2302,7 @@ export async function runAndromedaSearch(queryValue = '', options = {}) {
     if (result.correction === 'engine' && currentCategory === 'all') {
       // the search engine found the fix, so the card is asked again for it
       answerReady = loadAnswer(result.query, searchGeneration, true);
+      if (plain) knowledgeReady = loadKnowledge(result.query, _searchAbort.signal);
     }
     _state.results = result.results || [];
     _state.hasMore = !!result.has_more;
@@ -2230,7 +2310,16 @@ export async function runAndromedaSearch(queryValue = '', options = {}) {
     _state.providerDisabled = result.status === 'disabled' && !!result.normal_results_enabled;
     // results take a second or more: by then the owner may be typing the next search
     if (input && [query, searched].includes(input.value.trim())) input.value = _state.query;
+    // wikipedia answers long before a search engine does; a slow one gets 150 ms more
+    const panel = await Promise.race([knowledgeReady, new Promise(done => setTimeout(done, 150, undefined))]);
+    if (searchGeneration !== _searchGeneration) return;
     renderAndromedaResults(_state.results, result.status, currentCategory);
+    if (panel) showKnowledge(panel);
+    else if (panel === undefined) {
+      void knowledgeReady.then(late => {
+        if (late && searchGeneration === _searchGeneration && knowledgeBeside()) showKnowledge(late);
+      });
+    }
     updateMoreResults();
     text('andromeda-result-meta', _state.providerDisabled ? '' : result.normal_results_enabled
       ? [trp('andromeda.result_count', _state.results.length), result.provider || tr('andromeda.provider'), `${result.elapsed_ms} ms`].filter(Boolean).join(' · ')
@@ -2528,6 +2617,7 @@ function reopen(saved) {
   _openedSaved = { id: saved.id, checked_at: saved.checked_at, payload: JSON.stringify(searchSnapshot()) };
   renderWatch(saved, saved.watch_new || []);
   renderAnswer(el('andromeda-answer'), null);
+  clearKnowledge();
   if ((saved.watch_new || []).length) {
     // seen once shown; the list stays on screen for this visit
     void jsonRequest(`/api/andromeda/saved/${encodeURIComponent(saved.id)}/watch/seen`, { method: 'POST' })

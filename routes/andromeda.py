@@ -160,6 +160,24 @@ async def suggest(q: str = Query("", max_length=200)):
     return {"query": parsed.query, "suggestions": await andromeda_suggest.suggest(parsed.query)}
 
 
+@router.get("/knowledge")
+async def knowledge(q: str = Query("", max_length=200), lang: str = Query("", max_length=12)):
+    """what the searched thing is, for the panel beside the results: wikipedia's summary, only
+    when the search names one page (services/andromeda_knowledge.py). the words go to wikipedia;
+    with the search engine disabled, or when a tool card answers the search, nothing does."""
+    _require_flag()
+    from services import andromeda_answers, andromeda_knowledge
+
+    parsed = andromeda.parse_query(q, overview_default=False)
+    if (
+        (load_settings().get("search_provider") or "") == "disabled"
+        or not andromeda_knowledge.wanted(parsed.query)
+        or andromeda_answers.detect(parsed.query)
+    ):
+        return {"query": parsed.query, "panel": None}
+    return {"query": parsed.query, "panel": await andromeda_knowledge.lookup(parsed.query, lang)}
+
+
 @router.get("/providers")
 def providers():
     """Return usable engines without exposing credentials."""
@@ -255,13 +273,21 @@ async def search(body: SearchBody):
 async def media(url: str = Query(min_length=8, max_length=4_000)):
     """Privacy-preserving image proxy for public search-result media."""
     _require_flag()
-    from services.net_guard import safe_get_public_async
+    from urllib.parse import urlsplit
 
+    from services.net_guard import safe_get_public_async
+    from services.research.search import WIKIPEDIA_UA
+
+    headers = {"accept": "image/avif,image/webp,image/png,image/jpeg,image/gif,image/x-icon"}
+    host = (urlsplit(url).hostname or "").lower()
+    if host.endswith((".wikimedia.org", ".wikipedia.org")):
+        # wikimedia's picture hosts answer 403 to a client that does not say who it is
+        headers["user-agent"] = WIKIPEDIA_UA
     try:
         upstream = await safe_get_public_async(
             url,
             timeout=8,
-            headers={"accept": "image/avif,image/webp,image/png,image/jpeg,image/gif,image/x-icon"},
+            headers=headers,
             max_redirects=4,
             # a full picture for the image preview is often a few megabytes; thumbnails are small
             max_bytes=8_000_000,

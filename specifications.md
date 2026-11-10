@@ -1362,6 +1362,18 @@ andromeda opens at `http://localhost:6769/?app=andromeda` or its own app host. i
   composing. the typed text leaves the server for this, with no cookie or account; a search engine set to "disabled", a bang, or an
   empty box sends nothing. arrow keys, return, a tap and escape work as in the history list. a search that is still loading never
   writes over the next one being typed.
+- **what the searched thing is.** a search that names one wikipedia page ("toronto", "nyc", "obama", 多倫多) gets a panel with the
+  page's picture, title, short description and first sentences, from `GET /api/andromeda/knowledge`
+  ([services/andromeda_knowledge.py](services/andromeda_knowledge.py)). "names" means the page's title or a redirect to it, in any
+  case; a question, a page of many meanings, an operator, a bang, a search a tool card answers, a follow-up and a search inside a
+  document get none. one request per search to the wikipedia of the query's script (chinese in the owner's script, the app's own
+  language first for spanish and french), kept for 15 minutes; wikipedia allows an unnamed client 10 requests a minute, so alles
+  names itself (`alles (https://github.com/jxherc/alles)`, also on the wikipedia search engine and for wikimedia pictures through
+  the media proxy, which wikimedia refuses without a name) and stays quiet until `retry-after` after a 429. the words leave the
+  server for this and nothing else does; a search engine set to "disabled" sends nothing. the panel sits in its own column beside the
+  results where the results section is 56rem or wider, and as one compact block over them otherwise. it shows with the results:
+  one that arrives later still shows beside them, but never over them, so results don't move under the reader. the title is the
+  link; a picture that doesn't load leaves no frame.
 - **sources in place.** each claim lists its sources by site name on its own row under the claim.
   choosing one opens a card in place with the exact supporting quote, the page title as a link, the
   page date when the evidence has one, and the source type for docs, release notes, repositories and
@@ -2027,10 +2039,10 @@ the registered http operations are grouped by handler source. use `/api/openapi.
 the registered http surface:
 
 - 90 included fastapi router modules
-- 1025 http method/path pairs
-- 989 `/api/*`, 2 `/v1/*`, and 34 non-api shell/public pairs
+- 1026 http method/path pairs
+- 990 `/api/*`, 2 `/v1/*`, and 34 non-api shell/public pairs
 
-the compatibility snapshot in [tests/test_route_compatibility.py](tests/test_route_compatibility.py) also counts the 20 code mode routes removed on nov 6 (and checks none of them is still registered), so it pins 1045 pairs with sha-256 `18036365507926a8374654eeb6119a738a2a7d00db13be0722432fb9baf00e03`.
+the compatibility snapshot in [tests/test_route_compatibility.py](tests/test_route_compatibility.py) also counts the 20 code mode routes removed on nov 6 (and checks none of them is still registered), so it pins 1046 pairs with sha-256 `ae9f64815180ed1b16a0a4e3fc6d9db357fc16fcb85bce96c66148ceb994d50a`.
 
 <details>
 <summary>app.py · 12 operations</summary>
@@ -2129,6 +2141,7 @@ the compatibility snapshot in [tests/test_route_compatibility.py](tests/test_rou
 | `POST` | `/api/andromeda/correct` | `correct_spelling` |
 | `POST` | `/api/andromeda/deep-research` | `deep_research` |
 | `GET` | `/api/andromeda/deep-research/preview` | `deep_research_preview` |
+| `GET` | `/api/andromeda/knowledge` | `knowledge` |
 | `GET` | `/api/andromeda/media` | `media` |
 | `POST` | `/api/andromeda/models/qualify` | `qualify_local_model` |
 | `POST` | `/api/andromeda/overview` | `overview` |

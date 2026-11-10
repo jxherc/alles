@@ -14,9 +14,11 @@ from services import (
     andromeda_dates,
     andromeda_dictionary,
     andromeda_f1,
+    andromeda_knowledge,
     andromeda_suggest,
     andromeda_translate,
 )
+from services.research import search
 from tests._client import ApiTest
 
 detect = andromeda_answers.detect
@@ -227,6 +229,219 @@ class SuggestTest(ApiTest):
                 off = self.client.get("/api/andromeda/suggest", params={"q": "nike"}).json()
         self.assertEqual(off["suggestions"], [])
         self.assertEqual(calls, [])
+
+
+class KnowledgeTest(ApiTest):
+    """the panel beside the results: wikipedia's summary, only for a search that names one page."""
+
+    NYC = {
+        "normalized": [{"fromencoded": False, "from": "nyc", "to": "Nyc"}],
+        "redirects": [
+            {"from": "NYC", "to": "New York City"},
+            {"from": "Nyc", "to": "New York City"},
+        ],
+        "pages": [
+            {
+                "pageid": 645042,
+                "title": "New York City",
+                "extract": "New York, often called New York City (NYC), is the most populous city "
+                "in the United States.",
+                "thumbnail": {
+                    "source": "https://thumb.wikimedia.org/wikipedia/commons/thumb/7/7a/nyc.jpg/500px-nyc.jpg",
+                    "width": 500,
+                    "height": 281,
+                },
+                "description": "Most populous city in the United States",
+                "fullurl": "https://en.wikipedia.org/wiki/New_York_City",
+            }
+        ],
+    }
+
+    def setUp(self):
+        super().setUp()
+        andromeda_knowledge._cache.clear()
+        andromeda_knowledge._quiet_until = 0.0
+
+    def wikipedia(self, replies):
+        """a stand-in for httpx that answers each request with the next reply, in wikipedia's
+        own shape (read from live replies on 2026-11-10)."""
+        calls = []
+
+        class Reply:
+            def __init__(self, value):
+                self.status_code, self.headers, self._query = 200, {}, value
+                if isinstance(value, tuple):
+                    self.status_code, self.headers = value
+
+            def raise_for_status(self):
+                if self.status_code >= 400:
+                    raise RuntimeError(f"http {self.status_code}")
+
+            def json(self):
+                return {"query": self._query}
+
+        class Client:
+            def __init__(self, **options):
+                self.headers = options.get("headers") or {}
+
+            async def __aenter__(self):
+                return self
+
+            async def __aexit__(self, *_exc):
+                return False
+
+            async def get(self, url, params=None):
+                calls.append((url, params or {}, self.headers))
+                reply = replies[len(calls) - 1]
+                if isinstance(reply, Exception):
+                    raise reply
+                return Reply(reply)
+
+        return calls, mock.patch.object(andromeda_knowledge.httpx, "AsyncClient", Client)
+
+    def panel(self, query, lang=""):
+        return self.client.get("/api/andromeda/knowledge", params={"q": query, "lang": lang}).json()
+
+    def test_a_search_that_names_a_page_gets_its_summary_in_one_request(self):
+        calls, patched = self.wikipedia([self.NYC])
+        with patched:
+            reply = self.panel(" nyc ")
+        self.assertEqual(reply["query"], "nyc")
+        self.assertEqual(
+            reply["panel"],
+            {
+                "title": "New York City",
+                "description": "Most populous city in the United States",
+                "extract": "New York, often called New York City (NYC), is the most populous city "
+                "in the United States.",
+                "url": "https://en.wikipedia.org/wiki/New_York_City",
+                "language": "en",
+                "source": "wikipedia",
+                "image": "https://thumb.wikimedia.org/wikipedia/commons/thumb/7/7a/nyc.jpg/500px-nyc.jpg",
+                "image_width": 500,
+                "image_height": 281,
+            },
+        )
+        self.assertEqual(len(calls), 1)
+        url, params, headers = calls[0]
+        self.assertEqual(url, "https://en.wikipedia.org/w/api.php")
+        self.assertEqual(params["titles"], "nyc|Nyc|NYC")
+        # wikipedia refuses a client that does not say who it is, or that poses as a browser
+        self.assertEqual(headers["user-agent"], "alles (https://github.com/jxherc/alles)")
+        self.assertNotIn("Mozilla", search.WIKIPEDIA_UA)
+
+    def test_a_page_of_many_meanings_or_no_page_gets_no_panel(self):
+        many = {
+            "normalized": [{"from": "python", "to": "Python"}],
+            "pages": [
+                {
+                    "title": "Python",
+                    "extract": "Python may refer to:",
+                    "description": "Topics referred to by the same term",
+                    "fullurl": "https://en.wikipedia.org/wiki/Python",
+                    "pageprops": {"disambiguation": ""},
+                }
+            ],
+        }
+        missing = {"pages": [{"title": "Asdkjh", "missing": True}]}
+        pointed = {
+            # a phrase pointed at a list: no short description, another title
+            "redirects": [{"from": "Best films", "to": "List of films considered the best"}],
+            "pages": [
+                {
+                    "title": "List of films considered the best",
+                    "extract": "This is a list of films.",
+                    "fullurl": "https://en.wikipedia.org/wiki/List_of_films_considered_the_best",
+                }
+            ],
+        }
+        for query, found in (("python", many), ("asdkjh", missing), ("Best films", pointed)):
+            with self.subTest(query=query):
+                calls, patched = self.wikipedia([found])
+                with patched:
+                    self.assertIsNone(self.panel(query)["panel"])
+                self.assertEqual(len(calls), 1)
+
+    def test_nothing_leaves_for_a_question_a_tool_an_operator_or_a_disabled_engine(self):
+        calls, patched = self.wikipedia([])
+        with patched:
+            for query in (
+                "",
+                "how do i get from toronto to new york city by train",
+                "site:github.com alles",
+                "!w toronto",
+                "https://example.com/toronto",
+                "weather toronto",
+                "2+2",
+                "女孩的英文",
+                "a|b",
+                "x" * 80,
+            ):
+                self.assertIsNone(self.panel(query)["panel"], query)
+            with mock.patch(
+                "routes.andromeda.load_settings", return_value={"search_provider": "disabled"}
+            ):
+                self.assertIsNone(self.panel("toronto")["panel"])
+        self.assertEqual(calls, [])
+
+    def test_chinese_is_asked_in_chinese_wikipedia_in_the_owners_script(self):
+        found = {
+            "converted": [{"from": "多倫多", "to": "多伦多"}],
+            "pages": [
+                {
+                    "title": "多伦多",
+                    "varianttitles": {"zh-cn": "多伦多", "zh-tw": "多倫多"},
+                    "extract": "多倫多是加拿大人口最多的城市。",
+                    "description": "加拿大安大略省的首府和最大城市",
+                    "fullurl": "https://zh.wikipedia.org/wiki/%E5%A4%9A%E4%BC%A6%E5%A4%9A",
+                }
+            ],
+        }
+        calls, patched = self.wikipedia([found])
+        with patched:
+            panel = self.panel("多倫多", "zh-Hant")["panel"]
+        self.assertEqual((panel["title"], panel["language"]), ("多倫多", "zh"))
+        self.assertNotIn("image", panel)
+        self.assertEqual(calls[0][0], "https://zh.wikipedia.org/w/api.php")
+        self.assertEqual(calls[0][1]["variant"], "zh-tw")
+
+    def test_the_apps_own_language_is_asked_first_then_english(self):
+        missing = {"pages": [{"title": "Nyc", "missing": True}]}
+        calls, patched = self.wikipedia([missing, self.NYC])
+        with patched:
+            panel = run(andromeda_knowledge.lookup("nyc", "es"))
+        self.assertEqual(panel["title"], "New York City")
+        self.assertEqual(
+            [call[0] for call in calls],
+            ["https://es.wikipedia.org/w/api.php", "https://en.wikipedia.org/w/api.php"],
+        )
+
+    def test_a_repeat_is_not_asked_again_but_a_failure_is(self):
+        calls, patched = self.wikipedia([OSError("down"), self.NYC])
+        with patched:
+            self.assertIsNone(run(andromeda_knowledge.lookup("nyc")))
+            self.assertEqual(run(andromeda_knowledge.lookup("nyc"))["title"], "New York City")
+            self.assertEqual(run(andromeda_knowledge.lookup("NYC?"))["title"], "New York City")
+        self.assertEqual(len(calls), 2)
+
+    def test_a_rate_limit_keeps_the_panel_quiet_until_wikipedia_says(self):
+        calls, patched = self.wikipedia([(429, {"retry-after": "28"}), self.NYC])
+        with patched:
+            self.assertIsNone(run(andromeda_knowledge.lookup("nyc")))
+            self.assertIsNone(run(andromeda_knowledge.lookup("toronto")))
+            self.assertEqual(len(calls), 1)
+            andromeda_knowledge._quiet_until = 0.0
+            self.assertEqual(run(andromeda_knowledge.lookup("nyc"))["title"], "New York City")
+
+    def test_a_long_first_paragraph_stops_at_a_whole_sentence(self):
+        sentence = "Toronto is the most populous city in Canada. "
+        short = andromeda_knowledge._short(sentence * 30)
+        self.assertLessEqual(len(short), andromeda_knowledge.MAX_EXTRACT)
+        self.assertTrue(short.endswith("Canada."))
+        chinese = andromeda_knowledge._short("多倫多是加拿大人口最多的城市。" * 60)
+        self.assertLessEqual(len(chinese), andromeda_knowledge.MAX_EXTRACT)
+        self.assertTrue(chinese.endswith("城市。"))
+        self.assertNotIn(" ", chinese)
 
 
 class ToolWithInputTest(ApiTest):

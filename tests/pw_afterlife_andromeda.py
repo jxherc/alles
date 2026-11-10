@@ -112,6 +112,121 @@ def search_payload(body: dict) -> dict:
     }
 
 
+def knowledge_panel(typed: str) -> dict | None:
+    """wikipedia's summary, in the shape the server sends, for the one search that names a page."""
+    if typed.replace("!ai", "").strip() != "toronto":
+        return None
+    return {
+        "title": "Toronto",
+        "description": "Most populous city in Canada",
+        "extract": "Toronto is the most populous city in Canada and the capital city of the "
+        "Canadian province of Ontario. It is located on a harbour at the northwestern shore of "
+        "Lake Ontario.",
+        "url": "https://en.wikipedia.org/wiki/Toronto",
+        "language": "en",
+        "source": "wikipedia",
+        "image": "https://thumb.wikimedia.org/wikipedia/commons/thumb/8/8b/toronto.jpg/500px-t.jpg",
+        "image_width": 500,
+        "image_height": 300,
+    }
+
+
+def check_knowledge(page, viewport: dict, requests: list[dict]) -> None:
+    """the panel that says what the searched thing is: beside the results where the section is
+    wide enough, one block over them otherwise, and never a late push on the results."""
+    panel = page.locator("#andromeda-knowledge")
+    page.locator("#andromeda-query").fill("toronto !ai")
+    page.locator("#andromeda-form").press("Enter")
+    page.wait_for_selector("#andromeda-knowledge:not([hidden]) .andromeda-knowledge-title")
+    page.wait_for_selector(".andromeda-knowledge-media img")
+    link = page.locator(".andromeda-knowledge-title")
+    assert link.inner_text() == "Toronto"
+    assert link.get_attribute("href") == "https://en.wikipedia.org/wiki/Toronto"
+    assert link.get_attribute("target") == "_blank"
+    assert "noopener" in link.get_attribute("rel")
+    assert page.locator(".andromeda-knowledge-source").inner_text() == "en.wikipedia.org"
+    assert panel.get_attribute("aria-labelledby") == "andromeda-knowledge-title"
+    assert page.locator("#andromeda-knowledge-title").count() == 1
+    box = panel.bounding_box()
+    results = page.locator("#andromeda-results").bounding_box()
+    first = page.locator("#andromeda-results .andromeda-result").first.bounding_box()
+    title = link.bounding_box()
+    assert box and results and first and title
+    assert title["height"] >= 44
+    beside = viewport["width"] >= 1440
+    if beside:
+        # its own column: the results keep their place and their width
+        assert box["x"] >= results["x"] + results["width"] + 32, (box, results)
+        assert abs(box["y"] - first["y"]) <= 2, (box, first)
+    else:
+        assert box["y"] + box["height"] <= first["y"], (box, first)
+    assert box["x"] + box["width"] <= viewport["width"]
+    assert page.evaluate(
+        "document.documentElement.scrollWidth <= document.documentElement.clientWidth"
+    )
+    # keyboard: the title is a link like any result title, with a visible focus state
+    link.focus()
+    assert page.evaluate("document.activeElement.className") == "andromeda-knowledge-title"
+
+    # a search that names no page takes the panel away
+    page.locator("#andromeda-query").fill("different !ai")
+    page.locator("#andromeda-form").press("Enter")
+    page.wait_for_function(
+        "() => document.getElementById('andromeda-result-meta').textContent.trim() !== ''"
+        " && document.getElementById('andromeda-knowledge').hidden"
+    )
+    assert panel.locator("*").count() == 0
+
+    # wikipedia answering after the results: beside them it still shows, over them it would
+    # push the results down under the reader, so there it stays away
+    held = []
+    page.route("**/api/andromeda/knowledge*", lambda route: held.append(route))
+    sent = len(requests)
+    page.locator("#andromeda-query").fill("toronto !ai")
+    page.locator("#andromeda-form").press("Enter")
+    for _ in range(100):
+        if held and len(requests) > sent:
+            break
+        page.wait_for_timeout(50)
+    assert held, "the panel was never asked for"
+    assert len(requests) > sent, "the search never left"
+    # the results wait 150 ms for the panel, then show without it
+    page.wait_for_timeout(600)
+    assert panel.is_hidden()
+    before = page.locator("#andromeda-results .andromeda-result").first.bounding_box()
+    held[0].fallback()
+    if beside:
+        page.wait_for_selector("#andromeda-knowledge:not([hidden])")
+    else:
+        page.wait_for_timeout(400)
+        assert panel.is_hidden()
+    after = page.locator("#andromeda-results .andromeda-result").first.bounding_box()
+    assert before == after, (before, after)
+    page.unroute("**/api/andromeda/knowledge*")
+
+    # a picture that is gone leaves no empty frame behind
+    page.route(
+        "**/api/andromeda/media*",
+        lambda route: route.fulfill(
+            status=200,
+            content_type="image/svg+xml",
+            headers={"x-andromeda-media-state": "unavailable"},
+            body="<svg xmlns='http://www.w3.org/2000/svg'/>",
+        ),
+    )
+    sent = len(requests)
+    page.locator("#andromeda-query").fill("toronto !ai")
+    page.locator("#andromeda-form").press("Enter")
+    for _ in range(100):
+        if len(requests) > sent:
+            break
+        page.wait_for_timeout(50)
+    page.wait_for_selector("#andromeda-knowledge:not([hidden]) .andromeda-knowledge-title")
+    page.wait_for_function("() => !document.querySelector('.andromeda-knowledge-media')")
+    assert page.locator(".andromeda-knowledge-text").is_visible()
+    page.unroute("**/api/andromeda/media*")
+
+
 def mock_api(route: Route, requests: list[dict], overview_requests: list[dict]) -> None:
     request = route.request
     if "/api/andromeda/media" in request.url:
@@ -126,6 +241,14 @@ def mock_api(route: Route, requests: list[dict], overview_requests: list[dict]) 
             body=json.dumps(
                 {"query": typed, "suggestions": [f"{typed} release notes", f"{typed}ent events"]}
             ),
+        )
+        return
+    if path == "/knowledge":
+        typed = parse_qs(urlsplit(request.url).query).get("q", [""])[0]
+        route.fulfill(
+            status=200,
+            content_type="application/json",
+            body=json.dumps({"query": typed, "panel": knowledge_panel(typed)}),
         )
         return
     if path == "/providers":
@@ -556,6 +679,7 @@ def run_case(browser, *, viewport: dict, mobile: bool, theme: str, screenshot: s
     assert page.evaluate(
         "document.documentElement.scrollWidth <= document.documentElement.clientWidth"
     )
+    check_knowledge(page, viewport, requests)
     # a search still on its way must not write over the next one being typed
     held = []
     page.route("**/api/andromeda/search", lambda route: held.append(route))

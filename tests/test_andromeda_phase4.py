@@ -703,6 +703,21 @@ class AndromedaApiTest(ApiTest):
         self.assertEqual(response.headers["content-type"], "image/svg+xml")
         self.assertIn(b"media unavailable", response.content)
 
+    def test_wikimedia_pictures_are_asked_for_by_name(self):
+        # nov 10: wikimedia's picture hosts answer 403 to a client that does not say who it is
+        fetch = mock.AsyncMock(side_effect=RuntimeError("stop here"))
+        with mock.patch("services.net_guard.safe_get_public_async", new=fetch):
+            for url in (
+                "https://thumb.wikimedia.org/wikipedia/commons/thumb/a/b.jpg/500px-b.jpg",
+                "https://upload.wikimedia.org/wikipedia/commons/a/b.jpg",
+                "https://images.example.test/wikimedia.org.jpg",
+                "https://notwikimedia.org/b.jpg",
+            ):
+                self.client.get("/api/andromeda/media", params={"url": url})
+        agents = [call.kwargs["headers"].get("user-agent") for call in fetch.await_args_list]
+        name = "alles (https://github.com/jxherc/alles)"
+        self.assertEqual(agents, [name, name, None, None])
+
     def test_provider_exhaustion_hides_the_next_page(self):
         rows = [
             {"url": f"https://news.example/{index}", "title": f"story {index}"}

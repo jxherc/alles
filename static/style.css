@@ -10017,6 +10017,53 @@ html[data-theme="light"] .andromeda-marker { background: color-mix(in srgb, var(
 .andromeda-view-head h2 { margin: 0; color: var(--text); font-size: 1rem; font-weight: 580; }
 .andromeda-view-head span { color: var(--muted); font-size: 0.8125rem; }
 .andromeda-results { width: 100%; max-width: none; }
+/* what the searched thing is, from wikipedia. by default one compact block over the results;
+   where the results section is wide enough it gets its own column beside them, in the space
+   the reading column leaves empty. no box: the picture and the text are the object */
+#andromeda-all-results { container: andromeda-all / inline-size; }
+.andromeda-knowledge {
+  display: grid; grid-template-columns: minmax(0, 1fr) auto; column-gap: 16px; align-items: start;
+  max-width: var(--andromeda-text); margin-bottom: 24px; padding-bottom: 16px;
+  border-bottom: 1px solid var(--andromeda-line);
+}
+.andromeda-knowledge-media {
+  grid-column: 2; grid-row: 1; display: block; width: 88px; aspect-ratio: 1; margin-top: 8px;
+  overflow: hidden; border-radius: var(--k-radius-control);
+  background: color-mix(in srgb, var(--text) 6%, transparent);
+}
+.andromeda-knowledge-media img { display: block; width: 100%; height: 100%; object-fit: cover; }
+.andromeda-knowledge-copy { grid-column: 1; grid-row: 1; min-width: 0; }
+.andromeda-knowledge-head { margin: 0; font: inherit; }
+.andromeda-view .andromeda-knowledge-title {
+  display: inline-flex; align-items: center; min-height: 44px; max-width: 100%;
+  color: var(--link); font-size: 1.25rem; font-weight: 460; line-height: 1.3; text-decoration: none;
+  overflow-wrap: anywhere;
+}
+.andromeda-view .andromeda-knowledge-title:visited { color: var(--link-visited); }
+.andromeda-view .andromeda-knowledge-title:hover { text-decoration: underline; text-underline-offset: 3px; }
+.andromeda-knowledge-kind { margin: 0; color: var(--muted); font-size: 0.875rem; line-height: 1.4; }
+.andromeda-knowledge-text {
+  display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 3; line-clamp: 3; overflow: hidden;
+  margin: 8px 0 0; color: var(--soft, var(--text)); font-size: 0.9375rem; line-height: 1.5;
+}
+.andromeda-knowledge-source { margin: 8px 0 0; color: var(--muted); font-size: 0.8125rem; line-height: 1.4; }
+@container andromeda-all (min-width: 56rem) {
+  /* the page reads this to know a late panel has its own column and moves nothing */
+  .andromeda-all-body { --knowledge-beside: 1; }
+  .andromeda-all-body:has(> .andromeda-knowledge:not([hidden])) {
+    display: grid; grid-template-columns: minmax(0, var(--andromeda-text)) minmax(0, 22.5rem);
+    column-gap: 48px; align-items: start;
+  }
+  .andromeda-all-body > .andromeda-results { grid-column: 1; grid-row: 1; }
+  .andromeda-all-body > .andromeda-knowledge {
+    grid-column: 2; grid-row: 1; display: block; max-width: none; margin-bottom: 0; padding-bottom: 0; border-bottom: 0;
+  }
+  .andromeda-all-body .andromeda-knowledge-media {
+    width: 100%; max-height: 240px; aspect-ratio: var(--ratio, 16 / 9); margin: 0 0 8px;
+    border-radius: var(--k-radius-surface);
+  }
+  .andromeda-all-body .andromeda-knowledge-text { display: block; overflow: visible; }
+}
 .andromeda-result {
   position: relative; display: block; margin-inline: -12px 0; padding: 0 0 0 12px;
   border: 0; border-radius: var(--k-radius-small); outline-offset: 2px;

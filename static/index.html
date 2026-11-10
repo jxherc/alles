@@ -7,7 +7,7 @@
 <title>alles</title>
 <script src="/static/prepaint.js"></script>
 <link rel="stylesheet" href="/static/vendor/xterm/xterm.css?v=6.0.0">
-<link rel="stylesheet" href="/static/style.css?v=627">
+<link rel="stylesheet" href="/static/style.css?v=628">
   <link rel="stylesheet" href="/static/kokuen.css?v=99">
 <link rel="stylesheet" href="/static/aidecentral.css?v=23">
 <link rel="stylesheet" href="/static/aidecall.css?v=4">
@@ -24,7 +24,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="alles">
 <!-- modulepreload:start -->
-<link rel="modulepreload" href="/static/js/app.js?v=627">
+<link rel="modulepreload" href="/static/js/app.js?v=628">
 <link rel="modulepreload" href="/static/js/sessions.js">
 <link rel="modulepreload" href="/static/js/models.js?v=217">
 <link rel="modulepreload" href="/static/js/icons.js">
@@ -66,7 +66,7 @@
 <link rel="modulepreload" href="/static/js/aideworkspace.js?v=283">
 <link rel="modulepreload" href="/static/js/aidecentral.js?v=4">
 <link rel="modulepreload" href="/static/js/kokuen.js?v=5">
-<link rel="modulepreload" href="/static/js/andromeda.js?v=262">
+<link rel="modulepreload" href="/static/js/andromeda.js?v=263">
 <link rel="modulepreload" href="/static/js/app_rail.js">
 <link rel="modulepreload" href="/static/js/shortcuts.js">
 <link rel="modulepreload" href="/static/js/ask_panel.js">
@@ -415,7 +415,10 @@
           <div class="andromeda-blocked-notice" id="andromeda-blocked-notice" role="status" aria-live="polite" hidden><span id="andromeda-blocked-text"></span><button class="andromeda-text-action" id="andromeda-blocked-undo" type="button" data-i18n="common.undo">undo</button></div>
           <section class="andromeda-result-view" id="andromeda-all-results" data-andromeda-view="all" aria-labelledby="andromeda-results-title" hidden>
             <div class="andromeda-view-head"><h2 id="andromeda-results-title" data-i18n="andromeda.web_results">web results</h2><span data-i18n="andromeda.normal_results">normal results</span></div>
-            <div id="andromeda-results" class="andromeda-results"></div>
+            <div class="andromeda-all-body">
+              <aside class="andromeda-knowledge" id="andromeda-knowledge" aria-labelledby="andromeda-knowledge-title" hidden></aside>
+              <div id="andromeda-results" class="andromeda-results"></div>
+            </div>
           </section>
           <section class="andromeda-result-view" id="andromeda-images-results" data-andromeda-view="images" aria-labelledby="andromeda-images-title" hidden>
             <div class="andromeda-view-head"><h2 id="andromeda-images-title" data-i18n="andromeda.image_results">image results</h2></div>
@@ -3134,6 +3137,6 @@
 </div>
 
 <script src="/static/js/bootwatch.js"></script>
-<script type="module" src="/static/js/app.js?v=627"></script>
+<script type="module" src="/static/js/app.js?v=628"></script>
 </body>
 </html>
