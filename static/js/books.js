@@ -2,7 +2,7 @@
 // notes, and a keyless OpenLibrary lookup to autofill. mirrors the panel conventions.
 import { toast } from './util.js';
 import { confirm as dlgConfirm, prompt as dlgPrompt } from './dialog.js';
-import { wireChoiceGroup } from './kokuen.js?v=5';
+import { initKokuenPrimitives, wireChoiceGroup } from './kokuen.js?v=5';
 import { t, tp } from './i18n.js';
 import { createUndoDelete, deleteItemHtml, goneTextHtml, moreMenuHtml, undoButtonHtml, wireMoreMenus } from './undo_delete.js';
 const _si = n => (window.icon ? window.icon(n) : '');
@@ -95,10 +95,8 @@ export async function loadBooks(fetcher = _fetcher) {
 
 function esc(s) { return String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
 
-function _stars(b) {
-  let out = `<span class="book-stars" data-id="${b.id}" role="radiogroup" aria-label="${esc(t('books.rating_for', { title: b.title }))}">`;
-  for (let i = 1; i <= 5; i++) out += `<button type="button" role="radio" aria-checked="${i === b.rating}" aria-label="${esc(tp('books.stars', i))}" class="book-star${i <= b.rating ? ' on' : ''}" data-rate="${i}" title="${esc(tp('books.stars', i))}">${_si(i <= b.rating ? 'star-fill' : 'star')}</button>`;
-  return out + '</span>';
+function _rating(b) {
+  return `<div class="k-number-row book-rate" data-kokuen-choice="rating" data-id="${b.id}" data-min="1" data-max="5" data-value="${b.rating || ''}" aria-label="${esc(t('books.rating_for', { title: b.title }))}"></div>`;
 }
 
 // a cover that won't load leaves the card without one: a letter in a box stood in for a picture.
@@ -149,9 +147,9 @@ function _card(b) {
       <div class="book-info">
         <div class="book-title">${esc(b.title)}</div>
         <div class="book-author">${esc(b.author || '')}${b.year ? ` · ${b.year}` : ''}</div>
-        ${_stars(b)}
+        ${_rating(b)}
         ${_bookErrors.has(b.id) ? `<p class="book-notes-error book-write-error" role="alert">${esc(_bookErrors.get(b.id))}</p>` : ''}
-        <div class="book-move" role="radiogroup" aria-label="${esc(t('books.shelf_for', { title: b.title }))}">${MOVE_ORDER.map(k => `<button type="button" role="radio" aria-checked="${k === b.status}" class="book-move-btn" data-move="${k}">${_moveLabel(k)}</button>`).join('')}</div>
+        <div class="k-pill-switch book-move" data-kokuen-choice="switch" aria-label="${esc(t('books.shelf_for', { title: b.title }))}">${MOVE_ORDER.map(k => `<button type="button" aria-checked="${k === b.status}" data-move="${k}">${_moveLabel(k)}</button>`).join('')}</div>
         ${b.id === _editingNotes
           ? `<div class="book-notes-edit"><textarea class="settings-input" data-f="notes" rows="3" placeholder="${esc(t('books.notes_placeholder'))}">${esc(_noteDrafts.get(b.id) ?? b.notes)}</textarea>${_noteErrors.has(b.id) ? `<p class="book-notes-error" role="alert">${esc(_noteErrors.get(b.id))}</p>` : ''}<div class="book-notes-actions"><button class="btn primary" data-act="save-notes">${t('common.save')}</button><button class="btn" data-act="cancel-notes">${t('common.cancel')}</button></div></div>`
           : (b.notes ? `<button type="button" class="book-notes" data-act="notes" aria-label="${esc(t('books.edit_notes_for', { title: b.title }))}">${esc(b.notes)}</button>` : `<button class="book-add-note" data-act="notes">${t('books.add_note')}</button>`)}
@@ -170,7 +168,7 @@ function _render() {
   const editingNote = body.contains(active) && active.matches('[data-f="notes"]')
     ? { id: active.closest('.book-card').dataset.id, start: active.selectionStart, end: active.selectionEnd } : null;
   const buttonKey = body.contains(active) && active.matches('button')
-    ? ['data-act', 'data-rate', 'data-move', 'data-undo', 'data-pick', 'data-val'].find(key => active.hasAttribute(key)) : null;
+    ? ['data-act', 'data-move', 'data-undo', 'data-pick', 'data-val', 'data-value'].find(key => active.hasAttribute(key)) : null;
   const focusedButton = body.contains(active) && active.matches('button') && (active.id || buttonKey)
     ? { id: active.id, book: active.closest('.book-card')?.dataset.id, key: buttonKey, value: active.getAttribute(buttonKey) } : null;
   const shelves = _data.shelves || {};
@@ -347,7 +345,7 @@ async function _changeBook(card, options, valid, message, onSaved = () => {}) {
       if (!notice) { notice = document.createElement('p'); notice.className = 'book-notes-error book-write-error'; notice.setAttribute('role', 'alert'); current.querySelector('.book-info').append(notice); }
       notice.textContent = message;
       const book = Object.values(_data.shelves).flat().find(item => item.id === id);
-      current.querySelectorAll('[data-rate]').forEach(radio => { radio.setAttribute('aria-checked', String(+radio.dataset.rate === book?.rating)); });
+      current.querySelectorAll('.book-rate [data-value]').forEach(radio => { radio.setAttribute('aria-checked', String(+radio.dataset.value === book?.rating)); });
       current.querySelectorAll('[data-move]').forEach(radio => { radio.setAttribute('aria-checked', String(radio.dataset.move === book?.status)); });
     }
     toast(message, 'error');
@@ -369,7 +367,8 @@ async function _changeBook(card, options, valid, message, onSaved = () => {}) {
 }
 
 function _wire(body) {
-  body.querySelectorAll('.book-stars, .book-move, #book-status').forEach(group => wireChoiceGroup(group));
+  initKokuenPrimitives(body);
+  body.querySelectorAll('#book-status').forEach(group => wireChoiceGroup(group));
   body.querySelector('[data-act="retry-load"]')?.addEventListener('click', () => loadBooks());
   const toggleForm = () => { _adding = !_adding; ++_lookupGeneration; _lookupBusy = false; _lookup = []; _lookupMessage = ''; _render(); if (_adding) $('book-title')?.focus(); };
   $('books-add-toggle')?.addEventListener('click', toggleForm);
@@ -460,11 +459,12 @@ function _wire(body) {
       card.setAttribute('aria-busy', 'true');
       card.querySelectorAll('button, textarea').forEach(control => { control.disabled = true; });
     }
-    card.querySelectorAll('.book-star').forEach(s => s.addEventListener('click', async () => {
+    card.querySelector('.book-rate')?.addEventListener('change', async e => {
+      const rating = e.detail.value;
       const before = Object.values(_data.shelves).flat().find(book => book.id === id)?.rating;
       const scope = _createScopes[0];
-      await _changeBook(card, { method: 'PATCH', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ rating: +s.dataset.rate, expected_rating: before, recovery_scope: scope }) }, result => result?.id === id && result.rating === +s.dataset.rate, t('books.rating_saved'), result => _rememberBookEdit(id, 'rating', before, result.rating, scope));
-    }));
+      await _changeBook(card, { method: 'PATCH', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ rating, expected_rating: before, recovery_scope: scope }) }, result => result?.id === id && result.rating === rating, t('books.rating_saved'), result => _rememberBookEdit(id, 'rating', before, result.rating, scope));
+    });
     card.querySelectorAll('[data-undo]').forEach(button => button.addEventListener('click', async () => {
       const field = button.dataset.undo;
       const edit = _bookUndo.get(id)?.[field];

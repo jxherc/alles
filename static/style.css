@@ -9252,23 +9252,12 @@ input.cp-swatch-input { width: 44px; min-width: 44px; height: 44px; border: 1px 
 .book-author { font-size: 0.8125rem; color: var(--muted); margin-bottom: 0.35rem; }
 /* no author still keeps its line, or the stars ride up under remove and the 5th star's target hides */
 .book-author:empty { min-height: 1lh; }
-.book-stars { display: inline-flex; gap: 1px; margin-bottom: 0.4rem; }
-/* the 44px target stays, but only the star itself reacts: the picked-state square and the hover tint
-   would draw that whole target as a box */
-.book-star { background: none; border: none; padding: 0; cursor: pointer; color: var(--muted); display: flex; border-radius: 50%; }
-.book-star svg { width: 14px; height: 14px; }
-.book-star.on { color: var(--cat-amber); }
-.book-star:hover:not(.on) { color: var(--cat-amber); }
-.book-star:active { opacity: 0.7; }
-/* want / reading / read: one row, the picked one carries its own tone. want is a plain outline,
-   reading the accent shade, read the same shade dimmed */
-.book-move { display: flex; gap: 0.25rem; flex-wrap: wrap; }
-.book-move-btn { background: none; border: 1px solid var(--faint); border-radius: var(--k-radius-control); color: var(--muted); font-size: 0.8125rem; padding: 0.12rem 0.4rem; cursor: pointer; }
-.book-move-btn:hover { color: var(--text); border-color: var(--muted); }
-.book-move .book-move-btn[aria-checked="true"] { color: var(--text); border-color: var(--k-line-strong, var(--line-strong)); background: none; -webkit-text-stroke: 0.35px currentColor; }
-/* every picked shelf looks the same: a status is not a reason for its own purple fill */
+/* rating is the kit's number row, shelf is its pill switch (decision 0077). the row's readout would
+   only repeat the picked number, so the card leaves it out */
+.book-info > :is(.book-rate, .book-move) { margin-top: var(--k-space-2, 8px); }
+.book-rate .k-number-row-readout { display: none; }
 .book-notes { display: block; width: 100%; border: 0; padding: 0; background: none; text-align: left; overflow-wrap: anywhere; font-size: 0.8125rem; color: var(--muted); margin-top: 0.45rem; line-height: 1.4; white-space: pre-wrap; cursor: pointer; }
-.book-add-note { background: none; border: none; color: var(--muted); font-size: 0.8125rem; cursor: pointer; margin-top: 0.4rem; padding: 0; }
+.book-add-note { display: block; background: none; border: none; color: var(--muted); font-size: 0.8125rem; cursor: pointer; margin-top: 0.4rem; padding: 0; }
 .book-add-note:hover { color: var(--text); }
 .book-notes-edit { margin-top: 0.45rem; }
 .book-notes-error { color: var(--error); font-size: 0.8125rem; line-height: 1.45; }

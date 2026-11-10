@@ -210,7 +210,7 @@ CHOICE_EXCEPTIONS = {
     "index.html:cal-view": "calendar view switch",
     "js/filesphase7.js:files-location-button": "rail rows, the open place is pressed",
     # 2 or 3 fixed options: already the size of a pill switch
-    "js/books.js:book-move-btn": "3 shelves",
+    "js/books.js:data-move": "3 shelves",
     "js/books.js:te-seg-opt": "3 shelves",
     "js/settings/providers.js:data-value": "2 sign in kinds",
     "js/setupwizard.js:data-value": "2 or 3 choices per step",
