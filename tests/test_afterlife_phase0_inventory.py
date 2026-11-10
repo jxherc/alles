@@ -62,7 +62,7 @@ class AfterlifePhase0InventoryTest(unittest.TestCase):
 
     def test_trust_map_names_every_registered_job(self):
         document = SPECIFICATIONS.read_text("utf-8")
-        source = (ROOT / "app.py").read_text("utf-8")
+        source = (ROOT / "services" / "background_jobs.py").read_text("utf-8")
         jobs = set(re.findall(r'jobs\.register\(\s*"([^"]+)"', source))
 
         self.assertEqual(len(jobs), 29)

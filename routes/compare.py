@@ -37,6 +37,7 @@ class CompareRequest(BaseModel):
 
 
 @router.post("/compare")
+# stays async: makes asyncio events that the stream awaits
 async def start_compare(body: CompareRequest):
     from core.database import ModelEndpoint, SessionLocal
     from core.settings import build_aide_system_prompt, load_settings
@@ -69,6 +70,7 @@ async def start_compare(body: CompareRequest):
 
 
 @router.get("/compare/{compare_id}/stream/{idx}")
+# stays async: returns a stream over an async generator
 async def compare_stream(compare_id: str, idx: int):
     streams = _active.get(compare_id)
     if (

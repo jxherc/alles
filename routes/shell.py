@@ -473,6 +473,7 @@ async def execute_python(body: PyExecRequest):
 
 # POST /api/shell/stream  — SSE line-by-line output
 @router.post("/shell/stream")
+# stays async: returns a stream over an async generator
 async def shell_stream(body: StreamRequest, db: DbSession = Depends(get_db)):
     cwd = _execution_cwd(body, db)
     return StreamingResponse(

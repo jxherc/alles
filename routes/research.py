@@ -66,6 +66,7 @@ async def _sse(gen):
 
 # POST /api/research  — starts research, streams progress
 @router.post("/research")
+# stays async: returns a stream over an async generator
 async def start_research(body: ResearchRequest):
     base_url, api_key, model = _resolve_ep_or_error()
 

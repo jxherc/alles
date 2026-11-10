@@ -6,6 +6,7 @@ from pathlib import Path
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 from fastapi.responses import FileResponse, Response
 from sqlalchemy.orm import Session as DbSession
+from starlette.concurrency import run_in_threadpool
 
 from core.database import Upload, get_db
 from services.upload_files import upload_dir
@@ -61,6 +62,53 @@ def _mark_cancelled(upload_id: str) -> None:
     marker.touch(exist_ok=True)
 
 
+def _store_upload(db, filename, mime, content, public_id, incognito):
+    """the write side of an upload: the file write and the database rows, run off the event loop."""
+    with _UPLOAD_MUTATION_LOCK:
+        _prune_cancellations()
+        cancellation = _cancellation_path(public_id)
+        if cancellation.exists():
+            raise HTTPException(409, "upload cancelled")
+        if incognito:
+            from services import incognito as private_store
+
+            if db.get(Upload, public_id) is not None:
+                raise HTTPException(409, "upload id already exists")
+            try:
+                upload = private_store.put_upload(
+                    filename or "file",
+                    mime,
+                    content,
+                    upload_id=public_id,
+                )
+            except ValueError as exc:
+                raise HTTPException(409, str(exc)) from exc
+            return {"id": upload.id, "name": upload.name, "type": mime, "size": len(content)}
+        from services import incognito as private_store
+
+        if db.get(Upload, public_id) is not None or private_store.get_upload(public_id) is not None:
+            raise HTTPException(409, "upload id already exists")
+        ext = Path(filename or "file").suffix.lower()
+        fname = f"{uuid.uuid4()}{ext}"
+        stored = upload_dir().joinpath(fname)
+        stored.write_bytes(content)
+        rec = Upload(
+            id=public_id,
+            filename=fname,
+            original_name=filename or fname,
+            mime_type=mime,
+            size=len(content),
+        )
+        try:
+            db.add(rec)
+            db.commit()
+            db.refresh(rec)
+        except BaseException:
+            stored.unlink(missing_ok=True)
+            raise
+        return {"id": rec.id, "name": rec.original_name, "type": mime, "size": rec.size}
+
+
 @router.post("/uploads")
 async def upload_file(
     file: UploadFile = File(...),
@@ -74,49 +122,9 @@ async def upload_file(
 
     public_id = _upload_id(upload_id)
     mime = file.content_type or "application/octet-stream"
-    with _UPLOAD_MUTATION_LOCK:
-        _prune_cancellations()
-        cancellation = _cancellation_path(public_id)
-        if cancellation.exists():
-            raise HTTPException(409, "upload cancelled")
-        if incognito:
-            from services import incognito as private_store
-
-            if db.get(Upload, public_id) is not None:
-                raise HTTPException(409, "upload id already exists")
-            try:
-                upload = private_store.put_upload(
-                    file.filename or "file",
-                    mime,
-                    content,
-                    upload_id=public_id,
-                )
-            except ValueError as exc:
-                raise HTTPException(409, str(exc)) from exc
-            return {"id": upload.id, "name": upload.name, "type": mime, "size": len(content)}
-        from services import incognito as private_store
-
-        if db.get(Upload, public_id) is not None or private_store.get_upload(public_id) is not None:
-            raise HTTPException(409, "upload id already exists")
-        ext = Path(file.filename or "file").suffix.lower()
-        fname = f"{uuid.uuid4()}{ext}"
-        stored = upload_dir().joinpath(fname)
-        stored.write_bytes(content)
-        rec = Upload(
-            id=public_id,
-            filename=fname,
-            original_name=file.filename or fname,
-            mime_type=mime,
-            size=len(content),
-        )
-        try:
-            db.add(rec)
-            db.commit()
-            db.refresh(rec)
-        except BaseException:
-            stored.unlink(missing_ok=True)
-            raise
-        return {"id": rec.id, "name": rec.original_name, "type": mime, "size": rec.size}
+    return await run_in_threadpool(
+        _store_upload, db, file.filename, mime, content, public_id, incognito
+    )
 
 
 @router.get("/uploads/{upload_id}")

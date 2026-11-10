@@ -117,7 +117,7 @@ def list_images(
 
 
 @router.post("/gallery/upload")
-async def upload_image(
+def upload_image(
     file: UploadFile = File(...),
     prompt: str = Form(""),
     tags: str = Form(""),

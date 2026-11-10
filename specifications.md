@@ -192,7 +192,7 @@ provider detection formats requests; catalog adapters fetch model ids. memory ke
 
 ### job and delivery state
 
-[services/jobs.py](services/jobs.py) provides process-local interval jobs and event handlers. the loop catches job failures and continues. configured intervals are scheduling targets, not guaranteed delivery times; the loop cadence and earlier work affect execution.
+[services/jobs.py](services/jobs.py) provides process-local interval jobs and event handlers. [services/background_jobs.py](services/background_jobs.py) lists the jobs with their intervals, runs the job loop and holds the first-boot endpoint setup, the reminder job and the boot connectivity check; the lifespan in `app.py` starts them. the loop catches job failures and continues. configured intervals are scheduling targets, not guaranteed delivery times; the loop cadence and earlier work affect execution.
 
 durable workflows separately store triggers, occurrence claims, runs, prompts, grants, and deliveries through [services/jarvis_store.py](services/jarvis_store.py), [services/jarvis_scheduler.py](services/jarvis_scheduler.py), and the inbox/outbox services. an interrupted external action can be uncertain even when its local run survives.
 

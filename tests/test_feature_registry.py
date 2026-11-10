@@ -132,7 +132,9 @@ class FeatureRegistryTest(unittest.TestCase):
 
     def test_every_cli_command_job_action_and_aide_tool_maps_to_one_feature(self):
         runtime_cli = _cli_commands(ROOT / "cli.py")
-        runtime_jobs = _literal_registry_call_names(ROOT / "app.py", "jobs", "register")
+        runtime_jobs = _literal_registry_call_names(
+            ROOT / "services" / "background_jobs.py", "jobs", "register"
+        )
         capabilities.clear()
         capabilities.bootstrap()
         runtime_tools = {row.name for row in capabilities.all(kind="tool")}

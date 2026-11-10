@@ -1176,7 +1176,10 @@ async def upload(
         with file_operations.direct_mutation_claim(db, location, rel):
             if location.kind == "local":
                 try:
-                    result = _save_local_reviewed(db, location, rel, data, expected_etag)
+                    # hashing, version snapshot and the write: off the event loop
+                    result = await run_in_threadpool(
+                        _save_local_reviewed, db, location, rel, data, expected_etag
+                    )
                 except ValueError as e:
                     raise HTTPException(409, str(e)) from e
                 except OSError as e:

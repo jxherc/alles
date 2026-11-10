@@ -321,6 +321,7 @@ def preview_handoff(
 
 
 @router.post("/handoffs")
+# stays async: launch() creates a task on the running loop
 async def add_handoff(body: HandoffBody, request: Request, db: DbSession = Depends(get_db)):
     # background work in full access runs without asking, the same as a turn in the chat
     if body.permission_mode == "full_access":
@@ -1078,6 +1079,7 @@ class RunRetryBody(BaseModel):
 
 
 @router.post("/runs/{run_id}/retry")
+# stays async: launch() creates a task on the running loop
 async def retry_run(run_id: str, body: RunRetryBody | None = None, db: DbSession = Depends(get_db)):
     identity = body.request_id if body else ""
     if identity:
@@ -1120,6 +1122,7 @@ class ChoiceAnswer(BaseModel):
 
 
 @router.post("/prompts/{prompt_id}/answer")
+# stays async: launch() creates a task on the running loop
 async def submit_choice(prompt_id: str, body: ChoiceAnswer, db: DbSession = Depends(get_db)):
     prompt = db.get(JarvisRunPrompt, prompt_id)
     if not prompt:

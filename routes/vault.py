@@ -12,6 +12,7 @@ from pydantic import BaseModel
 from sqlalchemy import func
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session as DbSession
+from starlette.concurrency import run_in_threadpool
 
 from core.database import (
     BrowserConnection,
@@ -1018,22 +1019,10 @@ def _attach_dir():
     return d
 
 
-@router.post("/vault/{entry_id}/attachments")
-async def add_attachment(
-    entry_id: str,
-    file: UploadFile = File(...),
-    db: DbSession = Depends(get_db),
-    ctx: tuple = Depends(_ctx),
-    request_id: Annotated[str, Form()] = "",
-):
+def _store_attachment(db, pw, vid, entry_id, att, identity, data):
+    """encrypt and save an attachment: the key stretching, the write and the database rows."""
     from services.crypto import decrypt_bytes, encrypt_bytes
 
-    pw, vid = ctx
-    data = await file.read()
-    if len(data) > 25 * 1024 * 1024:
-        raise HTTPException(400, "attachment too large (25MB max)")
-    identity = _create_identity(request_id) if request_id else None
-    att = VaultAttachment(entry_id=entry_id, filename=file.filename or "file", size=len(data))
     with recovery_consistency_lock:
         _reserve_vault_write(db, pw, vid)
         _scoped_entry(db, entry_id, vid)
@@ -1075,6 +1064,23 @@ async def add_attachment(
                     pass
             raise
     return {"id": att.id, "filename": att.filename, "size": att.size}
+
+
+@router.post("/vault/{entry_id}/attachments")
+async def add_attachment(
+    entry_id: str,
+    file: UploadFile = File(...),
+    db: DbSession = Depends(get_db),
+    ctx: tuple = Depends(_ctx),
+    request_id: Annotated[str, Form()] = "",
+):
+    pw, vid = ctx
+    data = await file.read()
+    if len(data) > 25 * 1024 * 1024:
+        raise HTTPException(400, "attachment too large (25MB max)")
+    identity = _create_identity(request_id) if request_id else None
+    att = VaultAttachment(entry_id=entry_id, filename=file.filename or "file", size=len(data))
+    return await run_in_threadpool(_store_attachment, db, pw, vid, entry_id, att, identity, data)
 
 
 @router.get("/vault/{entry_id}/attachments")

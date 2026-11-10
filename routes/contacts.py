@@ -7,6 +7,7 @@ from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile
 from fastapi.responses import FileResponse
 from pydantic import BaseModel
 from sqlalchemy.orm import Session as DbSession
+from starlette.concurrency import run_in_threadpool
 
 from core.database import (
     Contact,
@@ -419,6 +420,10 @@ def delete_field(cid: str, fid: str, db: DbSession = Depends(get_db)):
     return {"ok": True}
 
 
+def _write_avatar(fname: str, data: bytes) -> None:
+    (_avatar_dir() / fname).write_bytes(data)
+
+
 @router.post("/contacts/{cid}/avatar")
 async def set_avatar(cid: str, file: UploadFile = File(...), db: DbSession = Depends(get_db)):
     c = db.get(Contact, cid)
@@ -431,7 +436,7 @@ async def set_avatar(cid: str, file: UploadFile = File(...), db: DbSession = Dep
     if ext not in ("png", "jpg", "jpeg", "webp", "gif"):
         ext = "png"
     fname = f"{cid}.{ext}"
-    (_avatar_dir() / fname).write_bytes(data)
+    await run_in_threadpool(_write_avatar, fname, data)
     c.avatar = fname
     db.commit()
     return _fmt(c, db)

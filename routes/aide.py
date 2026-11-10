@@ -304,6 +304,7 @@ async def telegram_settings(body: TelegramChatBody):
 
 
 @router.post("/channels/photon/connect", dependencies=[Depends(require_recent_owner)])
+# stays async: creates a task on the running loop
 async def photon_connect():
     """sign in to Photon once in the browser; alles sets up the project, secret and numbers."""
     from services import photon_setup
