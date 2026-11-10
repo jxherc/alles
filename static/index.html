@@ -1762,9 +1762,9 @@
 
               <section class="home-settings-section" aria-labelledby="home-settings-density-title">
                 <h3 id="home-settings-density-title" data-i18n="shell.settings_home.density">density</h3>
-                <div class="home-settings-density" role="radiogroup" aria-labelledby="home-settings-density-title">
-                  <button type="button" role="radio" aria-checked="true" tabindex="0" data-home-density="comfortable"><span data-i18n="shell.settings_home.comfortable">comfortable</span></button>
-                  <button type="button" role="radio" aria-checked="false" tabindex="-1" data-home-density="compact"><span data-i18n="shell.settings_home.compact">compact</span></button>
+                <div class="k-pill-switch" data-kokuen-choice="switch" role="radiogroup" aria-labelledby="home-settings-density-title">
+                  <button type="button" role="radio" aria-checked="true" tabindex="0" data-home-density="comfortable" data-value="comfortable" data-i18n="shell.settings_home.comfortable">comfortable</button>
+                  <button type="button" role="radio" aria-checked="false" tabindex="-1" data-home-density="compact" data-value="compact" data-i18n="shell.settings_home.compact">compact</button>
                 </div>
               </section>
 
@@ -1783,17 +1783,6 @@
                 </div>
               </section>
             </div>
-
-            <details class="home-settings-preview">
-              <summary><span id="home-settings-preview-title" data-i18n="shell.settings_home.home_outline">home outline</span><span id="home-settings-preview-count">5 sections</span></summary>
-              <div id="home-settings-preview-list">
-                <div data-home-preview="needs_you"><strong data-i18n="shell.settings_home.needs_you">needs you</strong></div>
-                <div data-home-preview="today"><strong data-i18n="shell.settings_home.schedule">schedule</strong></div>
-                <div data-home-preview="in_progress"><strong data-i18n="shell.settings_home.in_progress">in progress</strong></div>
-                <div data-home-preview="briefs"><strong data-i18n="shell.settings_home.briefs">briefs</strong></div>
-                <div data-home-preview="shortcuts"><strong data-i18n="shell.settings_home.pinned_apps">pinned apps</strong><small id="home-settings-preview-shortcuts" data-i18n="shell.settings_home.plan_docs_files">plan · docs · files</small></div>
-              </div>
-            </details>
           </div>
 
           <footer class="home-settings-save">

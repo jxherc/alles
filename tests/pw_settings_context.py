@@ -240,16 +240,7 @@ def navigation(page, api, dest, profile, records):
     assert page.locator('[data-vis-key^="nav-"]').count() == 0
     open_pane(page, "home")
     expect(page.locator("#home-settings-workbench")).to_have_attribute("aria-busy", "false")
-    preview = page.locator(".home-settings-preview")
-    assert preview.get_attribute("open") is None
-    controls_box = page.locator(".home-settings-controls").bounding_box()
-    preview_box = preview.bounding_box()
-    if compact:
-        assert controls_box["y"] < preview_box["y"]
-    preview.locator("summary").click()
-    expect(page.locator("#home-settings-preview-list")).to_be_visible()
-    preview.locator("summary").click()
-    expect(page.locator("#home-settings-preview-list")).to_be_hidden()
+    assert page.locator(".home-settings-preview").count() == 0
     open_pane(page, "notifications")
     menus = []
     for name in ("region", "timezone", "currency"):

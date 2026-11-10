@@ -6303,15 +6303,6 @@ const BUILTIN_ENGLISH = {
     "settings.default_tag": "default",
     "settings.duplicate": "duplicate",
     "settings.edit_named": "edit {name}",
-    "settings.home_app_docs": "docs",
-    "settings.home_app_files": "files",
-    "settings.home_app_finance": "finance",
-    "settings.home_app_health": "health",
-    "settings.home_app_inbox": "inbox",
-    "settings.home_app_library": "library",
-    "settings.home_app_plan": "plan",
-    "settings.home_app_server": "server",
-    "settings.home_app_vault": "vault",
     "settings.home_defaults_restored": "defaults restored",
     "settings.home_density_comfortable": "comfortable density",
     "settings.home_density_compact": "compact density",
@@ -7228,7 +7219,6 @@ const BUILTIN_ENGLISH = {
     "shell.settings_home.comfortable": "comfortable",
     "shell.settings_home.compact": "compact",
     "shell.settings_home.density": "density",
-    "shell.settings_home.home_outline": "home outline",
     "shell.settings_home.in_progress": "in progress",
     "shell.settings_home.move_briefs_down": "move briefs down",
     "shell.settings_home.move_briefs_up": "move briefs up",
@@ -7261,7 +7251,6 @@ const BUILTIN_ENGLISH = {
     "shell.settings_home.needs_you": "needs you",
     "shell.settings_home.pinned_apps": "pinned apps",
     "shell.settings_home.plan": "plan",
-    "shell.settings_home.plan_docs_files": "plan · docs · files",
     "shell.settings_home.reset_defaults": "reset defaults",
     "shell.settings_home.save_home": "save home",
     "shell.settings_home.schedule": "schedule",
@@ -9392,10 +9381,6 @@ const BUILTIN_ENGLISH = {
     "settings.andromeda_qualified": {
       "one": "passed · {supported}/{count} supported claims",
       "other": "passed · {supported}/{count} supported claims"
-    },
-    "settings.home_section_count": {
-      "one": "{count} section",
-      "other": "{count} sections"
     },
     "settings.home_unsaved_changes": {
       "one": "{count} unsaved change · {detail}",

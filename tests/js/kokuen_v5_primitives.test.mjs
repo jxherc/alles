@@ -176,7 +176,6 @@ test('the compact visual grammar removes decorative boxes without flattening str
   assert.match(css, /\.specialist-group-capture input[\s\S]*?border-bottom:\s*1px solid/);
   assert.match(css, /\.finance-actual-panel[\s\S]*?background:\s*transparent/);
   assert.match(css, /\.s-card \{[\s\S]*?border:\s*0/);
-  assert.match(css, /\.home-settings-density button\[aria-checked="true"\][\s\S]*?font-weight:\s*600/);
   assert.match(css, /\.specialist-group-capture :where\(input, button\):focus-visible/);
   assert.match(css, /body\.afterlife-aide-projects\[data-space="aide"\] \.composer-box \{[\s\S]*?border:\s*1px solid/);
 });

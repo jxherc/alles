@@ -7,11 +7,6 @@ import { setStatusLine } from './shared.js';
 const HOME_SECTION_KEYS = ['needs_you', 'today', 'in_progress', 'briefs', 'shortcuts'];
 const HOME_SHORTCUT_KEYS = ['plan', 'inbox', 'wiki', 'files', 'library', 'health', 'finance', 'vault', 'system'];
 const HOME_DEFAULT_SHORTCUTS = ['plan', 'wiki', 'files'];
-const HOME_SHORTCUT_LABELS = () => ({
-  plan: t('settings.home_app_plan'), inbox: t('settings.home_app_inbox'), wiki: t('settings.home_app_docs'),
-  files: t('settings.home_app_files'), library: t('settings.home_app_library'), health: t('settings.home_app_health'),
-  finance: t('settings.home_app_finance'), vault: t('settings.home_app_vault'), system: t('settings.home_app_server'),
-});
 const HOME_SHORTCUT_ALIASES = { calendar: 'plan', tasks: 'plan', days: 'plan', reminders: 'plan', mail: 'inbox', contacts: 'inbox', notes: 'wiki', journal: 'wiki', photos: 'files', gallery: 'files', books: 'library', read: 'library', habits: 'health', money: 'finance', subs: 'finance', secrets: 'vault', server: 'system', watch: 'system', activity: 'system' };
 let _homeSettingsState = null;
 let _homeSettingsChanges = 0;
@@ -96,29 +91,7 @@ function _updateHomeMoveButtons(list) {
   });
 }
 
-function _updateHomeSettingsPreview() {
-  const sectionRows = _homeRows('home-settings-sections');
-  const preview = document.getElementById('home-settings-preview-list');
-  let visibleCount = 0;
-  for (const row of sectionRows) {
-    const item = preview?.querySelector(`[data-home-preview="${CSS.escape(row.dataset.homeSection)}"]`);
-    if (!item) continue;
-    preview.appendChild(item);
-    item.hidden = row.dataset.enabled !== 'true';
-    if (!item.hidden) visibleCount += 1;
-  }
-  const count = document.getElementById('home-settings-preview-count');
-  if (count) count.textContent = tp('settings.home_section_count', visibleCount);
-
-  const enabledShortcuts = _homeRows('home-settings-shortcuts')
-    .filter(row => row.dataset.enabled === 'true')
-    .map(row => row.dataset.homeShortcut);
-  const shortcutLabels = HOME_SHORTCUT_LABELS();
-  const labels = _mergeHomeShortcutOrder(enabledShortcuts)
-    .map(key => shortcutLabels[key] || key);
-  const shortcutPreview = document.getElementById('home-settings-preview-shortcuts');
-  if (shortcutPreview) shortcutPreview.textContent = labels.length ? labels.join(' · ') : t('home.no_pinned_apps');
-
+function _syncHomeMoveButtons() {
   const sections = document.getElementById('home-settings-sections');
   const shortcuts = document.getElementById('home-settings-shortcuts');
   if (sections) _updateHomeMoveButtons(sections);
@@ -169,7 +142,7 @@ function _renderHomeSettingsPreferences(value) {
   _chooseHomeDensity(document.querySelector(`[data-home-density="${normalized.density}"]`), false);
   _homeSettingsChanges = 0;
   _setHomeSettingsStatus('');
-  _updateHomeSettingsPreview();
+  _syncHomeMoveButtons();
 }
 
 function _homeSettingsPayload() {
@@ -272,7 +245,7 @@ function _wireHomeSettingsPane() {
       const next = toggle.getAttribute('aria-checked') !== 'true';
       _setHomeSettingsSwitch(toggle, next);
       _markHomeSettingsChanged(next ? t('settings.home_item_shown') : t('settings.home_item_hidden'));
-      _updateHomeSettingsPreview();
+      _syncHomeMoveButtons();
       return;
     }
 
@@ -283,7 +256,7 @@ function _wireHomeSettingsPane() {
       if (move.dataset.homeMove === 'up') row.parentElement.insertBefore(row, target);
       else row.parentElement.insertBefore(target, row);
       _markHomeSettingsChanged(t('settings.home_order_updated'));
-      _updateHomeSettingsPreview();
+      _syncHomeMoveButtons();
       const focusTarget = move.disabled
         ? row.querySelector('[data-home-move]:not(:disabled)') || row.querySelector('[role="switch"]')
         : move;
@@ -293,23 +266,6 @@ function _wireHomeSettingsPane() {
 
     const density = event.target.closest('[data-home-density]');
     if (density) _chooseHomeDensity(density);
-  });
-  pane.querySelectorAll('[data-home-density]').forEach(button => {
-    button.addEventListener('keydown', event => {
-      if (_homeSettingsBusy) return;
-      const keys = ['ArrowLeft', 'ArrowUp', 'ArrowRight', 'ArrowDown', 'Home', 'End'];
-      if (!keys.includes(event.key)) return;
-      event.preventDefault();
-      const choices = [...pane.querySelectorAll('[data-home-density]')];
-      const index = choices.indexOf(button);
-      let next = index;
-      if (event.key === 'ArrowLeft' || event.key === 'ArrowUp') next = (index - 1 + choices.length) % choices.length;
-      if (event.key === 'ArrowRight' || event.key === 'ArrowDown') next = (index + 1) % choices.length;
-      if (event.key === 'Home') next = 0;
-      if (event.key === 'End') next = choices.length - 1;
-      _chooseHomeDensity(choices[next]);
-      choices[next].focus();
-    });
   });
   document.getElementById('home-settings-reset')?.addEventListener('click', _resetHomeSettings);
   document.getElementById('home-settings-save')?.addEventListener('click', _saveHomeSettings);

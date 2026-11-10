@@ -3790,7 +3790,7 @@ textarea[data-kokuen-entry="autogrow"] {
   cursor: pointer;
 }
 
-#settings-modal[data-kokuen-surface="settings"] :is(.s-appearance-details, .te-disclosure, .home-settings-preview) > summary::after {
+#settings-modal[data-kokuen-surface="settings"] :is(.s-appearance-details, .te-disclosure) > summary::after {
   margin-left: auto;
   width: 6px;
   height: 6px;
@@ -3801,7 +3801,7 @@ textarea[data-kokuen-entry="autogrow"] {
   transform: rotate(45deg);
 }
 
-#settings-modal[data-kokuen-surface="settings"] :is(.s-appearance-details, .te-disclosure, .home-settings-preview)[open] > summary::after {
+#settings-modal[data-kokuen-surface="settings"] :is(.s-appearance-details, .te-disclosure)[open] > summary::after {
   transform: rotate(225deg);
 }
 
@@ -4429,7 +4429,7 @@ html[dir="rtl"] :where(
   flex: 1;
   min-height: 0;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 190px;
+  grid-template-columns: minmax(0, 1fr);
   align-items: start;
   gap: var(--k-space-5);
   overflow-y: auto;
@@ -4457,8 +4457,7 @@ html[dir="rtl"] :where(
   line-height: 1.5;
 }
 
-#settings-modal[data-kokuen-surface="settings"] .home-settings-list,
-#settings-modal[data-kokuen-surface="settings"] .home-settings-density {
+#settings-modal[data-kokuen-surface="settings"] .home-settings-list {
   overflow: hidden;
   border: 0;
   border-radius: 0;
@@ -4606,111 +4605,6 @@ html[dir="rtl"] :where(
   cursor: default;
 }
 
-#settings-modal[data-kokuen-surface="settings"] .home-settings-density {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  border-radius: 0;
-}
-
-#settings-modal[data-kokuen-surface="settings"] .home-settings-density button {
-  min-height: 58px;
-  display: grid;
-  font: inherit;
-  font-size: 0.8125rem;
-  align-content: center;
-  gap: var(--k-space-1);
-  padding: var(--k-space-2) var(--k-space-3);
-  border: 0;
-  border-right: 1px solid var(--k-line);
-  background: transparent;
-  color: var(--k-muted);
-  text-align: left;
-  cursor: pointer;
-}
-
-#settings-modal[data-kokuen-surface="settings"] .home-settings-density > button {
-  scroll-margin-block: var(--k-space-1);
-  border-radius: 0;
-}
-
-#settings-modal[data-kokuen-surface="settings"] .home-settings-density button:last-child {
-  border-right: 0;
-}
-
-#settings-modal[data-kokuen-surface="settings"] .home-settings-density button[aria-checked="true"] {
-  background: transparent;
-  color: var(--k-text);
-  -webkit-text-stroke: 0.35px currentColor;
-}
-
-#settings-modal[data-kokuen-surface="settings"] .home-settings-density span {
-  font-size: 0.8125rem;
-  font-weight: 500;
-}
-
-#settings-modal[data-kokuen-surface="settings"] .home-settings-density small {
-  color: var(--k-muted);
-  font-size: 0.8125rem;
-}
-
-#settings-modal[data-kokuen-surface="settings"] .home-settings-preview {
-  position: sticky;
-  top: 0;
-  padding: var(--k-space-3);
-  border: 1px solid var(--k-line);
-  border-radius: var(--k-radius-surface);
-  background: var(--k-page);
-}
-
-#settings-modal[data-kokuen-surface="settings"] .home-settings-preview summary {
-  min-height: var(--k-control);
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--k-space-2);
-  cursor: pointer;
-}
-
-#settings-modal[data-kokuen-surface="settings"] #home-settings-preview-title {
-  margin: 0;
-  color: var(--k-text);
-  font-size: 0.8125rem;
-  font-weight: 500;
-}
-
-#settings-modal[data-kokuen-surface="settings"] #home-settings-preview-count,
-#settings-modal[data-kokuen-surface="settings"] .home-settings-preview p,
-#settings-modal[data-kokuen-surface="settings"] .home-settings-preview small {
-  color: var(--k-muted);
-  font-size: 0.8125rem;
-}
-
-#settings-modal[data-kokuen-surface="settings"] .home-settings-preview p {
-  margin: var(--k-space-2) 0 var(--k-space-4);
-  line-height: 1.45;
-}
-
-#settings-modal[data-kokuen-surface="settings"] #home-settings-preview-list {
-  display: grid;
-  gap: var(--k-space-3);
-}
-
-#settings-modal[data-kokuen-surface="settings"] #home-settings-preview-list strong,
-#settings-modal[data-kokuen-surface="settings"] #home-settings-preview-list small {
-  display: block;
-}
-
-#settings-modal[data-kokuen-surface="settings"] #home-settings-preview-list strong {
-  color: var(--k-soft);
-  font-size: 0.8125rem;
-  font-weight: 500;
-}
-
-#settings-modal[data-kokuen-surface="settings"] #home-settings-preview-list small {
-  margin-top: var(--k-space-1);
-  line-height: 1.4;
-}
-
 #settings-modal[data-kokuen-surface="settings"] .home-settings-save {
   flex-shrink: 0;
   display: flex;
@@ -4739,40 +4633,9 @@ html[dir="rtl"] :where(
   color: var(--k-quiet);
 }
 
-@media (max-width: 860px) {
-  #settings-modal[data-kokuen-surface="settings"] .home-settings-workbench {
-    grid-template-columns: minmax(0, 1fr);
-  }
-
-  #settings-modal[data-kokuen-surface="settings"] .home-settings-preview {
-    position: static;
-  }
-
-  #settings-modal[data-kokuen-surface="settings"] #home-settings-preview-list {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-  }
-}
-
 @media (max-width: 540px) {
   #settings-modal[data-kokuen-surface="settings"] .home-settings-intro {
     display: none;
-  }
-
-  #settings-modal[data-kokuen-surface="settings"] .home-settings-density {
-    grid-template-columns: 1fr;
-  }
-
-  #settings-modal[data-kokuen-surface="settings"] .home-settings-density button {
-    border-right: 0;
-    border-bottom: 1px solid var(--k-line);
-  }
-
-  #settings-modal[data-kokuen-surface="settings"] .home-settings-density button:last-child {
-    border-bottom: 0;
-  }
-
-  #settings-modal[data-kokuen-surface="settings"] #home-settings-preview-list {
-    grid-template-columns: 1fr;
   }
 
   #settings-modal[data-kokuen-surface="settings"] .home-settings-save {

@@ -256,9 +256,6 @@ def run() -> None:
         assert page.locator(".home-settings-workbench").evaluate(
             "el => getComputedStyle(el).gridTemplateColumns.split(' ').length === 1"
         )
-        assert page.locator(".home-settings-preview").evaluate(
-            "el => getComputedStyle(el).position === 'static'"
-        )
         page.route(
             "**/api/today/preferences",
             lambda route: (
