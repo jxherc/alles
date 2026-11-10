@@ -423,7 +423,6 @@
     "tasks.title": "tareas",
     "tasks.title_label": "título de la tarea",
     "tasks.tomorrow": "mañana",
-    "tasks.move_named": "mover {task} a {day}",
     "tasks.more_named": "más para {task}",
     "tasks.deleted_named": "se eliminó «{task}»",
     "tasks.overdue_count": "vencidas · {count}",

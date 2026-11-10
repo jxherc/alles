@@ -423,7 +423,6 @@
     "tasks.title": "tasks",
     "tasks.title_label": "task title",
     "tasks.tomorrow": "tomorrow",
-    "tasks.move_named": "move {task} to {day}",
     "tasks.more_named": "more for {task}",
     "tasks.deleted_named": "deleted “{task}”",
     "tasks.overdue_count": "overdue · {count}",

@@ -423,7 +423,6 @@
     "tasks.title": "작업",
     "tasks.title_label": "작업 제목",
     "tasks.tomorrow": "내일",
-    "tasks.move_named": "{task}을(를) {day}(으)로 옮기기",
     "tasks.more_named": "{task} 더 보기",
     "tasks.deleted_named": "“{task}” 삭제됨",
     "tasks.overdue_count": "기한 지남 · {count}",

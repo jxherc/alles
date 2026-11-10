@@ -423,7 +423,6 @@
     "tasks.title": "任务",
     "tasks.title_label": "任务标题",
     "tasks.tomorrow": "明天",
-    "tasks.move_named": "把 {task} 移到{day}",
     "tasks.more_named": "{task} 的更多操作",
     "tasks.deleted_named": "已删除“{task}”",
     "tasks.overdue_count": "已逾期 · {count}",
