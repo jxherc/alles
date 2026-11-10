@@ -124,7 +124,7 @@ BROWSER_SUITES = {
         "shell-command-shortcuts",
         "shell-app-name",
     ),
-    "setup": ("setup-auth",),
+    "setup": ("setup-auth", "session-restart"),
     "settings": (
         "credits-detail",
         "settings-voice-recovery",
@@ -382,6 +382,7 @@ BROWSER_SUITES = {
         "shell-command-shortcuts",
         "shell-app-name",
         "setup-auth",
+        "session-restart",
         "settings-recovery",
         "settings-language-badges",
         "settings-selected",

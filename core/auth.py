@@ -1,3 +1,6 @@
+import hashlib
+import json
+import os
 import secrets
 import time
 from copy import deepcopy
@@ -7,12 +10,65 @@ import bcrypt
 from fastapi import Request
 from starlette.requests import HTTPConnection
 
-# in-memory token store — survives process lifetime, not restarts
-# that's fine: 30-day cookies re-login on restart
-_tokens: dict[str, float] = {}  # token → expiry unix timestamp
-_recent_auth: dict[str, float] = {}  # token → last password confirmation
+# sign-in sessions outlive a restart. only a sha-256 of each token is kept, in the data folder
+# (sessions.json, owner-only), so a copy of that file signs nobody in. they used to live in
+# memory alone: every restart or update signed every device out, and an open page then failed
+# on each request until it was reloaded by hand
+_tokens: dict[str, float] = {}  # sha-256 of the token → expiry unix timestamp
+_tokens_from: str | None = None  # the file _tokens was read from
+_tokens_lock = RLock()
+# a password confirmation is for this run only: after a restart it is asked for again
+_recent_auth: dict[str, float] = {}  # token → last password confirmation, memory only
 RECENT_AUTH_SECONDS = 10 * 60
 MIN_OWNER_PASSWORD_LENGTH = 8
+
+
+def _digest(token: str) -> str:
+    return hashlib.sha256(str(token or "").encode()).hexdigest()
+
+
+def _load_tokens() -> None:
+    """read the saved sessions once per data folder (tests switch folders in one process)."""
+    global _tokens_from
+    from core.settings import data_dir
+
+    path = str(data_dir() / "sessions.json")
+    if _tokens_from == path:
+        return
+    with _tokens_lock:
+        _tokens.clear()
+        _recent_auth.clear()
+        try:
+            with open(path, encoding="utf-8") as handle:
+                saved = json.load(handle)
+        except (OSError, ValueError):
+            saved = {}
+        now = time.time()
+        if isinstance(saved, dict):
+            for key, expiry in saved.items():
+                if isinstance(expiry, (int, float)) and expiry > now and len(str(key)) == 64:
+                    _tokens[str(key)] = float(expiry)
+        _tokens_from = path
+
+
+def _save_tokens() -> None:
+    path = _tokens_from
+    if not path:
+        return
+    temporary = f"{path}.{os.getpid()}.tmp"
+    try:
+        os.makedirs(os.path.dirname(path), mode=0o700, exist_ok=True)
+        fd = os.open(temporary, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+        with os.fdopen(fd, "w", encoding="utf-8") as handle:
+            json.dump(_tokens, handle)
+        os.replace(temporary, path)
+    except OSError:
+        # a read-only or full disk must not lock the owner out: the session still works
+        # until the next restart
+        try:
+            os.unlink(temporary)
+        except OSError:
+            pass
 
 
 def hash_password(pw: str) -> str:
@@ -31,24 +87,49 @@ def create_session_token() -> str:
 
 
 def store_token(token: str, ttl_days: int = 30):
-    _tokens[token] = time.time() + ttl_days * 86400
-    _recent_auth[token] = time.time()
+    _load_tokens()
+    with _tokens_lock:
+        now = time.time()
+        for key in [key for key, expiry in _tokens.items() if expiry <= now]:
+            _tokens.pop(key, None)
+        _tokens[_digest(token)] = now + ttl_days * 86400
+        _recent_auth[token] = now
+        _save_tokens()
 
 
 def verify_session(token: str) -> bool:
-    exp = _tokens.get(token)
+    if not token:
+        return False
+    _load_tokens()
+    key = _digest(token)
+    exp = _tokens.get(key)
     if not exp:
         return False
     if time.time() > exp:
-        _tokens.pop(token, None)
-        _recent_auth.pop(token, None)
+        revoke_token(token)
         return False
     return True
 
 
 def revoke_token(token: str):
-    _tokens.pop(token, None)
-    _recent_auth.pop(token, None)
+    _load_tokens()
+    with _tokens_lock:
+        _recent_auth.pop(token, None)
+        if _tokens.pop(_digest(token), None) is not None:
+            _save_tokens()
+
+
+def revoke_other_sessions(keep: str = "") -> None:
+    """sign every device out except the one holding `keep`: after a password change, a session
+    made with the old password must not stay good for its 30 days."""
+    _load_tokens()
+    with _tokens_lock:
+        kept = _digest(keep) if keep else ""
+        for key in [key for key in _tokens if key != kept]:
+            _tokens.pop(key, None)
+        for token in [token for token in _recent_auth if token != keep]:
+            _recent_auth.pop(token, None)
+        _save_tokens()
 
 
 def mark_session_recent(token: str) -> bool:

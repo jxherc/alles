@@ -241,6 +241,7 @@ COMMANDS = {
     "vault-actions-recovery": ("tests/pw_vault_actions_recovery.py",),
     "vault-create-recovery": ("tests/pw_vault_create_recovery.py",),
     "setup-auth": ("tests/pw_setup_auth.py",),
+    "session-restart": ("tests/pw_session_restart.py",),
     "settings-recovery": ("tests/pw_settings_recovery.py",),
     "settings-panes": ("tests/pw_settings_panes.py",),
     "settings-language-badges": ("tests/pw_settings_language_badges.py",),

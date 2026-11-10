@@ -55,7 +55,8 @@ class FrontendInventoryTests(unittest.TestCase):
         for page in (ROOT / "static").glob("*.html"):
             entrypoints.update(
                 re.findall(
-                    r'<script\s+type="module"\s+src="/static/js/([^"?#]+\.js)(?:[?#][^"]*)?"',
+                    # a page's own scripts, module or classic (bootwatch.js is classic on purpose)
+                    r'<script\b[^>]*\bsrc="/static/js/([^"?#]+\.js)(?:[?#][^"]*)?"',
                     page.read_text("utf-8"),
                 )
             )

@@ -62,7 +62,7 @@ class AideLiveCallTest(ApiTest):
             again = self.client.post(url, json=body)
             self.assertEqual(again.status_code, 200)
             self.assertFalse(again.json()["created"])
-            auth._tokens[token] = time.time() - 1
+            auth._tokens[auth._digest(token)] = time.time() - 1
             expired = self.client.post(url, json={**body, "provider_event_id": "expired"})
             self.assertEqual(expired.status_code, 401)
             auth.store_token(token)

@@ -103,6 +103,7 @@ const CONTEXT_HANDOFF_STORAGE_KEY = 'alles.pendingContextHandoff';
 const CONTEXT_HANDOFF_PAYLOAD_STORAGE_KEY = 'alles.pendingContextHandoffPayload';
 let _afterlifeFlags = {};
 let _authEnabled = false;
+let _booted = false;
 let _restoringRoutePosition = null;
 let _popstateGeneration = 0;
 let _navigationGeneration = 0;
@@ -128,7 +129,8 @@ async function init() {
   let me = {};
   let reachable = true;
   try {
-    me = await fetch('/api/auth/me').then(r => r.json());
+    // a server that accepts the connection and never answers counts as unreachable
+    me = await fetch('/api/auth/me', { signal: AbortSignal.timeout(8000) }).then(r => r.json());
     setBaseDomain(me.base_domain);
     setAppUrls(me.app_urls);
     localStorage.setItem('alles_auth_cache', JSON.stringify(me));   // remember for offline
@@ -567,6 +569,64 @@ function applySubdomainScope(initialRoute = null) {
   else if (readRecordTarget(location.href)) void revealLinkedRecord();
   // (aide with a #sessionId is already restored by initSessions)
   document.body.classList.remove('preboot', 'login-mode');
+  // a slow start may have passed bootwatch.js's limit: take its "not started" screen away again
+  const stuck = document.getElementById('notrunning-screen');
+  if (stuck) stuck.style.display = 'none';
+  if (_booted) return;
+  _booted = true;
+  watchForEndedSession();
+  reloadAfterAnUpdate();
+}
+
+// a session can end under an open page (a password change on another device, 30 days, a
+// restore). every request then answers 401 and the page looked broken. the page asks whether
+// the session is gone when you come back to it, once a minute, and at once where the browser
+// reports a 401 from the api; if it is gone, sign in shows over the page, which stays as it is
+// underneath. requests are never wrapped for this: they stay exactly what each screen sent
+function watchForEndedSession() {
+  let asking = false;
+  const ask = async () => {
+    if (asking || !_authEnabled || document.visibilityState === 'hidden') return;
+    if (document.body.classList.contains('login-mode')) return;
+    asking = true;
+    try {
+      const me = await fetch('/api/auth/me', { signal: AbortSignal.timeout(8000) }).then(reply => reply.json());
+      if (me.enabled === true && me.authenticated === false) _showLoginScreen();
+    } catch {} finally { asking = false; }
+  };
+  document.addEventListener('visibilitychange', ask);
+  window.addEventListener('focus', ask);
+  window.addEventListener('online', ask);
+  setInterval(ask, 60000);
+  try {
+    // responseStatus is not in every browser yet; where it is missing the checks above remain
+    new PerformanceObserver(list => {
+      const ended = list.getEntries().some(entry => entry.responseStatus === 401
+        && new URL(entry.name).pathname.startsWith('/api/')
+        && !new URL(entry.name).pathname.startsWith('/api/auth/'));
+      if (ended) void ask();
+    }).observe({ type: 'resource', buffered: false });
+  } catch {}
+}
+
+// an update puts a new service worker in charge of this open page: the code it loads from then
+// on is the new build's and meets the old build already running. reload, once nothing is lost
+function reloadAfterAnUpdate() {
+  const workers = navigator.serviceWorker;
+  if (!workers?.controller) return;   // a first install changes no build under the page
+  workers.addEventListener('controllerchange', () => {
+    const reloadIfIdle = () => {
+      const field = document.activeElement;
+      const typing = !!field?.matches?.('input, textarea, [contenteditable]')
+        && !!String(field.value ?? field.textContent ?? '').trim();
+      if (document.visibilityState !== 'hidden' && (typing || getSendBlockReason() === 'busy')) return false;
+      location.reload();
+      return true;
+    };
+    if (reloadIfIdle()) return;
+    document.addEventListener('visibilitychange', reloadIfIdle);
+    setInterval(reloadIfIdle, 15000);
+  }, { once: true });
 }
 
 function _scopeAideChrome(onAide) {
@@ -694,6 +754,8 @@ function _showLoginScreen() {
       if (screen) screen.style.display = 'none';
       document.body.classList.remove('login-mode');
       if (_pendingSso) { await _ssoRedirect(_pendingSso); return; }
+      // signed in again over a running page: it is still there, nothing starts twice
+      if (_booted) { if (password) password.value = ''; return; }
       _boot();
     } catch {
       if (error) error.textContent = t('shell.login_unreachable');

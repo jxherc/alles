@@ -27,6 +27,63 @@ class AuthApiTest(ApiTest):
         self._tmp.cleanup()
         super().tearDown()
 
+    def test_a_session_survives_a_restart_and_only_its_hash_is_on_disk(self):
+        # a restart used to sign every device out: sessions lived in memory alone
+        import json
+
+        from core import auth
+
+        data = Path(tempfile.mkdtemp())
+        with mock.patch.dict(os.environ, {"ALLES_DATA": str(data)}):
+            auth.store_token("token-one")
+            auth.store_token("token-two")
+            saved = (data / "sessions.json").read_text("utf-8")
+            self.assertNotIn("token-one", saved)
+            self.assertEqual(len(json.loads(saved)), 2)
+            self.assertEqual((data / "sessions.json").stat().st_mode & 0o777, 0o600)
+
+            def restart():
+                auth._tokens.clear()
+                auth._recent_auth.clear()
+                auth._tokens_from = None
+
+            restart()
+            self.assertTrue(auth.verify_session("token-one"))
+            self.assertFalse(auth.verify_session("token-three"))
+            self.assertFalse(auth.verify_session(""))
+            # a password confirmation is not carried over: it is asked for again
+            self.assertFalse(auth.verify_recent_session("token-one"))
+            auth.revoke_token("token-one")
+            restart()
+            self.assertFalse(auth.verify_session("token-one"))
+            self.assertTrue(auth.verify_session("token-two"))
+            # an expired or damaged entry is dropped on load
+            (data / "sessions.json").write_text(
+                json.dumps({auth._digest("old"): 1.0, "junk": "x", auth._digest("ok"): 9e12})
+            )
+            restart()
+            self.assertFalse(auth.verify_session("old"))
+            self.assertTrue(auth.verify_session("ok"))
+            (data / "sessions.json").write_text("not json")
+            restart()
+            self.assertFalse(auth.verify_session("ok"))
+        auth._tokens_from = None
+
+    def test_a_password_change_signs_the_other_devices_out(self):
+        from core import auth
+
+        self.client.post("/api/auth/change-password", json={"new_password": "first-password-1"})
+        auth.store_token("this-device")
+        auth.store_token("other-device")
+        self.client.cookies.set("aide_session", "this-device")
+        changed = self.client.post(
+            "/api/auth/change-password",
+            json={"old_password": "first-password-1", "new_password": "second-password-2"},
+        )
+        self.assertEqual(changed.status_code, 200)
+        self.assertTrue(auth.verify_session("this-device"))
+        self.assertFalse(auth.verify_session("other-device"))
+
     def test_set_initial_password(self):
         r = self.client.post("/api/auth/change-password", json={"new_password": "correct-horse-1"})
         self.assertEqual(r.status_code, 200)

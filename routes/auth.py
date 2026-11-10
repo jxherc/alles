@@ -17,6 +17,7 @@ from core.auth import (
     record_login_fail,
     redeem_context_handoff,
     redeem_handoff,
+    revoke_other_sessions,
     revoke_token,
     store_token,
     verify_password,
@@ -200,6 +201,8 @@ def change_password(body: ChangePwBody, request: Request):
             raise HTTPException(401, "current password is wrong")
         clear_login_fails(ip)
     save_settings({"auth_password_hash": hash_password(body.new_password)})
+    # sessions are kept across restarts now, so the old password's other sessions end here
+    revoke_other_sessions(keep=request.cookies.get("aide_session", ""))
     return {"ok": True}
 
 

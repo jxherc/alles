@@ -27,7 +27,7 @@ function harness(request) {
       getElementById: element,
       body: { classList: { add() {}, remove() {} } },
     },
-    fetch: request, _pendingSso: null,
+    fetch: request, _pendingSso: null, _booted: false,
     _boot() { boots += 1; },
   });
   vm.runInContext(source + '\n_showLoginScreen();', context);
