@@ -3847,9 +3847,13 @@ textarea[data-kokuen-entry="autogrow"] {
   padding: 0;
   border: 0;
   background: transparent;
+}
+
+/* every section heading in settings is the section title role (0081): one size, one weight */
+#settings-modal[data-kokuen-surface="settings"] :where(.s-card-head, .home-settings-section h3, .locale-settings-section h3, .credits-settings-tools h3, .credits-detail h3) {
   color: var(--k-text);
-  font-size: 0.875rem;
-  font-weight: 500;
+  font-size: 1rem;
+  font-weight: 600;
 }
 
 #settings-modal[data-kokuen-surface="settings"] .s-card-body {
@@ -3897,34 +3901,15 @@ textarea[data-kokuen-entry="autogrow"] {
   margin-inline: auto;
 }
 
-#settings-modal[data-kokuen-surface="settings"] .settings-pane-intro {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: var(--k-space-5);
-  margin-bottom: var(--k-space-5);
-}
-
-#settings-modal[data-kokuen-surface="settings"] .settings-pane-intro h2 {
-  margin: 0;
-  color: var(--k-text);
-  font-size: 1rem;
-  font-weight: 580;
-}
-
-#settings-modal[data-kokuen-surface="settings"] .settings-pane-intro p {
-  max-width: var(--k-measure);
-  margin: var(--k-space-1) 0 0;
-  color: var(--k-muted);
-  font-size: 0.8125rem;
-  line-height: 1.45;
-}
-
-#settings-modal[data-kokuen-surface="settings"] :where(#locale-settings-load-state, #credits-settings-load-state) {
-  flex: 0 0 auto;
+#settings-modal[data-kokuen-surface="settings"] .settings-pane-state {
+  margin: 0 0 var(--k-space-4);
   color: var(--k-quiet);
   font-size: 0.8125rem;
   line-height: 1.45;
+}
+
+#settings-modal[data-kokuen-surface="settings"] .settings-pane-state:empty {
+  display: none;
 }
 
 #settings-modal[data-kokuen-surface="settings"] .locale-settings-workbench {
@@ -3949,9 +3934,6 @@ textarea[data-kokuen-entry="autogrow"] {
 
 #settings-modal[data-kokuen-surface="settings"] :where(.locale-settings-section, .credits-settings-tools) h3 {
   margin: 0;
-  color: var(--k-text);
-  font-size: 0.875rem;
-  font-weight: 580;
 }
 
 #settings-modal[data-kokuen-surface="settings"] .locale-settings-section > p {
@@ -4275,9 +4257,6 @@ textarea[data-kokuen-entry="autogrow"] {
 
 #settings-modal[data-kokuen-surface="settings"] .credits-detail h3 {
   margin: 0;
-  color: var(--k-text);
-  font-size: 1rem;
-  font-weight: 580;
 }
 
 #settings-modal[data-kokuen-surface="settings"] .credits-detail > p {
@@ -4392,14 +4371,6 @@ html[dir="rtl"] :where(
 }
 
 @media (max-width: 540px) {
-  #settings-modal[data-kokuen-surface="settings"] .settings-pane-intro {
-    gap: var(--k-space-3);
-  }
-
-  #settings-modal[data-kokuen-surface="settings"] :where(#locale-settings-load-state, #credits-settings-load-state) {
-    display: none;
-  }
-
   #settings-modal[data-kokuen-surface="settings"] .locale-format-row {
     grid-template-columns: minmax(0, 1fr);
     gap: var(--k-space-3);
@@ -4477,9 +4448,6 @@ html[dir="rtl"] :where(
 
 #settings-modal[data-kokuen-surface="settings"] .home-settings-section h3 {
   margin: 0 0 var(--k-space-1);
-  color: var(--k-text);
-  font-size: 0.875rem;
-  font-weight: 500;
 }
 
 #settings-modal[data-kokuen-surface="settings"] .home-settings-section > p {

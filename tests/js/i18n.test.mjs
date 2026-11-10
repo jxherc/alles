@@ -92,7 +92,7 @@ test('reviewed local catalogs translate messages and locale-specific plurals', a
   const catalog = JSON.parse(await readFile(new URL('../../static/locales/ar.json', import.meta.url), 'utf8'));
   installCatalog(catalog);
   configureLocalization({ language: 'ar', region: 'TW' });
-  assert.equal(t('locale.title'), 'اللغة والمنطقة');
+  assert.equal(t('locale.interface_language'), 'لغة الواجهة');
   assert.match(tp('credits.item_count', 3), /3/);
   assert.equal(localizationState().direction, 'rtl');
 });
