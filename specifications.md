@@ -1388,7 +1388,7 @@ andromeda opens at `http://localhost:6769/?app=andromeda` or its own app host. i
 - **news rows and pictures among the web results.** a search that asks for the news ("toronto news", "ai news today",
   多伦多新闻) gets up to 3 headlines above the results, and one that asks for pictures ("cat pictures", "pictures of cats",
   猫的图片, "nike logo") gets up to 8 of them in two rows after the third result. the word has to be what is asked for (the
-  end of the search, or before "of"), so "breaking bad", "photo editor" and 图片压缩 get nothing
+  end of the search, before "of" or "de", or the first word in arabic: أخبار تورنتو), so "breaking bad", "photo editor" and 图片压缩 get nothing
   (`strip_topics` in [services/andromeda.py](services/andromeda.py)). the news or images tab's own engine is asked for the
   thing, not the word ("toronto", not "toronto news"), beside the web search, and the rows travel in the same reply
   (`strips` on `POST /api/andromeda/search`): the page draws results and rows in one go and nothing moves afterwards. a tab

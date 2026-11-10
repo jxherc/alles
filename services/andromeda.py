@@ -295,6 +295,8 @@ _STRIP_WORDS = {
         ),
     ),
 }
+# words that lead the search in their language
+_STRIP_FIRST = {"أخبار", "صور"}
 # these name the kind of picture wanted, so they stay in what the images tab is asked for
 _STRIP_KEPT = {"logo", "wallpaper", "wallpapers", "壁纸", "壁紙", "头像", "頭像"}
 # with only one of these left, the search was for the news itself: "latest news", 最新新闻
@@ -326,12 +328,16 @@ def strip_topics(query: str) -> dict[str, str]:
         elif len(words) > 2 and lowered[-2] in spaced and lowered[-1] in ("today", "now"):
             topic = " ".join(words[:-2])  # "ai news today"
         else:
-            # in chinese, japanese and korean the thing asked for comes last: 猫的图片, not 图片压缩
+            # in chinese, japanese and korean the thing asked for comes last: 猫的图片, not 图片压缩.
+            # arabic puts it first, as its own word: أخبار تورنتو
             for word in joined:
                 if query.endswith(word) and query != word:
                     topic = (
                         query[: -len(word)].rstrip().removesuffix("的").removesuffix("の").strip()
                     )
+                    break
+                if word in _STRIP_FIRST and len(words) > 1 and lowered[0] == word:
+                    topic = " ".join(words[1:])
                     break
         if not topic:
             continue

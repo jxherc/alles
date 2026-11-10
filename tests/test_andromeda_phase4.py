@@ -729,6 +729,12 @@ class AndromedaApiTest(ApiTest):
             "noticias de toronto": {"news": "toronto"},
             "多伦多新闻": {"news": "多伦多"},
             "東京のニュース": {"news": "東京"},
+            "토론토 뉴스": {"news": "토론토"},
+            # arabic leads with the word
+            "أخبار تورنتو": {"news": "تورنتو"},
+            "صور قطط": {"images": "قطط"},
+            "actualités de toronto": {"news": "toronto"},
+            "fotos de gatos": {"images": "gatos"},
             # the search is for the news itself: the tab is asked as typed
             "latest news": {"news": "latest news"},
             "最新新闻": {"news": "最新新闻"},
