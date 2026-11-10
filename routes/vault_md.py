@@ -696,6 +696,7 @@ def _observed_event(path: str, *, removed: bool = False) -> dict:
 
 
 @router.get("/stream")
+# stays async: returns a stream over an async generator
 async def stream():
     """SSE: push {changed, removed} when vault files change on disk, and reindex the changed
     docs so search/recall reflect Obsidian edits. the UI re-renders on each event."""

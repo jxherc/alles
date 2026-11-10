@@ -1543,7 +1543,7 @@ def _wants_page(request: Request) -> bool:
 
 
 @app.get("/")
-async def index():
+def index():
     # Never retain the shell; static code validates against its own file metadata.
     return FileResponse(
         str(static_dir / "index.html"),
@@ -1555,7 +1555,7 @@ async def index():
 
 
 @app.get("/sw.js")
-async def service_worker():
+def service_worker():
     # served from root so the worker's scope covers the whole app
     source = (
         (static_dir / "sw.js")
@@ -1570,12 +1570,12 @@ async def service_worker():
 
 
 @app.get("/manifest.json")
-async def manifest():
+def manifest():
     return FileResponse(str(static_dir / "manifest.json"), media_type="application/manifest+json")
 
 
 @app.get("/opensearch.xml")
-async def opensearch(request: Request):
+def opensearch(request: Request):
     # lets a browser add andromeda as a search engine without the extension. it names only this
     # server's address, which the browser already has, so it stays public like the pwa manifest
     from xml.sax.saxutils import escape, quoteattr
@@ -1605,7 +1605,7 @@ async def opensearch(request: Request):
 
 
 @app.get("/api/pwa/precache")
-async def pwa_precache():
+def pwa_precache():
     # 11b: the SW fetches this on install to precache the whole app shell so a cold offline
     # load actually boots. enumerated at runtime so a new js module is covered automatically
     # (no build manifest to drift). the JS module graph is requested without a ?v query — only
@@ -1697,7 +1697,7 @@ def _api_docs_allowed(request: Request) -> None:
 
 # under /api: /docs is the docs app's own address when apps live on paths
 @app.get("/api/openapi.json", include_in_schema=False)
-async def api_schema(request: Request):
+def api_schema(request: Request):
     _api_docs_allowed(request)
     from fastapi.responses import JSONResponse
 
@@ -1705,7 +1705,7 @@ async def api_schema(request: Request):
 
 
 @app.get("/api/docs", include_in_schema=False)
-async def api_docs(request: Request):
+def api_docs(request: Request):
     _api_docs_allowed(request)
     from fastapi.openapi.docs import get_swagger_ui_html
 
@@ -1718,7 +1718,7 @@ async def api_docs(request: Request):
 
 
 @app.get("/api/docs/oauth2-redirect", include_in_schema=False)
-async def api_docs_redirect(request: Request):
+def api_docs_redirect(request: Request):
     _api_docs_allowed(request)
     from fastapi.openapi.docs import get_swagger_ui_oauth2_redirect_html
 
@@ -1726,7 +1726,7 @@ async def api_docs_redirect(request: Request):
 
 
 @app.get("/api/redoc", include_in_schema=False)
-async def api_redoc(request: Request):
+def api_redoc(request: Request):
     _api_docs_allowed(request)
     from fastapi.openapi.docs import get_redoc_html
 
@@ -1766,7 +1766,7 @@ async def health(request: Request, response: Response, deep: bool = False):
     # /health is also the health app's address when apps live on paths: a browser opening it
     # gets the app, a monitor (curl, the cli, a container check) still gets the ping
     if not deep and _wants_page(request):
-        return await index()
+        return index()
     if deep:
         return await asyncio.to_thread(_deep_health, request)
     return {"ok": True}
@@ -1796,7 +1796,7 @@ async def app_page(app_name: str):
 
     if not _app_path_name(f"/{app_name}"):
         raise HTTPException(404)
-    return await index()
+    return index()
 
 
 if __name__ == "__main__":

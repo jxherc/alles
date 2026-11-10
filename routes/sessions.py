@@ -126,7 +126,7 @@ class CreateSession(BaseModel):
 
 # POST /api/sessions
 @router.post("/sessions")
-async def create_session(
+def create_session(
     body: CreateSession,
     bg: BackgroundTasks,
     response: Response,
@@ -224,7 +224,7 @@ class PatchSession(BaseModel):
 
 # PATCH /api/sessions/{id}
 @router.patch("/sessions/{session_id}")
-async def patch_session(
+def patch_session(
     session_id: str, body: PatchSession, bg: BackgroundTasks, db: DbSession = Depends(get_db)
 ):
     s = _session_or_404(session_id, db)

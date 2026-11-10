@@ -94,6 +94,7 @@ class TtsRequest(BaseModel):
 
 
 @router.post("/tts")
+# stays async: returns a stream over an async generator
 async def text_to_speech(body: TtsRequest):
     s = load_settings()
     provider = s.get("tts_provider", "browser")

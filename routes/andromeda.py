@@ -475,6 +475,7 @@ async def translate(body: TranslateBody, db: DbSession = Depends(get_db)):
 
 
 @router.post("/overview")
+# stays async: returns a stream over an async generator
 async def overview(body: OverviewBody, db: DbSession = Depends(get_db)):
     _require_flag()
     settings = load_settings()

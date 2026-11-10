@@ -359,6 +359,7 @@ async def speech(call_id: str, turn_id: str, body: SpeechBody, db=Depends(get_db
 
 
 @router.post("/calls/{call_id}/turns/{turn_id}/cancel")
+# stays async: sets an asyncio event and cancels a task of the loop
 async def cancel_turn(call_id: str, turn_id: str, db=Depends(get_db)):
     aide_voice.lock_call(db, call_id)
     event = aide_voice.turn_event(db, call_id, turn_id)
@@ -374,6 +375,7 @@ async def cancel_turn(call_id: str, turn_id: str, db=Depends(get_db)):
 
 
 @router.post("/calls/{call_id}/hangup")
+# stays async: sets an asyncio event and cancels a task of the loop
 async def hangup(call_id: str, db=Depends(get_db)):
     call = aide_voice.lock_call(db, call_id)
     aide_calls.end_call(db, call)
