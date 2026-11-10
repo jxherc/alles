@@ -3,6 +3,7 @@
 import base64
 import json
 import os
+import re
 import struct
 import sys
 import traceback
@@ -102,6 +103,32 @@ def run():
                 context.route_web_socket("**/*", lambda socket: socket.close())
                 page = context.new_page()
                 page.clock.set_fixed_time(instant)
+
+                # the server marks a task overdue by the real clock, and the row trusts that
+                # mark. this page lives on a fixed day, so the mark is redone for that day:
+                # without it every task here reads overdue from the day after the fixed one
+                def page_day_overdue(route, today=day.isoformat()):
+                    reply = route.fetch()
+                    try:
+                        body = reply.json()
+                    except Exception:
+                        return route.fulfill(response=reply)
+
+                    def redo(node):
+                        if isinstance(node, list):
+                            for item in node:
+                                redo(item)
+                        elif isinstance(node, dict):
+                            if "overdue" in node and node.get("due_date"):
+                                late = str(node["due_date"])[:10] < today
+                                node["overdue"] = late and not node.get("done")
+                            for item in node.values():
+                                redo(item)
+
+                    redo(body)
+                    return route.fulfill(response=reply, json=body)
+
+                page.route(re.compile(r"/api/tasks(?:[/?].*)?$"), page_day_overdue)
                 page.set_default_timeout(6000)
                 page.on("pageerror", lambda error: errors.append(str(error)))
                 page.on(
