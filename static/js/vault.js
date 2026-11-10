@@ -185,7 +185,11 @@ async function _formAction(ov, work, failure) {
     } else _formError(ov, failure);
   } finally {
     ov._acting = false;
-    if (current()) _formBusy(ov, false);
+    if (current()) {
+      _formBusy(ov, false);
+      // the disabled menu button dropped focus; put it back on the menu so the next key press lands
+      if (document.activeElement === document.body) ov.querySelector('#vf-more')?.focus();
+    }
   }
 }
 
@@ -387,8 +391,7 @@ function _createVaultForm() {
   ov.className = 'modal-overlay vault-modal';
   ov.innerHTML = `
     <div class="modal-card vault-modal-card" role="dialog" aria-modal="true" aria-labelledby="nv-title">
-      <div class="modal-head"><span class="modal-title" id="nv-title">${_esc(t('vault.new_vault'))}</span>
-        <button type="button" class="modal-close" id="nv-x" aria-label="${_esc(t('common.close'))}">✕</button></div>
+      <div class="modal-head"><span class="modal-title" id="nv-title">${_esc(t('vault.new_vault'))}</span></div>
       <div class="vault-form">
         <div class="vform-field"><label for="nv-name">${_esc(t('common.name'))}</label>
           <input id="nv-name" ${_NOFILL} class="settings-input vform-input" placeholder="${_esc(t('vault.e_g_work'))}"></div>
@@ -402,7 +405,6 @@ function _createVaultForm() {
     </div>`;
   document.body.appendChild(ov);
   _modalEl = ov;
-  ov.querySelector('#nv-x').onclick = _closeModal;
   ov.querySelector('#nv-cancel').onclick = _closeModal;
   ov.addEventListener('mousedown', e => { if (e.target === ov) _closeModal(); });
   ov.querySelector('#nv-create').onclick = async () => {
@@ -1177,7 +1179,6 @@ function openVaultForm(entry = null, returnFocus = document.activeElement) {
     <div class="modal-card vault-modal-card" role="dialog" aria-modal="true" aria-labelledby="vf-title">
       <div class="modal-head">
         <span class="modal-title" id="vf-title">${_esc(editing ? t('vault.edit_secret') : t('vault.new_secret'))}</span>
-        <button type="button" class="modal-close" id="vf-x" aria-label="${_esc(t('common.close'))}">✕</button>
       </div>
       <div class="vault-form">
         <div class="vform-field"><label for="vf-name">${_esc(t('common.name'))}</label>
@@ -1202,8 +1203,14 @@ function openVaultForm(entry = null, returnFocus = document.activeElement) {
       <p id="vf-error" class="vault-form-error" role="alert" hidden></p>
       <button type="button" class="btn" id="vf-open-saved" hidden>${_esc(t('vault.open_saved_entry'))}</button>
       <div class="vault-form-actions">
-        ${editing ? `<button type="button" class="btn danger" id="vf-del" style="margin-right:auto">${_esc(t('common.delete'))}</button>` : ''}
-        ${editing ? `<button type="button" class="btn" id="vf-share" title="${_esc(t('vault.share_title'))}">${_esc(t('vault.share'))}</button><button type="button" class="btn" id="vf-share-revoke" title="${_esc(t('vault.revoke_link_title'))}">${_esc(t('vault.revoke_link'))}</button>` : ''}
+        ${editing ? `<div class="vault-more-wrap vf-more-wrap">
+          <button type="button" class="btn" id="vf-more" aria-haspopup="menu" aria-expanded="false" aria-controls="vf-more-menu">${_esc(t('common.more'))}</button>
+          <div class="ctx-menu vf-more-menu" id="vf-more-menu" role="menu" aria-labelledby="vf-more" hidden>
+            <button type="button" class="ctx-item" role="menuitem" id="vf-share" title="${_esc(t('vault.share_title'))}">${_esc(t('vault.share'))}</button>
+            <button type="button" class="ctx-item" role="menuitem" id="vf-share-revoke" title="${_esc(t('vault.revoke_link_title'))}">${_esc(t('vault.revoke_link'))}</button>
+            <button type="button" class="ctx-item danger" role="menuitem" id="vf-del">${_esc(t('common.delete'))}</button>
+          </div>
+        </div>` : ''}
         <button type="button" class="btn" id="vf-cancel">${_esc(t('common.cancel'))}</button>
         <button type="button" class="btn primary" id="vf-save">${_esc(editing ? t('common.save') : t('common.add'))}</button>
       </div>
@@ -1225,11 +1232,11 @@ function openVaultForm(entry = null, returnFocus = document.activeElement) {
   ov.querySelector('#vf-name').value = editing ? (entry.name || '') : '';
   _renderFields(_currentFields(), _editVals());
 
-  ov.querySelector('#vf-x').onclick = _requestCloseModal;
   ov.querySelector('#vf-cancel').onclick = _requestCloseModal;
   ov.querySelector('#vf-save').onclick = () => _saveForm(editing);
   ov.querySelector('#vf-open-saved').onclick = () => _openSavedEntry(ov);
   ov.querySelector('#vf-del')?.addEventListener('click', () => _delFromForm(entry.id));
+  wireActionMenu(ov.querySelector('#vf-more'), ov.querySelector('#vf-more-menu'));
   if (editing) {
     _renderAttachments(entry.id, ov);
     ov.querySelector('#vf-attach-btn').onclick = () => ov._upload ? _uploadAttachment(ov) : ov.querySelector('#vf-attach-input').click();
@@ -1362,7 +1369,7 @@ function _formError(ov, message) {
 }
 
 function _formBusy(ov, busy) {
-  const controls = ov.querySelectorAll('.vault-form input, .vault-form textarea, .vault-form button, #vf-type, #vf-save, #vf-open-saved, #vf-del, #vf-share, #vf-share-revoke');
+  const controls = ov.querySelectorAll('.vault-form input, .vault-form textarea, .vault-form button, #vf-type, #vf-save, #vf-open-saved, #vf-more, #vf-del, #vf-share, #vf-share-revoke');
   if (busy) {
     ov._disabledBefore ||= new Map();
     controls.forEach(control => {

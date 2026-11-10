@@ -514,7 +514,10 @@ body.sidebar-hidden .sidebar { display: none; }
 .dialog-msg { font-size: 0.8125rem; color: var(--text); }
 body[data-app="files"] .dialog-card { box-sizing: border-box; max-height: calc(100dvh - 2 * var(--k-space-4)); overflow: auto; }
 body[data-app="files"] .dialog-msg { overflow-wrap: anywhere; }
-.dialog-btns { display: flex; justify-content: flex-end; gap: 0.5rem; }
+/* one dialog footer: a quiet cancel, then the action, on the right, a control gap apart. the vault's
+   own dialogs and the files dialogs draw it through the same rule */
+.dialog-btns, .vault-form-actions, .files-phase7-dialog-actions { display: flex; align-items: center; justify-content: flex-end; gap: var(--k-control-gap, 8px); }
+.dialog-btns .btn, .vault-form-actions .btn, .files-phase7-dialog-actions .btn { min-height: var(--k-control, 44px); padding-inline: var(--k-space-4, 16px); }
 .dialog-input { width: 100%; }
 .dialog-validated .dialog-input, .dialog-validated .btn { min-height: 44px; }
 .dialog-validation { min-height: 18px; color: var(--error); font-size: 0.8125rem; line-height: 18px; }
@@ -4775,16 +4778,19 @@ textarea.vform-input { resize: vertical; min-height: 2.4rem; line-height: 1.5; f
 .vform-divider { height: 1px; background: var(--faint); margin: 0.15rem 0; }
 .vform-empty { font-size: 0.8125rem; color: var(--muted); padding: 0.4rem 0; }
 .vault-form .vault-schema-pick { padding: 0.1rem 0; }
-.vform-pw { display: flex; flex-wrap: wrap; align-items: center; gap: 0.35rem; }
+.vform-pw { display: flex; flex-wrap: wrap; align-items: center; gap: var(--k-control-gap, 8px); }
 /* a half-width secret (cvv) squeezed its box to 28px beside show and copy; under 5rem they wrap */
 .vform-pw .vform-input { flex: 1 1 5rem; min-width: 5rem; }
-@media (max-width: 600px) { .vform-field.half .vform-pw .vform-input { flex-basis: 100%; } }
+@media (max-width: 600px) { .vform-pw .vform-input { flex-basis: 100%; } }
 .vform-pw .act-btn, .vform-pw .btn { flex-shrink: 0; }
 .vform-secretarea { display: flex; align-items: flex-start; gap: 0.35rem; }
 .vform-secretarea .vform-input { flex: 1; min-width: 0; -webkit-text-security: disc; }
 .vform-secretarea .vform-input.is-revealed { -webkit-text-security: none; }
 .vform-secret-actions { display: flex; flex-direction: column; gap: 0.25rem; flex-shrink: 0; }
-.vault-form-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem; padding: 0.75rem 1.1rem; border-top: 1px solid var(--faint); justify-content: flex-end; }
+.vault-form-actions { flex-wrap: wrap; padding: 0.75rem 1.1rem; border-top: 1px solid var(--faint); }
+.vf-more-wrap { position: relative; margin-inline-end: auto; }
+.vf-more-menu { position: absolute; bottom: calc(100% + 4px); left: 0; z-index: 10; min-width: 180px; max-width: calc(100vw - 24px); }
+.vf-more-menu .ctx-item { display: flex; align-items: center; white-space: nowrap; }
 #vf-upload-status { font-size: 0.8125rem; overflow-wrap: anywhere; }
 .vault-form-error { margin: 0; padding: 0.5rem 1.1rem; color: var(--error); overflow-wrap: anywhere; }
 #vf-open-saved { margin: 0.5rem 1.1rem; min-height: 44px; align-self: flex-start; }
@@ -11721,7 +11727,6 @@ html[data-kokuen-version="5"] #settings-modal :is(.btn, .act-btn).danger:hover {
 .dialog-form .dialog-input { min-height: 44px; font-size: 0.9375rem; --field-size: 0.9375rem; }
 .dialog-form .dialog-hint { margin: 0; color: var(--k-muted, var(--muted)); font-size: 0.8125rem; }
 .dialog-form .dialog-btns { margin-top: var(--k-space-3, 12px); }
-.dialog-form .dialog-btns .btn { min-height: 40px; padding-inline: var(--k-space-4, 16px); }
 
 /* a reply's steps: the title and the close button stay in view, the steps scroll between them */
 .dialog-card.dialog-view { max-height: calc(100dvh - 2 * var(--k-space-4, 16px)); }

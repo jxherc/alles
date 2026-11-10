@@ -46,7 +46,7 @@ def run(profile, expected_source=None, case_group="all"):
     cases += [
         ("focus", method, target)
         for method in ("POST", "PATCH", "lookup")
-        for target in ("cancel", "close", "initiator")
+        for target in ("cancel", "initiator")
     ]
     cases += [("newer-form", method, "password") for method in ("POST", "PATCH", "lookup")]
     cases += [("confirmation", "lookup", action) for action in ("escape", "cancel")]
@@ -280,7 +280,7 @@ def run(profile, expected_source=None, case_group="all"):
                             page.get_by_role("option", name="API key", exact=True).click()
                     else:
                         # Actual Tab/arrow/Enter navigation; never force focus on a disabled div.
-                        page.locator("#vf-x").focus()
+                        page.locator("#vf-name").focus()
                         for _ in range(12):
                             page.keyboard.press("Tab")
                             active = page.evaluate("document.activeElement?.id")
@@ -288,7 +288,7 @@ def run(profile, expected_source=None, case_group="all"):
                                 page.keyboard.press("ArrowDown")
                                 page.keyboard.press("Enter")
                                 break
-                            if active == "vf-x":
+                            if active == "vf-cancel":
                                 break
                     value = combo.get_attribute("data-value")
                     marker = "newer synthetic value " + uuid.uuid4().hex
@@ -425,7 +425,7 @@ def run(profile, expected_source=None, case_group="all"):
                             "pending type control accepted newer edits; see bounded observations"
                         )
                     elif kind == "focus":
-                        target = {"cancel": "vf-cancel", "close": "vf-x", "initiator": initiator}[
+                        target = {"cancel": "vf-cancel", "initiator": initiator}[
                             action
                         ]
                         if action != "initiator":

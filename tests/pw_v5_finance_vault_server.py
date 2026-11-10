@@ -229,7 +229,7 @@ def _vault_keyboard_focus_and_recovery(page: Page) -> None:
     private_key = dialog.locator("#vf-f-private_key")
     assert private_key.evaluate("element => getComputedStyle(element).webkitTextSecurity") == "disc"
     assert private_key.input_value().startswith("-----BEGIN PRIVATE KEY-----")
-    dialog.locator("#vf-x").focus()
+    dialog.locator("#vf-name").focus()
     page.keyboard.press("Shift+Tab")
     assert page.evaluate("document.activeElement?.id") == "vf-save"
     page.keyboard.press("Escape")
