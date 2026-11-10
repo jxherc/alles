@@ -70,6 +70,7 @@ def run():
             expect(page.locator(".vault-totp-secs")).to_contain_text("s")
             page.screenshot(path=str(output / f"{name}-totp.png"))
             page.locator("#vf-cancel").click()
+
             def scan_click():
                 page.locator("#vault-more-btn").click()
                 page.locator("#vault-watchtower-btn").click()

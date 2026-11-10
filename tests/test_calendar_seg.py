@@ -19,9 +19,7 @@ class CalendarViewDropdown(unittest.TestCase):
     def test_five_views_are_its_options(self):
         tag = INDEX[INDEX.index('id="cal-view"') :]
         tag = tag[: tag.index(">")]
-        self.assertIn(
-            'data-options="month|month;week|week;day|day;agenda|agenda;year|year"', tag
-        )
+        self.assertIn('data-options="month|month;week|week;day|day;agenda|agenda;year|year"', tag)
         self.assertNotIn("seg-opt", tag)
 
     def test_js_uses_the_dropdown(self):

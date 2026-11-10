@@ -425,9 +425,7 @@ def run(profile, expected_source=None, case_group="all"):
                             "pending type control accepted newer edits; see bounded observations"
                         )
                     elif kind == "focus":
-                        target = {"cancel": "vf-cancel", "initiator": initiator}[
-                            action
-                        ]
+                        target = {"cancel": "vf-cancel", "initiator": initiator}[action]
                         if action != "initiator":
                             page.locator("#" + target).focus()
                             expect(page.locator("#" + target)).to_be_focused()

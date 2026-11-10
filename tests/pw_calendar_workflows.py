@@ -267,7 +267,9 @@ def run():
                 else:
                     # a phone keeps the field shut until the search button opens it
                     expect(page.locator("#cal-search")).to_be_hidden()
-                    expect(page.locator("#cal-search-btn")).to_have_attribute("aria-label", "search events")
+                    expect(page.locator("#cal-search-btn")).to_have_attribute(
+                        "aria-label", "search events"
+                    )
                     page.locator("#cal-search-btn").tap()
                     expect(page.locator("#cal-search")).to_be_focused()
                 shot("empty")
@@ -306,7 +308,9 @@ def run():
                     page.locator("#cal-search-btn").tap()
                 page.locator("#cal-search").fill("跨日")
                 if profile == "desktop":
-                    expect(page.locator(f'.cal-chip[data-id="{eid}"]:not([data-old])')).to_be_visible()
+                    expect(
+                        page.locator(f'.cal-chip[data-id="{eid}"]:not([data-old])')
+                    ).to_be_visible()
                     page.locator("#cal-search").click()
                     tab_to(f'.cal-chip[data-id="{eid}"]')
                     page.keyboard.press("Enter")
@@ -324,8 +328,12 @@ def run():
                 assert saved(eid)["end_dt"] == "2026-09-29T00:30"
                 if profile != "desktop":
                     # dots: the whole cell is one 44px button inside the screen
-                    page.locator(".cal-cell:not(.empty) .cal-day-open").first.scroll_into_view_if_needed()
-                targets = page.locator(".cal-chip" if profile == "desktop" else ".cal-day-open").evaluate_all("""elements => elements.map(e => {
+                    page.locator(
+                        ".cal-cell:not(.empty) .cal-day-open"
+                    ).first.scroll_into_view_if_needed()
+                targets = page.locator(
+                    ".cal-chip" if profile == "desktop" else ".cal-day-open"
+                ).evaluate_all("""elements => elements.map(e => {
                     const b = e.getBoundingClientRect(), p = e.closest('.cal-cell').getBoundingClientRect();
                     return {width:b.width,height:b.height,left:b.left,right:b.right,cellLeft:p.left,cellRight:p.right};
                 })""")
@@ -749,7 +757,9 @@ def run():
                 else:
                     # dots: each of the three days shows one
                     for key in ("2026-09-27", "2026-09-28", "2026-09-29"):
-                        assert page.locator(f'.cal-cell[data-date="{key}"] .cal-dots i').count() >= 1, key
+                        assert (
+                            page.locator(f'.cal-cell[data-date="{key}"] .cal-dots i').count() >= 1
+                        ), key
                 open_event(all_day["id"])
                 expect(page.locator("#cal-end")).to_have_attribute("data-value", "2026-09-29")
                 page.locator("#cal-desc").fill("Preserve all three dates")

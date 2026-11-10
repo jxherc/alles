@@ -274,7 +274,9 @@ def run():
                             f'#calendar-list :is(.cal-tev, .cal-allday-ev)[data-id="{event_id}"]'
                         ).press("Enter")
                     else:
-                        page.locator(f'#calendar-list .cal-chip[data-id="{event_id}"]').press("Enter")
+                        page.locator(f'#calendar-list .cal-chip[data-id="{event_id}"]').press(
+                            "Enter"
+                        )
                     expect(page.locator("#cal-title")).to_have_value(event_title)
                     expect(page.locator("#cal-desc")).to_have_value("owned saved details 中文")
                     page.locator("#cal-back").press("Enter")
