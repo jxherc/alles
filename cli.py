@@ -25,7 +25,7 @@ alles CLI
                        an encrypted backup of everything (restore stage reads it)
   alles dump           a plain summary of this install for a bug report, no secrets
   alles update         get the newest release; it checks itself and keeps a rollback
-  alles update accept  keep an update once it works
+  alles update accept  keep an update now (the next update does it for you)
   alles update rollback
                        restore the previous verified code and data
   alles folders        where docs, files and backups are
@@ -419,18 +419,14 @@ def _native_update_lines(native) -> list[tuple[bool | None, str, str]]:
     except RuntimeError:
         state = {"phase": "invalid"}
     if state and state.get("phase") == "applied":
-        lines.append(
-            (None, "update", f"{state['new_commit'][:7]} waits for your ok: alles update accept")
-        )
-        lines.append(
-            (None, "", f"or alles update rollback to go back to {state['old_commit'][:7]}")
-        )
+        back = f"alles update rollback goes back to {state['old_commit'][:7]}"
+        lines.append((True, "update", f"{state['new_commit'][:7]} is on; {back}"))
     elif state and state.get("phase") == "rolled_back":
         lines.append((None, "update", "a rollback needs one more step: alles update rollback"))
     elif state:
         lines.append((False, "update", "an update stopped halfway: alles update rollback"))
     elif native.previous_release.is_file():
-        lines.append((None, "update", "the last update isn't kept yet: alles update accept"))
+        lines.append((True, "update", "the release before this one is still kept"))
     check = native_install.update_check(native, timeout=5)
     if check.get("waiting"):
         lines.append((None, "new release", f"{check['latest'][:7]} is ready: alles update"))
@@ -1086,7 +1082,7 @@ def _cmd_update_rollback() -> bool:
     return True
 
 
-def _cmd_update_accept() -> bool:
+def _cmd_update_accept(*, quiet: bool = False) -> bool:
     """Forget the one-click rollback after the owner accepts a healthy update."""
     from services.update_safety import update_lock_path
 
@@ -1144,7 +1140,8 @@ def _cmd_update_accept() -> bool:
     except (RecoveryError, RestoreApplyError, OSError) as exc:
         print(f"update acceptance stopped safely: {exc}")
         return False
-    print("update accepted; its encrypted pre-update backup was kept")
+    if not quiet:
+        print("update accepted; its encrypted pre-update backup was kept")
     return True
 
 
@@ -1922,7 +1919,7 @@ def _cmd_native_update_accept(layout) -> bool:
         command_lock.release()
 
 
-def _cmd_native_update_accept_locked(layout) -> bool:
+def _cmd_native_update_accept_locked(layout, *, quiet: bool = False) -> bool:
     from services import native_install
     from services.backup_recovery import (
         RecoveryError,
@@ -1983,7 +1980,8 @@ def _cmd_native_update_accept_locked(layout) -> bool:
     except (RecoveryError, RestoreApplyError, OSError, native_install.NativeInstallError) as exc:
         print(f"native update acceptance stopped safely: {exc}")
         return False
-    print("native update accepted; its encrypted pre-update backup was kept")
+    if not quiet:
+        print("native update accepted; its encrypted pre-update backup was kept")
     # the one folder move runs here, in the new release, once the old one can't roll back to a
     # layout it doesn't know (an older installed release runs the whole update itself)
     _folders_move(layout, quiet_when_nothing=True)
@@ -2159,6 +2157,52 @@ def _timed_step(steps, step: str, work, *args, **kwargs):
     return result
 
 
+def _native_keep_last_update(layout, state: dict | None, steps) -> bool:
+    """Asking for a newer release is the owner's ok for the last one, so the update keeps it.
+
+    Only a release that runs and answers its health check is kept. One that doesn't may be the
+    reason for this update, and the old release is the only way back, so that still takes a
+    rollback or an accept by hand. An update that stopped halfway is never kept.
+    """
+    from services import native_install
+
+    ui, width = steps.style, steps.width
+
+    def stop(why: str, *more: str) -> bool:
+        ui.check(None, "update", why, width)
+        for line in more:
+            ui.say(f"    {' ' * width}{ui.dim(line)}")
+        return False
+
+    phase = state["phase"] if state else None
+    if phase == "rolled_back":
+        return stop("a rollback needs one more step: alles update rollback")
+    if phase not in {None, "applied", "accepting", "accepted"}:
+        return stop("the last update stopped halfway: alles update rollback")
+    if phase in {None, "applied"}:
+        try:
+            _, base_url = _native_service_endpoint(layout)
+            healthy = _native_service_running() and _health_endpoint_ok(base_url=base_url)
+        except Exception:
+            healthy = False
+        if not healthy:
+            more = ("start it, then update again: alles start",)
+            if state:
+                more += ("or go back: alles update rollback", "or keep it: alles update accept")
+            return stop("the last one isn't running, so its way back is still kept", *more)
+    if state is None:
+        # an old release left with no record of the update that kept it: nothing to roll back
+        try:
+            native_install.accept_release(layout)
+        except native_install.NativeInstallError as exc:
+            return stop(f"the release kept from before could not be removed: {exc}")
+        return True
+    if not _cmd_native_update_accept_locked(layout, quiet=True):
+        return False
+    ui.check(True, "last update", f"{state['new_commit'][:7]} kept", width)
+    return True
+
+
 def _cmd_native_update_locked(layout) -> bool:
     import shutil
     import uuid
@@ -2183,9 +2227,9 @@ def _cmd_native_update_locked(layout) -> bool:
         steps.style.header("update", (f"release {old_short}",))
         existing = _load_native_update_state(state_path)
         if existing or layout.previous_release.exists():
-            steps.style.check(None, "update", "the last one waits: alles update accept", 12)
-            steps.style.say(f"    {' ' * 12}{steps.style.dim('or alles update rollback')}")
-            return False
+            if not _native_keep_last_update(layout, existing, steps):
+                return False
+            manifest = native_install.verify_install(layout)
         kind = (manifest.get("source") or {}).get("kind")
         steps.start("check", "asking github" if kind == "archive" else "asking the release source")
         source_checkout, target = _fetch_native_update_source(
@@ -2443,7 +2487,6 @@ def _native_apply_update(
     ui.say()
     ui.rows(
         [
-            ("keep it", "alles update accept"),
             ("go back", "alles update rollback"),
             ("backup", _short_path(encrypted)),
         ],
@@ -2591,9 +2634,14 @@ def cmd_update(args=()):
         print(f"an earlier update needs attention: {exc}")
         return False
     if existing_state:
-        print("an earlier update still has rollback state")
-        print("use  alles update rollback  or  alles update accept  before another update")
-        return False
+        # same rule as the installed update: a healthy last update is kept by asking for the next
+        if existing_state.get("phase") != "applied" or not _health_endpoint_ok():
+            print("an earlier update still has rollback state")
+            print("use  alles update rollback  or  alles update accept  before another update")
+            return False
+        if not _cmd_update_accept(quiet=True):
+            return False
+        print("the last update was kept")
     from services.restore_apply import maintenance_lock_path
     from services.update_safety import update_lock_path
 

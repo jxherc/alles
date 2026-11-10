@@ -34,7 +34,7 @@ class StatusReleaseTest(unittest.TestCase):
             "release_commits": {commit: commit},
         }
 
-    def test_status_names_the_release_and_the_pending_accept_with_its_commands(self):
+    def test_status_names_the_release_and_the_way_back_from_the_last_update(self):
         new, old = "b" * 40, "a" * 40
         (self.layout.releases / new).mkdir(parents=True)
         (self.layout.releases / new / ".alles-owned-release.json").write_text("{}")
@@ -70,8 +70,9 @@ class StatusReleaseTest(unittest.TestCase):
 
         text = output.getvalue()
         self.assertIn("release bbbbbbb · installed ", text)
-        self.assertIn("bbbbbbb waits for your ok: alles update accept", text)
-        self.assertIn("or alles update rollback to go back to aaaaaaa", text)
+        self.assertIn("bbbbbbb is on; alles update rollback goes back to aaaaaaa", text)
+        # keeping an update is not a job for the owner: the next update does it
+        self.assertNotIn("alles update accept", text)
         self.assertIn("ccccccc is ready: alles update", text)
         self.assertIn("jxherc/alles main", text)
         self.assertNotIn("\033[", text)  # piped output stays plain

@@ -413,6 +413,50 @@ class CliSafetyTest(unittest.TestCase):
         begin_restore.assert_not_called()
         swap.assert_not_called()
 
+    def test_a_checkout_update_keeps_a_healthy_last_update_by_itself(self):
+        checkout = self.root / "kept-checkout"
+        (checkout / ".git").mkdir(parents=True)
+        live = self.root / "kept-live"
+        live.mkdir()
+        update_dir = self.root / "kept-updates"
+        state_path = update_dir / "latest.json"
+
+        def fake_git(args, capture=True):
+            if args[:2] == ["rev-parse", "HEAD"]:
+                return SimpleNamespace(returncode=0, stdout="a" * 40 + "\n")
+            if args[:2] == ["rev-parse", "@{upstream}"]:
+                return SimpleNamespace(returncode=0, stdout="b" * 40 + "\n")
+            return SimpleNamespace(returncode=0, stdout="")
+
+        for phase, healthy, kept in (
+            ("applied", True, True),
+            ("applied", False, False),
+            ("release_switched", True, False),
+        ):
+            with (
+                self.subTest(phase=phase, healthy=healthy),
+                mock.patch.object(cli, "ROOT", checkout),
+                mock.patch.object(cli, "_native_layout", return_value=None),
+                mock.patch.object(cli, "_runtime_dir", return_value=live),
+                mock.patch.object(cli, "_git", side_effect=fake_git),
+                mock.patch.object(cli, "_update_paths", return_value=(update_dir, state_path)),
+                mock.patch.object(cli, "_load_update_state", return_value={"phase": phase}),
+                mock.patch.object(cli, "_health_endpoint_ok", return_value=healthy),
+                # stop right after the question this test asks
+                mock.patch.object(cli, "_cmd_update_accept", return_value=False) as accept,
+                mock.patch.dict(cli.os.environ),
+                mock.patch("sys.stdout", new_callable=io.StringIO) as output,
+            ):
+                cli.os.environ.pop("ALLES_DB", None)
+                self.assertFalse(cli.cmd_update())
+
+                if kept:
+                    accept.assert_called_once_with(quiet=True)
+                    self.assertNotIn("alles update accept", output.getvalue())
+                else:
+                    accept.assert_not_called()
+                    self.assertIn("alles update rollback", output.getvalue())
+
     def test_restore_apply_refuses_external_database_override(self):
         with (
             mock.patch.dict(cli.os.environ, {"ALLES_DB": str(self.root / "other.db")}),

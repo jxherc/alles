@@ -1033,6 +1033,125 @@ class NativeUpdateCliTest(unittest.TestCase):
         self.assertFalse(state_path.exists())
         self.assertEqual(backup.read_bytes(), b"encrypted rollback")
 
+    def _update_over_a_last_update(self, state, *, running=True, healthy=True, previous=True):
+        """Run `alles update` while the last update's way back is still kept."""
+        import io
+
+        state_path = self.updates / "native-latest.json"
+        backup = self.updates / "rollback.alles-backup"
+        backup.parent.mkdir(parents=True, exist_ok=True)
+        backup.write_bytes(b"encrypted rollback")
+        if state:
+            cli._write_update_state(state_path, {**state, "backup": str(backup)})
+        if previous:
+            self.previous.write_text("old-release\n")
+        manifest = {"release_id": self.new, "source": {**self.manifest["source"]}}
+        manifest["source"]["commit"] = self.new
+        with ExitStack() as stack:
+            for patch in (
+                mock.patch.object(
+                    cli, "_update_paths", return_value=(self.updates, self.updates / "latest.json")
+                ),
+                mock.patch("services.native_install.verify_install", return_value=manifest),
+                mock.patch("services.native_install.remember_latest"),
+                mock.patch("services.recovery_crypto.is_encrypted_recovery", return_value=True),
+                mock.patch.object(
+                    cli, "_native_service_endpoint", return_value=(6769, "http://127.0.0.1:6769")
+                ),
+                mock.patch.object(cli, "_native_service_running", return_value=running),
+                mock.patch.object(cli, "_health_endpoint_ok", return_value=healthy),
+            ):
+                stack.enter_context(patch)
+            accept = stack.enter_context(mock.patch("services.native_install.accept_release"))
+            move = stack.enter_context(mock.patch.object(cli, "_folders_move"))
+            fetch = stack.enter_context(
+                mock.patch.object(cli, "_fetch_native_update_source", return_value=(None, self.new))
+            )
+            output = stack.enter_context(mock.patch("sys.stdout", new_callable=io.StringIO))
+            result = cli._cmd_native_update(self.layout)
+        return SimpleNamespace(
+            result=result,
+            accept=accept,
+            move=move,
+            fetch=fetch,
+            text=output.getvalue(),
+            state_path=state_path,
+            backup=backup,
+        )
+
+    def test_the_next_update_keeps_a_healthy_last_update_by_itself(self):
+        # nov 10: every update ended in "alles update accept", and the next one refused to
+        # run until the owner typed it
+        ran = self._update_over_a_last_update(self._state())
+
+        self.assertTrue(ran.result)
+        ran.accept.assert_called_once_with(self.layout, expected_previous="old-release")
+        ran.move.assert_called_once()
+        ran.fetch.assert_called_once()
+        self.assertFalse(ran.state_path.exists())
+        self.assertEqual(ran.backup.read_bytes(), b"encrypted rollback")
+        self.assertIn("bbbbbbb kept", ran.text)
+        self.assertNotIn("alles update accept", ran.text)
+
+    def test_a_last_update_that_is_not_answering_keeps_its_way_back(self):
+        for running, healthy in ((True, False), (False, True)):
+            with self.subTest(running=running, healthy=healthy):
+                ran = self._update_over_a_last_update(
+                    self._state(), running=running, healthy=healthy
+                )
+
+                self.assertFalse(ran.result)
+                ran.accept.assert_not_called()
+                ran.fetch.assert_not_called()
+                self.assertEqual(cli._load_native_update_state(ran.state_path)["phase"], "applied")
+                self.assertIn("alles update rollback", ran.text)
+                self.assertIn("alles update accept", ran.text)
+
+    def test_an_update_that_stopped_halfway_is_never_kept_by_the_next_one(self):
+        for phase in ("preparing", "data_swapped", "release_switched", "rolled_back"):
+            with self.subTest(phase=phase):
+                ran = self._update_over_a_last_update(self._state(phase))
+
+                self.assertFalse(ran.result)
+                ran.accept.assert_not_called()
+                ran.fetch.assert_not_called()
+                self.assertEqual(cli._load_native_update_state(ran.state_path)["phase"], phase)
+                self.assertIn("alles update rollback", ran.text)
+                self.assertNotIn("alles update accept", ran.text)
+
+    def test_an_accept_cut_short_is_finished_by_the_next_update(self):
+        ran = self._update_over_a_last_update(self._state("accepting"), running=False)
+
+        self.assertTrue(ran.result)
+        ran.accept.assert_called_once_with(self.layout, expected_previous="old-release")
+        self.assertFalse(ran.state_path.exists())
+
+    def test_an_old_release_kept_without_a_record_is_removed_only_while_healthy(self):
+        ran = self._update_over_a_last_update(None, healthy=False)
+        self.assertFalse(ran.result)
+        ran.accept.assert_not_called()
+        ran.fetch.assert_not_called()
+
+        ran = self._update_over_a_last_update(None)
+        self.assertTrue(ran.result)
+        ran.accept.assert_called_once_with(self.layout)
+        ran.fetch.assert_called_once()
+
+    def test_a_finished_update_no_longer_asks_to_be_accepted(self):
+        import io
+
+        _, _, _, _, patches = self._patches()
+        with ExitStack() as stack:
+            for patch in patches[:-1]:
+                stack.enter_context(patch)
+            stack.enter_context(mock.patch.object(cli, "_native_handoff_version", return_value=0))
+            output = stack.enter_context(mock.patch("sys.stdout", new_callable=io.StringIO))
+            self.assertTrue(cli._cmd_native_update(self.layout))
+
+        text = output.getvalue()
+        self.assertIn("alles update rollback", text)
+        self.assertNotIn("alles update accept", text)
+
     def test_a_release_that_speaks_the_handoff_prepares_its_own_update(self):
         (self.release / "cli.py").write_text(
             f"NATIVE_UPDATE_HANDOFF = {cli.NATIVE_UPDATE_HANDOFF}\n", "utf-8"
