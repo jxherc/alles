@@ -670,8 +670,8 @@ function _bindNav() {
   }
 }
 
-// labels are read at call time, so a language change passes true to redraw them
 function _syncViewBtns(labels = false) {
+  // labels are read at call time, so a language change passes true to redraw them
   const pick = document.getElementById('cal-view');
   if (!pick) return;
   if (labels || pick.dataset.dropdownReady !== '1') populateDropdown(pick, _VIEWS.map(value => ({ value, label: tr(`calendar.${value}`) })), _view);
