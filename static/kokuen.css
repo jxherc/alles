@@ -3858,6 +3858,11 @@ textarea[data-kokuen-entry="autogrow"] {
   text-transform: none;
 }
 
+/* a line that stays under a label is text the owner must read: role 14 */
+#settings-modal[data-kokuen-surface="settings"] :where(.s-toggle-desc, .s-card-hint, .s-field-note, .s-role-desc) {
+  font-size: 0.875rem;
+}
+
 #settings-modal[data-kokuen-surface="settings"] :where(.s-toggle-label, .s-role-name, .s-ep-name) {
   color: var(--k-text);
   font-size: 0.875rem;
@@ -4410,6 +4415,10 @@ html[dir="rtl"] :where(
     flex-direction: column;
   }
 
+  #settings-modal[data-kokuen-surface="settings"] #locale-settings-save-state {
+    min-height: 1.5rem;
+  }
+
   #settings-modal[data-kokuen-surface="settings"] .locale-settings-save .btn {
     width: 100%;
     min-height: var(--k-control);
@@ -4523,7 +4532,7 @@ html[dir="rtl"] :where(
 #settings-modal[data-kokuen-surface="settings"] .home-settings-copy small {
   margin-top: var(--k-space-1);
   color: var(--k-muted);
-  font-size: 0.8125rem;
+  font-size: 0.875rem;
   line-height: 1.4;
 }
 
@@ -4599,7 +4608,7 @@ html[dir="rtl"] :where(
 
 #settings-modal[data-kokuen-surface="settings"] .home-settings-move {
   display: flex;
-  gap: 0;
+  gap: var(--k-space-1);
 }
 
 #settings-modal[data-kokuen-surface="settings"] .home-settings-move button {
@@ -4796,6 +4805,11 @@ html[dir="rtl"] :where(
   #settings-modal[data-kokuen-surface="settings"] .home-settings-save {
     align-items: stretch;
     flex-direction: column;
+  }
+
+  /* the status line has its row reserved: it shows without moving the buttons */
+  #settings-modal[data-kokuen-surface="settings"] .home-settings-save > div:first-child {
+    min-height: 1.5rem;
   }
 
   /* buttons keep their own width; reset's label starts on the column edge */

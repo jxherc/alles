@@ -36,6 +36,15 @@ export function _bindSwitch(el, getter, setter) {
   };
 }
 
+// a status line shows only while something is happening; ms > 0 clears it by itself
+// (an older timer never wipes a newer message)
+export function setStatusLine(el, message, ms = 0) {
+  if (!el) return;
+  clearTimeout(el._statusTimer);
+  el.textContent = message;
+  if (ms > 0 && message) el._statusTimer = setTimeout(() => { if (el.textContent === message) el.textContent = ''; }, ms);
+}
+
 // ── helpers ───────────────────────────────────────────────────────────────────
 let _settingsWriteQueue = Promise.resolve();
 let _settingsWriteRevision = 0;
@@ -53,7 +62,7 @@ export function _patchSettings(patch) {
   if (pane) pane.dataset.saveRevision = revision;
   const show = (message, state) => {
     if (status && pane.dataset.saveRevision === revision) {
-      status.textContent = message;
+      setStatusLine(status, message, state === 'saved' ? 3000 : 0);
       status.dataset.state = state;
     }
   };

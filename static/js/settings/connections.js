@@ -1138,7 +1138,7 @@ function _renderPhoton(data) {
   }
   const id = document.getElementById('photon-project-id');
   if (document.activeElement !== id) id.value = data.project_id || '';
-  document.getElementById('photon-secret-note').textContent = data.has_secret ? t('connections.photon_secret_saved') : t('connections.photon_secret_hidden');
+  document.getElementById('photon-secret-note').textContent = data.has_secret ? t('connections.photon_secret_saved') : '';
   const owner = document.getElementById('photon-owner');
   if (document.activeElement !== owner) owner.value = (data.owner_handles || []).map(formatPhone).join('\n');
   _renderPhotonLogin(data);
@@ -1218,7 +1218,7 @@ function _renderTelegram(data) {
   document.getElementById('telegram-steps').hidden = data.state === 'ready';
   document.getElementById('telegram-token-note').textContent = data.has_token
     ? t('connections.telegram_token_saved')
-    : t('shell.settings_tools.encrypted_and_never_shown_again');
+    : '';
   const open = document.getElementById('telegram-open-bot');
   open.hidden = !data.bot;
   if (data.bot) {

@@ -1,4 +1,4 @@
-import { _setSwitch, _bindSwitch, _patchSettings, _patchSetting, _esc, _escAttr, _fetchWithRecentOwner } from './settings/shared.js';
+import { _setSwitch, _bindSwitch, setStatusLine, _patchSettings, _patchSetting, _esc, _escAttr, _fetchWithRecentOwner } from './settings/shared.js';
 import { homePane } from './settings/home.js';
 import { languagePane } from './settings/language.js';
 import { creditsPane } from './settings/credits.js';
@@ -784,7 +784,7 @@ function _showVoiceState(message, state, retry = false) {
     pane.prepend(button);
     pane.prepend(status);
   }
-  status.textContent = message;
+  setStatusLine(status, message, state === 'saved' ? 3000 : 0);
   status.dataset.state = state;
   // Retain retry focus while its request is running, then return to the form.
   const retryFocused = document.activeElement === button;
@@ -839,7 +839,7 @@ async function loadVoicePane() {
     _voiceLoaded = true;
     _updateTtsVoiceRow();
     const dirty = fields.some(({ draft }) => draft.dirty);
-    _showVoiceState(dirty ? t('settings.voice_unsaved') : t('settings.voice_loaded'), dirty ? 'dirty' : 'loaded');
+    _showVoiceState(dirty ? t('settings.voice_unsaved') : '', dirty ? 'dirty' : 'loaded');
   } catch {
     if (read === _voiceReadGeneration) {
       _showVoiceState(t('settings.voice_load_failed'), 'error', true);

@@ -441,7 +441,9 @@ def exercise(page, api, dest, profile, restart, records):
         values=draft,
     )
 
-    expect(page.locator("#s-timezone-detected")).to_contain_text("America/Toronto")
+    expect(page.locator("#s-timezone-trigger")).to_have_attribute(
+        "data-options", re.compile(r"\|automatic \(America/Toronto\);")
+    )
     choice("timezone", "")
     expect(page.locator("#locale-preview-timezone")).to_have_text("automatic · America/Toronto")
     page.locator(".locale-settings-preview").scroll_into_view_if_needed()
