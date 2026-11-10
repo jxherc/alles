@@ -9287,7 +9287,7 @@ input.cp-swatch-input { width: 44px; min-width: 44px; height: 44px; border: 1px 
 .health-bar { display: flex; align-items: center; justify-content: space-between; gap: 0.75rem; margin-bottom: 1rem; flex-wrap: wrap; }
 .health-bar-actions { display: flex; align-items: center; gap: var(--k-control-gap); }
 .health-range { width: 10rem; min-height: 44px; }
-.health-empty { padding: 1.2rem 0; font-size: 0.8125rem; color: var(--muted); max-width: 460px; }
+.health-empty { margin: 0; padding: var(--k-space-3) 0; font-size: 0.875rem; color: var(--muted); }
 .health-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 0.7rem; margin-bottom: 1.6rem; }
 .health-card { border: 1px solid var(--faint); border-radius: var(--k-radius-surface); background: var(--panel); padding: 0.8rem 0.9rem; }
 .health-card-h { font-size: 0.8125rem; color: var(--muted); margin-bottom: 0.3rem; display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; }

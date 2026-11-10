@@ -174,13 +174,7 @@ function _render() {
     ${_importDraft ? _importForm() : ''}
     ${_draft ? _addForm() : ''}
     ${_data.kinds.length ? `<div class="health-grid">${_data.kinds.map(_kindCard).join('')}</div>`
-      : (_draft || _importDraft || !_hasOverview || _loadState.state !== 'resting' ? '' : `
-        <div class="empty-state">
-          <div class="empty-state-icon">${_si('heart')}</div>
-          <div class="empty-state-title">${esc(t('health.empty_title'))}</div>
-          <div class="empty-state-desc">${esc(t('health.empty_desc'))}</div>
-          <button type="button" class="btn" id="health-empty-add">${_si('plus')} ${esc(t('health.log_first'))}</button>
-        </div>`)}
+      : (_draft || _importDraft || !_hasOverview || _loadState.state !== 'resting' ? '' : `<p class="health-empty">${esc(t('health.no_entries'))}</p>`)}
     ${_entries.length ? `<div class="health-recent"><div class="health-recent-h">${esc(t('health.recent'))}</div>${_entries.slice(0, 30).map(_row).join('')}</div>` : ''}`;
   _wire(body);
   const restored = focus && body.querySelector(focus);
@@ -401,7 +395,6 @@ function _wire(body) {
   range?.addEventListener('change', () => { _days = +range.value; loadHealth(); });
   body.querySelector('[data-act="retry-load"]')?.addEventListener('click', () => loadHealth());
   $('health-add-toggle')?.addEventListener('click', () => _openEntry());
-  $('health-empty-add')?.addEventListener('click', () => _openEntry());
   $('health-import')?.addEventListener('click', _chooseImport);
   $('health-import-retry')?.addEventListener('click', () => _runImport(_importDraft));
   $('health-import-close')?.addEventListener('click', _closeImport);

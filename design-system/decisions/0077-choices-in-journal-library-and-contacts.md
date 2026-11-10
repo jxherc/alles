@@ -31,3 +31,5 @@ pills that never showed which one was picked.
   dropdown, "show", with "all" first; it reads what the list shows, also after a back button or a
   search. a contact row has no "open" button: its avatar and name are one 44px button, next to the
   star and the "..." menu, named by the contact's name and address.
+- health logs with nothing in them are one line, "no entries". the "+ entry" button in the header is the
+  action, so the heart icon, the title, the paragraph and the second button are gone.
