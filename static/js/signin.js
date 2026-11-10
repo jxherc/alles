@@ -40,6 +40,7 @@ export function mountSignin(host, options = {}) {
     provider: only = '',
     loginHint = '',
     fallback = null,            // {label, reason, onClick}: only where the provider has no sign in
+    setup = null,               // (provider) => void: opens the owner's one time setup for a provider that needs it
     onDone = () => {},
     doneClearMs = 6000,
     pollMinMs = 2000,
@@ -65,8 +66,13 @@ export function mountSignin(host, options = {}) {
     return body;
   };
 
-  const providerList = () => state.providers.filter(p => (!only || p.id === only) && (!use || p.uses.some(u => u.id === use)));
   const accountsFor = p => state.accounts.filter(a => a.provider === p.id && (!use || a.use === use));
+  // a provider the owner can set up (their own google client) shows a button for that setup. one
+  // with no path on this install (a shipped client id that isn't there, a plain http address) isn't
+  // drawn, unless it already has a signed in account to show
+  const needsSetup = p => !p.ready && p.not_ready?.code === 'no_client';
+  const drawn = p => p.ready || needsSetup(p) || accountsFor(p).length > 0;
+  const providerList = () => state.providers.filter(p => (!only || p.id === only) && (!use || p.uses.some(u => u.id === use)) && drawn(p));
   const slot = p => {
     if (!state.slots.has(p.id)) state.slots.set(p.id, { phase: 'idle' });
     return state.slots.get(p.id);
@@ -310,14 +316,12 @@ export function mountSignin(host, options = {}) {
     const single = use === 'github' || use === 'models';
     const showButton = (idle || s.phase === 'done') && !(multi && single);
     const label = multi ? t('signin.another', { provider: p.name }) : t('signin.with', { provider: p.name });
-    const reasonId = `signin-why-${esc(p.id)}`;
-    const notReady = !p.ready;
+    const setupFirst = needsSetup(p);
     return `<section class="signin-provider" data-provider="${esc(p.id)}" data-phase="${esc(s.phase)}" aria-label="${esc(p.name)}">
       ${accounts.length ? `<ul class="signin-accounts" aria-label="${esc(t('signin.accounts_label', { provider: p.name }))}">${accounts.map(a => accountRow(a, p)).join('')}</ul>` : ''}
       ${busy || ['done', 'expired', 'denied', 'lost', 'error'].includes(s.phase) ? `<div class="signin-panel">${panel(p, s)}</div>` : ''}
       ${showButton ? `<div class="signin-start">
-        <button class="btn primary signin-button" type="button" data-act="start" data-provider="${esc(p.id)}"${notReady ? ` disabled aria-describedby="${reasonId}"` : ''}>${esc(label)}</button>
-        ${notReady ? `<p class="signin-line" id="${reasonId}" data-tone="quiet">${esc(serverText(p.not_ready?.text || ''))}</p>` : ''}
+        <button class="btn signin-button" type="button" data-act="${setupFirst ? 'setup' : 'start'}" data-provider="${esc(p.id)}">${esc(setupFirst ? t('signin.setup', { provider: p.name }) : label)}</button>
       </div>` : ''}
     </section>`;
   }
@@ -357,6 +361,15 @@ export function mountSignin(host, options = {}) {
     }
   }
 
+  // google needs the owner's own client once, and mail's add account is where it is entered
+  async function openSetup(p) {
+    if (setup) return setup(p);
+    if (p.id !== 'google') return;
+    document.getElementById('settings-modal-close')?.click();
+    if (await globalThis.window?._navigateTo?.('mail') === false) return;
+    globalThis.window?._mailAccounts?.();
+  }
+
   // the text typed in a paste field survives a redraw
   const slotPaste = { value: '' };
   host.addEventListener('input', event => { if (event.target.matches?.('.signin-input')) slotPaste.value = event.target.value; });
@@ -378,6 +391,7 @@ export function mountSignin(host, options = {}) {
     const account = state.accounts.find(a => a.id === button.dataset.id);
     switch (button.dataset.act) {
       case 'start': return p && begin(p);
+      case 'setup': return p && openSetup(p);
       case 'again': return p && begin(p, account?.login || account?.email || loginHint);
       case 'cancel': return p && cancel(p);
       case 'copy':

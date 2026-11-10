@@ -16,7 +16,6 @@
 
 .signin-start { display: flex; flex-direction: column; align-items: flex-start; gap: var(--k-space-1, 4px); }
 .signin-button { min-height: var(--k-control, 44px); padding-inline: var(--k-space-4, 16px); }
-.signin-button[disabled] { opacity: 1; color: var(--muted); border-color: var(--faint); cursor: not-allowed; }
 .signin-panel .btn, .signin-start .btn { min-height: var(--k-control, 44px); display: inline-flex; align-items: center; justify-content: center; }
 
 /* quiet text action: no container at rest, a 44px target around the words */

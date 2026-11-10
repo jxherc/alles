@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import sys
 from pathlib import Path
 from urllib.parse import urlsplit
@@ -45,7 +46,7 @@ def permission_first_read_case(page, api, events, destination):
                 route.continue_()
 
         fresh.route("**/api/settings", initial_failure)
-        choose_settings_section(fresh, "tools")
+        choose_settings_section(fresh, "agent")
         expect(fresh.locator("#toast-container .toast.error").last).to_have_text(
             "could not load permission rules"
         )
@@ -59,7 +60,7 @@ def permission_first_read_case(page, api, events, destination):
         fresh.unroute("**/api/settings", initial_failure)
         fresh.locator("#settings-modal-close").click()
         fresh.locator("#today-settings").click()
-        choose_settings_section(fresh, "tools")
+        choose_settings_section(fresh, "agent")
         expect(fresh.locator("#perm-rules-list")).to_contain_text("example-existing-rule")
         expect(add).to_be_enabled()
         add.click()
@@ -98,7 +99,7 @@ def connection_write_cases(page, api, pane, reopen, choose_edge, destination):
         {"tool": "example-rule-b", "path": "", "action": "deny"},
     ]
     assert api.patch("/api/settings", data={"permission_rules": rules}).ok
-    reopen("tools")
+    reopen("agent")
     expect(page.locator("#perm-rules-list .perm-rule-tool")).to_have_text(
         [rule["tool"] for rule in rules]
     )
@@ -124,7 +125,7 @@ def connection_write_cases(page, api, pane, reopen, choose_edge, destination):
     page.wait_for_function("window.__ruleWrites === 1")
     expect(delete).to_be_disabled()
     delete.dispatch_event("click")
-    reopen("tools")
+    reopen("agent")
     assert page.locator("#perm-rules-list .perm-rule-del").evaluate_all(
         "buttons => buttons.length === 2 && buttons.every(button => button.disabled)"
     )
@@ -145,7 +146,7 @@ def connection_write_cases(page, api, pane, reopen, choose_edge, destination):
     add.click()
     page.wait_for_function("window.__ruleWrites === 2")
     page.locator("#perm-rule-tool").fill("example newer rule draft")
-    reopen("tools")
+    reopen("agent")
     expect(add).to_be_disabled()
     expect(delete).to_be_disabled()
     delete.dispatch_event("click")
@@ -318,7 +319,7 @@ def connection_write_cases(page, api, pane, reopen, choose_edge, destination):
             )
             assert independent_record.ok
             independent_id = independent_record.json()["id"]
-        reopen("tools")
+        reopen("tools" if kind == "connection" else "agent")
         remove = page.locator(f'#{list_id} button[data-id="{record_id}"]')
         expect(remove).to_be_visible()
         held_deletes = []
@@ -335,7 +336,7 @@ def connection_write_cases(page, api, pane, reopen, choose_edge, destination):
             remove.click()
             page.wait_for_function("count => window.__connectorDeletes === count", arg=count)
             remove.dispatch_event("click")
-            reopen("tools")
+            reopen("tools" if kind == "connection" else "agent")
             expect(remove).to_be_disabled()
             remove.dispatch_event("click")
             assert len(held_deletes) == count
@@ -399,7 +400,7 @@ def connection_write_cases(page, api, pane, reopen, choose_edge, destination):
             )
             assert response.ok
             record_id = response.json()["id"]
-            reopen("tools")
+            reopen("tools" if kind == "connection" else "agent")
             remove = page.locator(f'#{list_id} button[data-id="{record_id}"]')
             expect(remove).to_be_visible()
             page.wait_for_load_state("networkidle")
@@ -421,7 +422,7 @@ def connection_write_cases(page, api, pane, reopen, choose_edge, destination):
             page.route("**" + collection, current_read)
             page.route(pattern, hold_delete)
             page.evaluate("window.__connectorReadHeld = false; window.__connectorDeletes = 0")
-            reopen("tools")
+            reopen("tools" if kind == "connection" else "agent")
             page.wait_for_function("window.__connectorReadHeld === true")
             remove.click()
             page.wait_for_function("window.__connectorDeletes === 1")
@@ -485,13 +486,13 @@ def connection_write_cases(page, api, pane, reopen, choose_edge, destination):
         page.evaluate("count => window.__presetPosts = count", len(preset_posts))
 
     page.route("**/api/mcp/presets/filesystem", hold_preset)
-    reopen("tools")
+    reopen("agent")
     button = page.locator('.mcp-preset[data-id="filesystem"]')
     expect(button).to_be_visible()
     button.click()
     page.wait_for_function("window.__presetPosts === 1")
     button.dispatch_event("click")
-    reopen("tools")
+    reopen("agent")
     expect(button).to_be_disabled()
     expect(page.locator('.mcp-preset[data-id="example-other"]')).to_be_enabled()
     button.dispatch_event("click")
@@ -1623,7 +1624,7 @@ def local_preset_cases(page, reopen, destination):
         return page.locator(f'[data-local-{action}="{model or state["model"]}"]')
 
     def ready(present=True):
-        expect(page.locator("#s-local-ollama")).to_contain_text("Ollama: running")
+        expect(page.locator("#s-local-ollama")).to_contain_text("running - http")
         presets = page.locator("#s-local-presets")
         if present:
             expect(presets).to_contain_text(state["model"])
@@ -2476,6 +2477,16 @@ def exercise(page, api, endpoint, destination):
         choose_settings_section(page, name)
         expect(page.locator(f"#s-pane-{name}")).to_be_visible()
         assert_layout(locale=name == "notifications")
+        if name == "backup":
+            open_remote_forms()
+
+    def open_remote_forms():
+        # a remote is one row until its form is opened; the checks below fill and save the forms
+        for kind in ("webdav", "s3"):
+            setup = page.locator(f"#{kind}-backup-setup-btn")
+            if setup.get_attribute("aria-expanded") != "true":
+                setup.click()
+            expect(page.locator(f"#{kind}-backup-form")).to_be_visible()
 
     def close_and_reopen(name):
         page.locator("#settings-modal-close").click()
@@ -2626,7 +2637,7 @@ def exercise(page, api, endpoint, destination):
 
     # OAuth starts only create temporary UI for the opening that requested them.
     pane("models")
-    page.locator("#s-gemini-oauth-toggle").click()
+    page.locator('#s-ep-signin [data-act="setup"][data-provider="google"]').click()
     page.locator("#s-gemini-client-id").fill("example-client")
     page.locator("#s-gemini-client-secret").fill("example")
     page.locator("#s-gemini-project-id").fill("example-project")
@@ -3480,6 +3491,7 @@ def exercise(page, api, endpoint, destination):
 
     pane("tools")
     expect(page.locator("#conn-list")).to_contain_text("nothing connected")
+    pane("agent")
     expect(page.locator("#mcp-server-list")).to_contain_text("no servers")
     expect(page.locator("#perm-rules-list")).to_contain_text("no rules")
     for form, route_url, button_id, fields in (
@@ -3498,6 +3510,7 @@ def exercise(page, api, endpoint, destination):
         ),
     ):
         held = []
+        pane("tools" if form == "connection" else "agent")
 
         def hold_form_create(route, request, form=form):
             if request.method == ("PATCH" if form == "permission" else "POST"):
@@ -3557,7 +3570,7 @@ def exercise(page, api, endpoint, destination):
                 if form == "permission":
                     choose_edge("perm-rule-action")
             draft = {id: page.locator(f"#{id}").input_value() for id in fields}
-            close_and_reopen("tools")
+            close_and_reopen("tools" if form == "connection" else "agent")
             expect(button).to_be_disabled()
             button.dispatch_event("click")
             assert len(held) == count
@@ -3595,7 +3608,20 @@ def exercise(page, api, endpoint, destination):
     assert api.patch("/api/settings", data={"permission_rules": []}).ok
 
     pane("models")
-    expect(page.locator("#s-local-ollama")).to_contain_text("Ollama:")
+    expect(page.locator("#s-local-ollama")).to_contain_text(re.compile("installed|running|stopped"))
+    # the pull field shows once ollama runs
+    page.route(
+        "**/api/local-models/status",
+        lambda route: route.fulfill(
+            json={
+                "ollama": {"installed": True, "running": True, "base_url": "http://127.0.0.1:1"},
+                "hardware": {"ram_gb": 16, "gpus": []},
+                "presets": [],
+            }
+        ),
+    )
+    close_and_reopen("models")
+    expect(page.locator("#s-local-custom")).to_be_visible()
     pulls = []
 
     def hold_custom_pull(route):
@@ -3692,9 +3718,13 @@ def exercise(page, api, endpoint, destination):
     )
     expect(page.locator("#s3-backup-status")).to_have_text("not connected")
     expect(page.locator("#s3-backup-disconnect-btn")).to_be_hidden()
+    open_remote_forms()
     page.locator("#webdav-backup-url").fill("https://backup.example.test/owner-draft")
+    open_remote_forms()
     page.locator("#webdav-backup-username").fill("draft-user")
+    open_remote_forms()
     page.locator("#s3-backup-endpoint").fill("https://storage.example.test")
+    open_remote_forms()
     page.locator("#s3-backup-bucket").fill("draft-bucket")
     close_and_reopen("backup")
     expect(page.locator("#webdav-backup-status")).to_contain_text("unsaved connection changes")
@@ -3716,19 +3746,25 @@ def exercise(page, api, endpoint, destination):
 
     page.route("**/api/backup/webdav/backups", lambda route: route.fulfill(json={"backups": []}))
     page.route("**/api/backup/webdav", delayed_backup_save)
+    open_remote_forms()
     page.locator("#webdav-backup-password").fill("example")
+    open_remote_forms()
     page.locator("#webdav-backup-url").fill("http://backup.example.test/owner-draft")
+    open_remote_forms()
     page.locator("#webdav-backup-save-btn").click()
     expect(page.locator("#webdav-backup-status")).to_have_text("the WebDAV url must use https")
     expect(page.locator("#webdav-backup-password")).to_have_value("example")
     assert backup_save == []
+    open_remote_forms()
     page.locator("#webdav-backup-url").fill("https://backup.example.test/owner-draft")
+    open_remote_forms()
     page.locator("#webdav-backup-save-btn").click()
     expect(page.locator("#webdav-backup-save-btn")).to_be_disabled()
     expect(page.locator("#webdav-backup-password")).to_have_value("")
     page.wait_for_function("window.__settingsPaneBackupSaveReady === true")
     assert len(backup_save) == 1
     assert backup_save[0].request.post_data_json["password"] == "example"
+    open_remote_forms()
     page.locator("#webdav-backup-url").fill("https://backup.example.test/newer-owner-edit")
     backup_save[0].fulfill(
         json={
@@ -3753,11 +3789,13 @@ def exercise(page, api, endpoint, destination):
             route.continue_()
 
     page.route("**/api/backup/webdav", delayed_backup_disconnect)
+    open_remote_forms()
     page.locator("#webdav-backup-disconnect-btn").click()
     page.locator(".dialog-overlay [data-dialog-confirm]").click()
     expect(page.locator("#webdav-backup-disconnect-btn")).to_be_disabled()
     page.wait_for_function("window.__settingsPaneBackupDisconnectReady === true")
     assert len(backup_disconnect) == 1
+    open_remote_forms()
     page.locator("#webdav-backup-username").fill("typed-during-disconnect")
     backup_disconnect[0].fulfill(json={})
     expect(page.locator("#webdav-backup-disconnect-btn")).to_be_hidden()
@@ -3840,18 +3878,25 @@ def exercise(page, api, endpoint, destination):
     close_and_reopen("backup")
     for provider in remote_configs:
         expect(page.locator(f"#{provider}-backup-run-btn")).to_be_enabled()
+    open_remote_forms()
     page.locator("#s3-backup-region").fill("")
+    open_remote_forms()
     page.locator("#s3-backup-access-key-id").fill("example")
+    open_remote_forms()
     page.locator("#s3-backup-secret-access-key").fill("example")
+    open_remote_forms()
     page.locator("#s3-backup-save-btn").click()
     expect(page.locator("#s3-backup-status")).to_have_text("add the S3 region")
     expect(page.locator("#s3-backup-access-key-id")).to_have_value("example")
     expect(page.locator("#s3-backup-secret-access-key")).to_have_value("example")
     assert remote_writes["s3"] == []
+    open_remote_forms()
     page.locator("#s3-backup-region").fill("us-east-1")
+    open_remote_forms()
     page.locator("#webdav-backup-save-btn").click()
     page.wait_for_function("window.__settingsPaneRemoteWrites?.webdav === 1")
     expect(page.locator("#s3-backup-save-btn")).to_be_enabled()
+    open_remote_forms()
     page.locator("#s3-backup-save-btn").click()
     page.wait_for_function("window.__settingsPaneRemoteWrites?.s3 === 1")
     assert remote_writes["s3"][0][1].request.post_data_json["access_key_id"] == "example"
@@ -3910,7 +3955,9 @@ def exercise(page, api, endpoint, destination):
 
     for provider in remote_configs:
         assert_remote_pending(provider, 1)
+    open_remote_forms()
     page.locator("#webdav-backup-username").fill("example-newer-draft")
+    open_remote_forms()
     page.locator("#s3-backup-bucket").fill("example-newer-draft")
     close_and_reopen("backup")
     for provider in remote_configs:
@@ -3938,6 +3985,7 @@ def exercise(page, api, endpoint, destination):
             ("disconnect", "DELETE", True),
         ):
             expected_writes = len(remote_writes[provider]) + 1
+            open_remote_forms()
             page.locator(f"#{provider}-backup-{action}-btn").click()
             if action == "disconnect":
                 page.locator(".dialog-overlay [data-dialog-confirm]").click()
@@ -3965,6 +4013,7 @@ def exercise(page, api, endpoint, destination):
             assert len(remote_writes[provider]) == expected_writes
 
         # A write started while confirmation is open prevents the later delete.
+        open_remote_forms()
         page.locator(f"#{provider}-backup-disconnect-btn").click()
         expect(page.locator(".dialog-overlay")).to_be_visible()
         expected_writes = len(remote_writes[provider]) + 1
@@ -3981,6 +4030,7 @@ def exercise(page, api, endpoint, destination):
             expect(page.locator(f"#{provider}-backup-{action}-btn")).to_be_enabled()
 
         # Successful removal and a failed first save keep unconfigured actions off.
+        open_remote_forms()
         page.locator(f"#{provider}-backup-disconnect-btn").click()
         page.locator(".dialog-overlay [data-dialog-confirm]").click()
         expected_writes += 1
@@ -3990,6 +4040,7 @@ def exercise(page, api, endpoint, destination):
         )
         assert_remote_pending(provider, expected_writes, "disconnect")
         expect(draft).to_be_editable()
+        open_remote_forms()
         draft.fill("example-after-disconnect-start")
         assert remote_writes[provider][-1][0] == "DELETE"
         remote_configs[provider] = {"configured": False}
@@ -3999,10 +4050,14 @@ def exercise(page, api, endpoint, destination):
         expect(page.locator(f"#{provider}-backup-run-btn")).to_be_disabled()
         expect(draft).to_have_value("example-after-disconnect-start")
         if provider == "webdav":
+            open_remote_forms()
             page.locator("#webdav-backup-password").fill("example")
         else:
+            open_remote_forms()
             page.locator("#s3-backup-access-key-id").fill("example")
+            open_remote_forms()
             page.locator("#s3-backup-secret-access-key").fill("example")
+        open_remote_forms()
         page.locator(f"#{provider}-backup-save-btn").click()
         expected_writes += 1
         page.wait_for_function(
@@ -4059,6 +4114,7 @@ def exercise(page, api, endpoint, destination):
         save = page.locator(f"#{provider}-backup-save-btn")
         expect(restore).to_be_enabled()
         expected_writes = len(remote_writes[provider]) + 1
+        open_remote_forms()
         save.click()
         page.wait_for_function(
             "([provider, count]) => window.__settingsPaneRemoteWrites?.[provider] === count",
@@ -4131,6 +4187,7 @@ def exercise(page, api, endpoint, destination):
     for provider in remote_configs:
         for action in ("save", "run"):
             for mode in ("reopen", "active", "closed_again"):
+                open_remote_forms()
                 old_file = {"filename": "example-old.enc", "bytes": 1}
                 new_file = {
                     "filename": f"example-current-{provider}-{action}-{mode}.enc",
@@ -4148,6 +4205,7 @@ def exercise(page, api, endpoint, destination):
                 expect(page.locator(f"#{provider}-backup-refresh-btn")).to_be_enabled()
                 reads_before = remote_list_reads[provider]
                 expected_writes = len(remote_writes[provider]) + 1
+                open_remote_forms()
                 page.locator(f"#{provider}-backup-{action}-btn").click()
                 page.wait_for_function(
                     "([provider, count]) => window.__settingsPaneRemoteWrites?.[provider] === count",
@@ -4169,6 +4227,7 @@ def exercise(page, api, endpoint, destination):
                     f"#{provider}-backup-{'username' if provider == 'webdav' else 'bucket'}"
                 )
                 draft_value = f"example-list-draft-{mode}"
+                open_remote_forms()
                 draft.fill(draft_value)
                 remote_backup_files[provider] = [new_file]
                 if mode != "active":
@@ -4246,6 +4305,7 @@ def exercise(page, api, endpoint, destination):
             expect(page.locator(f"#{provider}-backup-refresh-btn")).to_be_enabled()
             reads_before = remote_list_reads[provider]
             expected_writes = len(remote_writes[provider]) + 1
+            open_remote_forms()
             page.locator(f"#{provider}-backup-{action}-btn").click()
             page.wait_for_function(
                 "([provider, count]) => window.__settingsPaneRemoteWrites?.[provider] === count",
@@ -4256,6 +4316,7 @@ def exercise(page, api, endpoint, destination):
                 f"#{provider}-backup-{'username' if provider == 'webdav' else 'bucket'}"
             )
             draft_value = f"example-{provider}-{action}-mutation-draft"
+            open_remote_forms()
             draft.fill(draft_value)
             close_and_reopen("backup")
             assert_remote_pending(provider, expected_writes, action)
@@ -4354,25 +4415,23 @@ def exercise(page, api, endpoint, destination):
 
     page.route("**/api/agent/status", agent_read)
     page.route("**/api/jarvis/discord", discord_api)
-    pane("tools")
-    status_fields = page.locator("#agent-status-grid > div > strong")
-    expect(status_fields).to_have_count(7)
-    expect(page.locator("#agent-status-grid #example-connection-label")).to_have_count(0)
-    expect(status_fields).to_have_text(
-        ["17", "installed", "3", "2", "yes", "no", f"github, {connection_name}"]
-    )
+    pane("agent")
+    status_line = page.locator("#agent-status-line")
+    expect(page.locator("#agent-status-line #example-connection-label")).to_have_count(0)
+    expect(status_line).to_have_text(f"opencode installed · mcp 3 · skills 2 · connections github, {connection_name}")
+    expect(page.locator("#agent-tools-summary")).to_have_text("17 tools")
     expect(page.locator("#agent-tool-list")).to_have_text("example-tool")
     page.locator("#agent-status-refresh-btn").click()
-    expect(status_fields.first).to_have_text("18")
+    expect(page.locator("#agent-tools-summary")).to_have_text("18 tools")
     assert len(agent_reads) == 2
     hold_agent_read = True
     page.locator("#agent-status-refresh-btn").click()
     page.wait_for_function("window.__settingsPaneAgentReadHeld === true")
-    close_and_reopen("tools")
-    expect(status_fields.first).to_have_text("20")
+    close_and_reopen("agent")
+    expect(page.locator("#agent-tools-summary")).to_have_text("20 tools")
     held_agent_reads[0].fulfill(json={**agent_status, "tool_count": 999})
     page.wait_for_load_state("networkidle")
-    expect(status_fields.first).to_have_text("20")
+    expect(page.locator("#agent-tools-summary")).to_have_text("20 tools")
 
     # Approved-root writes cannot overlap, and retain drafts through success/error/reopen.
     roots = page.locator("#s-agent-roots")
@@ -4396,7 +4455,7 @@ def exercise(page, api, endpoint, destination):
     page.wait_for_function("window.__settingsPaneRootWrites === 1")
     roots.fill("")
     roots_save.dispatch_event("click")
-    close_and_reopen("tools")
+    close_and_reopen("agent")
     expect(roots_save).to_be_disabled()
     expect(roots_save).to_have_text("saving…")
     expect(roots).to_have_value("")
@@ -4436,6 +4495,7 @@ def exercise(page, api, endpoint, destination):
             indent=2,
         )
     )
+    pane("tools")
     expect(page.locator("#jarvis-discord-setup")).to_be_visible()
     page.locator("#jarvis-discord-token").fill("example")
     page.locator("#jarvis-discord-connect").click()
@@ -4447,7 +4507,9 @@ def exercise(page, api, endpoint, destination):
     expect(page.locator("#jarvis-pairing-code")).to_have_text("example-connect-code")
     expect(page.locator("#jarvis-discord-token")).to_have_value("")
     page.locator("#jarvis-discord-channels").fill("123\n456")
+    pane("agent")
     page.locator("#s-agent-roots").fill("/synthetic/owner-draft")
+    pane("tools")
     page.locator("#jarvis-discord-quiet").click()
     page.locator("#jarvis-discord-quiet-start").fill("22:30")
     discord_pair = []
@@ -4473,7 +4535,9 @@ def exercise(page, api, endpoint, destination):
     assert discord_mutations == ["connect", "pair", "channels"]
     expect(page.locator("#jarvis-discord-channels")).to_have_value("123\n456\n789\n999")
     expect(page.locator("#jarvis-discord-quiet-start")).to_have_value("22:30")
+    pane("agent")
     expect(page.locator("#s-agent-roots")).to_have_value("/synthetic/owner-draft")
+    pane("tools")
     reads_before = len(discord_reads)
     discord["connection_state"] = "fixture status reloaded"
     close_and_reopen("tools")
@@ -4760,7 +4824,7 @@ def exercise(page, api, endpoint, destination):
             indent=2,
         )
     )
-    for name in ("home", "notifications", "models", "backup", "tools"):
+    for name in ("home", "notifications", "models", "backup", "tools", "agent", "machine"):
         pane(name)
         page.wait_for_load_state("networkidle")
         page.screenshot(path=str(destination / f"{name}.png"), full_page=True)

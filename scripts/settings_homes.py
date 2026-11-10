@@ -44,9 +44,11 @@ JOBS = {
     "intelligence": ("patterns and suggestions aide notices", "rarely"),
     "andromeda": ("the andromeda search engine app", "sometimes"),
     "tools": (
-        "mail, calendar, github, chat channels, mcp and other connections",
+        "mail, calendar, github, chat channels, sign in to a site and other connections",
         "once",
     ),
+    "agent": ("what the agent may use: switches, permission rules, mcp servers, tools", "once"),
+    "machine": ("this machine: macOS integration, docker, searxng, the Actual ledger", "once"),
     "developer": ("api keys for scripts and shortcuts", "rarely"),
     "rules": ("automations and where results are delivered", "sometimes"),
     "security": ("owner password, privacy, sessions", "rarely"),

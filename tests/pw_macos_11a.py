@@ -36,12 +36,12 @@ def main():
         pg.goto(f"{AIDE}/", wait_until="domcontentloaded")
         pg.wait_for_selector('.nav-item[data-view="settings"]', timeout=15000)
         pg.eval_on_selector('.nav-item[data-view="settings"]', "el => el.click()")
-        choose_settings_section(pg, "tools")
+        choose_settings_section(pg, "machine")
         pg.wait_for_selector("#macos-status", timeout=8000)
         pg.wait_for_timeout(600)
 
         r["macos_card_present"] = pg.query_selector("#macos-status") is not None
-        r["card_header_present"] = "macOS integration" in (pg.text_content("#s-pane-tools") or "")
+        r["card_header_present"] = "macOS integration" in (pg.text_content("#s-pane-machine") or "")
         txt = pg.text_content("#macos-status") or ""
         r["status_fetched"] = len(txt.strip()) > 0
         # status endpoint reachable + reports availability matching the platform

@@ -15,7 +15,8 @@ START = "[data-act=start]"
 # state -> (steps to reach it, text that shows)
 REACH = {
     "idle": ([], "sign in with GitHub"),
-    "not-ready": ([], "isn't set up yet"),
+    "not-ready": ([], "set up Google sign in"),
+    "not-drawn": ([], "use an app password instead"),
     "starting": ([("click", START)], "starting"),
     "waiting": ([("click", START)], "ABCD-EFGH"),
     "redirect": ([("click", START)], "finish signing in on Google"),

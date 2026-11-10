@@ -92,7 +92,7 @@ def run() -> None:
                 assert "free chat website is not an oauth source" in note
                 assert "throwaway-deepseek-key" not in card.inner_text()
 
-                page.locator("#s-gemini-oauth-toggle").focus()
+                page.locator('#s-ep-signin [data-act="setup"][data-provider="google"]').focus()
                 page.keyboard.press("Enter")
                 expect(page.locator("#s-gemini-oauth-panel")).to_be_visible()
                 page.locator("#s-gemini-oauth-start").click()
@@ -122,7 +122,7 @@ def run() -> None:
 
             else:
                 expect(page.locator(".s-ep-card", has_text="DeepSeek").first).to_be_visible()
-                page.locator("#s-gemini-oauth-toggle").click()
+                page.locator('#s-ep-signin [data-act="setup"][data-provider="google"]').click()
                 expect(page.locator("#s-gemini-oauth-panel")).to_be_visible()
                 grid_columns = page.locator("#s-gemini-oauth-panel .s-ep-auth-grid").evaluate(
                     "el => getComputedStyle(el).gridTemplateColumns"

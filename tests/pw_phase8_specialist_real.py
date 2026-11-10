@@ -355,6 +355,10 @@ def _open_finance(page: Page) -> None:
 def _open_ledger_setup(page: Page) -> None:
     """The Actual ledger's setup is not on the overview: one link opens its home in settings."""
     page.get_by_role("link", name="ledger setup", exact=True).click()
+    row = page.locator("#s-ledger .conn-catalog-row .btn")
+    page.locator("#s-ledger .conn-catalog-row .btn, #s-ledger .finance-actual-panel").first.wait_for(state="visible")
+    if row.count():
+        row.click()
     page.locator("#s-ledger .finance-actual-panel").wait_for(state="visible")
 
 

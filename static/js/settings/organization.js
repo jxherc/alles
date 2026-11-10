@@ -11,19 +11,19 @@ export const ORGANIZATIONS = {
     { "group": "settings.org_how_aide_answers", "panes": ["models", "personas", "voice", "ai"] },
     { "group": "settings.org_what_aide_knows", "panes": ["memory", "search", "recall", "andromeda"] },
     { "group": "settings.org_on_its_own", "panes": ["proactive", "rules", "intelligence"] },
-    { "group": "settings.org_accounts", "panes": ["tools", "developer"] },
+    { "group": "settings.org_accounts", "panes": ["tools", "agent", "machine", "developer"] },
     { "group": "settings.org_safety", "panes": ["security", "backup", "@server", "credits"] }
   ],
   "often": [
     { "group": "settings.org_every_day", "panes": ["models", "themes", "voice", "home"] },
     { "group": "settings.org_now_and_then", "panes": ["personas", "ai", "memory", "search", "andromeda", "proactive", "rules"] },
-    { "group": "settings.org_once", "panes": ["general", "notifications", "tools", "developer", "recall", "intelligence"] },
+    { "group": "settings.org_once", "panes": ["general", "notifications", "tools", "agent", "machine", "developer", "recall", "intelligence"] },
     { "group": "settings.org_rarely", "panes": ["security", "backup", "@server", "credits"] }
   ],
   "things": [
     { "group": "settings.org_this_device", "panes": ["general", "themes", "notifications", "voice"] },
     { "group": "settings.org_aide", "panes": ["models", "personas", "ai", "memory", "proactive", "intelligence", "recall"] },
-    { "group": "settings.org_your_accounts", "panes": ["tools", "search", "developer", "rules"] },
+    { "group": "settings.org_your_accounts", "panes": ["tools", "agent", "machine", "search", "developer", "rules"] },
     { "group": "common.apps", "panes": ["home", "andromeda"] },
     { "group": "settings.org_this_alles", "panes": ["security", "backup", "@server", "credits"] }
   ],
@@ -31,7 +31,7 @@ export const ORGANIZATIONS = {
     { "group": "shell.settings.you", "panes": ["general", "home", "themes", "notifications"] },
     { "group": "settings.org_aide", "panes": ["models", "ai", "memory", "personas", "voice", "search", "recall", "proactive", "intelligence"] },
     { "group": "common.apps", "panes": ["andromeda"] },
-    { "group": "common.connections", "panes": ["tools", "developer", "rules"] },
+    { "group": "common.connections", "panes": ["tools", "agent", "machine", "developer", "rules"] },
     { "group": "shell.settings.this_alles", "panes": ["security", "backup", "@server", "credits"] }
   ]
 };

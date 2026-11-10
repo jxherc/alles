@@ -3156,6 +3156,7 @@ async function accountsPanel(firstRun = false) {
   // oauth first (owner, oct 29): gmail and outlook sign in by button; the rest use an app password
   const signin = mountSignin(root.querySelector('#mail-signin'), {
     use: 'mail',
+    setup() { if (!_accountRecovery.pending && !_accountRecovery.error && !_accountRecovery.write) acctForm(null, 'gmail'); },
     fallback: {
       label: t('signin.fallback_password'),
       reason: t('signin.why_mail'),
@@ -3288,7 +3289,16 @@ function acctForm(acct, presetKey = '', manual = false) {
     if (!signin || signinFor !== provider || signinHint !== hint) {
       signin?.destroy();
       signinFor = provider; signinHint = hint;
-      signin = mountSignin(host, { use: 'mail', provider: provider || '', loginHint: hint, onDone: () => { if (current()) accountsPanel(); } });
+      signin = mountSignin(host, {
+        use: 'mail', provider: provider || '', loginHint: hint,
+        // the client setup sits right below, behind its own toggle
+        setup() {
+          const toggle = el('ma-oauth-toggle');
+          if (toggle?.getAttribute('aria-expanded') !== 'true') toggle?.click();
+          el('ma-cid')?.focus();
+        },
+        onDone: () => { if (current()) accountsPanel(); },
+      });
     }
     syncOauth();
   };

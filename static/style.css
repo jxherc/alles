@@ -2012,6 +2012,25 @@ body.is-aide.is-incognito .incognito-bar {
   display: block; width: 100%; min-height: 44px; white-space: normal; text-align: center;
 }
 #backup-recovery-key-btn { margin-top: 0.5rem; }
+/* a remote backup is one row until it is connected; its form and its backups open under it */
+#s-pane-backup .remote-backup :is(.s-card-body, #webdav-backup-restore-box, #s3-backup-restore-box) {
+  display: flex; flex-direction: column; gap: var(--k-control-gap);
+}
+#s-pane-backup .remote-backup .s-card-hint, #s-pane-backup .remote-backup .remote-backup-fact { margin: 0; }
+#s-pane-backup .remote-backup-fact { font-size: 0.875rem; color: var(--muted); }
+#s-pane-backup .remote-backup-actions { display: flex; flex-wrap: wrap; gap: var(--k-control-gap); }
+#s-pane-backup .remote-backup-actions .btn { flex: 1 1 140px; }
+
+/* local serving: ollama is one row; what depends on it opens under the row once it runs */
+#s-pane-models .s-local-actions { display: flex; gap: var(--k-control-gap); }
+#s-pane-models .s-local-actions .btn { display: inline-flex; align-items: center; text-decoration: none; }
+#s-pane-models .s-local-running { display: flex; flex-direction: column; gap: var(--k-control-gap); margin-top: var(--k-space-3); }
+#s-pane-models .s-local-running .s-card-hint { margin: 0; }
+#s-pane-models .s-local-pull { display: flex; gap: var(--k-control-gap); }
+#s-pane-models .s-local-pull .settings-input { flex: 1; }
+
+/* the agent's tool list sits behind one row */
+#s-pane-agent .agent-tools > summary { display: flex; align-items: center; min-height: var(--k-control, 44px); cursor: pointer; }
 
 /* Jarvis is a compact connection card, not a separate assistant mode. */
 :where(#settings-modal) .jarvis-discord-head-state {

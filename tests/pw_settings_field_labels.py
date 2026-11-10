@@ -34,6 +34,17 @@ DOM_NAME = """el => {
 # every field the settings form shows, written out: a new, moved or removed field fails here
 # until this list says so (100 after the search address for other browsers joined andromeda)
 EXPECTED_FIELDS = {
+    "agent": [
+        "#mcp-command",
+        "#mcp-env",
+        "#mcp-headers",
+        "#mcp-name",
+        "#mcp-registry-q",
+        "#mcp-url",
+        "#perm-rule-path",
+        "#perm-rule-tool",
+        "#s-agent-roots",
+    ],
     "ai": [
         "#settings-context-limit",
     ],
@@ -148,18 +159,9 @@ EXPECTED_FIELDS = {
         "#jarvis-discord-quiet-start",
         "#jarvis-discord-timezone",
         "#jarvis-discord-token",
-        "#mcp-command",
-        "#mcp-env",
-        "#mcp-headers",
-        "#mcp-name",
-        "#mcp-registry-q",
-        "#mcp-url",
-        "#perm-rule-path",
-        "#perm-rule-tool",
         "#photon-owner",
         "#photon-project-id",
         "#photon-project-secret",
-        "#s-agent-roots",
         "#telegram-token",
     ],
     "voice": [
@@ -320,15 +322,19 @@ def run():
                 panes = page.locator(".s-nav-item[data-pane]").evaluate_all(
                     "nodes=>nodes.map(n=>n.dataset.pane)"
                 )
-                assert len(panes) == 20
+                assert len(panes) == 22
                 for pane in panes:
                     choose_settings_section(page, pane, touch=width == 390)
                     expect(page.locator("#s-pane-" + pane)).to_be_visible()
                     page.wait_for_load_state("networkidle")
+                    if pane == "backup":
+                        # a remote backup is one row until its form is opened
+                        for kind in ("webdav", "s3"):
+                            page.locator(f"#{kind}-backup-setup-btn").click()
                     for field in [f for f in fields if f["pane"] == pane]:
                         inspect(field)
                     if pane == "models":
-                        page.locator("#s-gemini-oauth-toggle").click()
+                        page.locator('#s-ep-signin [data-act="setup"][data-provider="google"]').click()
                         expect(page.locator("#s-gemini-oauth-panel")).to_be_visible()
                         for ident in (
                             "s-gemini-client-id",

@@ -162,6 +162,10 @@ def _finance_recent_owner(page: Page) -> None:
     page.evaluate("window._navigateTo('finance')")
     page.locator("#finance-view").wait_for(state="visible")
     page.get_by_role("link", name="ledger setup", exact=True).click()
+    row = page.locator("#s-ledger .conn-catalog-row .btn")
+    page.locator("#s-ledger .conn-catalog-row .btn, #s-ledger .finance-actual-panel").first.wait_for(state="visible")
+    if row.count():
+        row.click()
     page.locator("#s-ledger .finance-actual-panel").wait_for(state="visible")
     backup = page.get_by_role("button", name="create backup")
     backup.focus()

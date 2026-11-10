@@ -6,6 +6,36 @@ import { formatDateTime, formatNumber, t } from '../i18n.js';
 import { _fetchWithRecentOwner } from './shared.js';
 import { fetchWithRecentOwner, openWithRecentOwner } from '../recent_owner.js';
 
+// a remote is one row ("webdav backup, not connected, set up") until it is connected. its form
+// opens under the row on demand, its backups show once connected, and the recovery key and
+// verify-and-stage controls show once there is a backup to restore
+const _remote = {
+  webdav: { configured: () => _webdavConfigured, backups: () => _webdavBackups, open: false },
+  s3: { configured: () => _s3Configured, backups: () => _s3Backups, open: false },
+};
+
+function _syncRemote(kind) {
+  const remote = _remote[kind];
+  const part = id => document.getElementById(`${kind}-backup-${id}`);
+  const setup = part('setup-btn');
+  if (setup) {
+    setup.textContent = remote.configured() ? t('common.edit') : t('connections.catalog_open');
+    setup.setAttribute('aria-expanded', String(remote.open));
+  }
+  if (part('form')) part('form').hidden = !remote.open;
+  if (part('manage')) part('manage').hidden = !remote.configured();
+  if (part('restore-box')) part('restore-box').hidden = !(remote.configured() && remote.backups().length);
+}
+
+function _setRemoteOpen(kind, open, { focus = false } = {}) {
+  _remote[kind].open = open;
+  _syncRemote(kind);
+  if (!focus) return;
+  const target = open ? document.querySelector(`#${kind}-backup-form input, #${kind}-backup-form [role=combobox]`)
+    : document.getElementById(`${kind}-backup-setup-btn`);
+  target?.focus();
+}
+
 // ── webdav backup ────────────────────────────────────────────────────────────
 let _webdavConfigured = false;
 let _webdavBackups = [];
@@ -149,7 +179,9 @@ function _applyWebdavConfig(config, keepDraft = false) {
     disconnect.hidden = !config.configured && !config.error;
     disconnect.textContent = config.error ? t('backups.remove_broken_settings') : t('common.disconnect');
   }
+  if (config.error) _remote.webdav.open = true;
   _setWebdavMutationPending(_webdavMutationPending);
+  _syncRemote('webdav');
   const refresh = document.getElementById('webdav-backup-refresh-btn');
   if (refresh) refresh.disabled = _webdavMutationPending || !config.configured;
   const lastSuccess = document.getElementById('webdav-backup-last-success');
@@ -217,6 +249,7 @@ async function saveWebdavBackup() {
     if (revision === _webdavDraftRevision) _webdavDirty = false;
     _applyWebdavConfig(config, true);
     toast(t('backups.webdav_saved'), 'success');
+    _setRemoteOpen('webdav', false, { focus: true });
     const isCurrent = _webdavDeferredListLoad || (() => true);
     _webdavDeferredListLoad = null;
     await loadWebdavBackups(false, isCurrent);
@@ -246,6 +279,7 @@ async function disconnectWebdavBackup() {
     _applyWebdavConfig(normalizeWebdavBackupConfig({}), true);
     _setWebdavStatus(_webdavDirty ? t('backups.unsaved_kept') : t('common.not_connected'));
     toast(t('backups.webdav_disconnected'), 'success');
+    _setRemoteOpen('webdav', false, { focus: true });
   } catch (error) {
     _setWebdavStatus(error.message || t('backups.webdav_disconnect_failed'), 'error');
     toast(error.message || t('backups.webdav_disconnect_failed'), 'error');
@@ -330,6 +364,7 @@ function renderWebdavSelection() {
   const selected = _webdavBackups.find(backup => backup.filename === select?.value);
   const label = document.getElementById('webdav-backup-selection');
   _setWebdavMutationPending(_webdavMutationPending);
+  _syncRemote('webdav');
   if (!label) return;
   if (!selected) {
     label.textContent = _webdavConfigured ? t('backups.none_yet') : t('backups.webdav_connect_to_list');
@@ -562,7 +597,9 @@ function _applyS3Config(config, keepDraft = false) {
     disconnect.hidden = !config.configured && !config.error;
     disconnect.textContent = config.error ? t('backups.remove_broken_settings') : t('common.disconnect');
   }
+  if (config.error) _remote.s3.open = true;
   _setS3MutationPending(_s3MutationPending);
+  _syncRemote('s3');
   const refresh = document.getElementById('s3-backup-refresh-btn');
   if (refresh) refresh.disabled = _s3MutationPending || !config.configured;
   const lastSuccess = document.getElementById('s3-backup-last-success');
@@ -646,6 +683,7 @@ async function saveS3Backup() {
     if (revision === _s3DraftRevision) _s3Dirty = false;
     _applyS3Config(config, true);
     toast(t('backups.s3_saved'), 'success');
+    _setRemoteOpen('s3', false, { focus: true });
     const isCurrent = _s3DeferredListLoad || (() => true);
     _s3DeferredListLoad = null;
     await loadS3Backups(false, isCurrent);
@@ -675,6 +713,7 @@ async function disconnectS3Backup() {
     _applyS3Config(normalizeS3BackupConfig({}), true);
     _setS3Status(_s3Dirty ? t('backups.unsaved_kept') : t('common.not_connected'));
     toast(t('backups.s3_disconnected'), 'success');
+    _setRemoteOpen('s3', false, { focus: true });
   } catch (error) {
     _setS3Status(error.message || t('backups.s3_disconnect_failed'), 'error');
     toast(error.message || t('backups.s3_disconnect_failed'), 'error');
@@ -761,6 +800,7 @@ function renderS3Selection() {
   const selected = _s3Backups.find(backup => backup.filename === select?.value);
   const label = document.getElementById('s3-backup-selection');
   _setS3MutationPending(_s3MutationPending);
+  _syncRemote('s3');
   if (!label) return;
   if (!selected) {
     label.textContent = _s3Configured ? t('backups.none_yet') : t('backups.s3_connect_to_list');
@@ -937,6 +977,9 @@ function _wireBackupsPane(closeSettings) {
       if (returnFocus && document.activeElement === document.body && restoreButton?.offsetParent) restoreButton.focus();
     }
   });
+  for (const kind of ['webdav', 's3']) {
+    document.getElementById(`${kind}-backup-setup-btn`)?.addEventListener('click', () => _setRemoteOpen(kind, !_remote[kind].open, { focus: true }));
+  }
   document.getElementById('webdav-backup-save-btn')?.addEventListener('click', saveWebdavBackup);
   document.getElementById('webdav-backup-disconnect-btn')?.addEventListener('click', disconnectWebdavBackup);
   document.getElementById('webdav-backup-run-btn')?.addEventListener('click', runWebdavBackup);
