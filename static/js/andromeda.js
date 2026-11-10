@@ -51,6 +51,10 @@ const SAVE_PREFIX = 'alles.andromeda.pending.v1:';
 
 const PROJECT_ID = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const CATEGORIES = new Set(['all', 'images', 'news', 'videos']);
+// "past week": only web and news rows have a date to filter by
+const PERIODS = new Set(['day', 'week', 'month', 'year']);
+const DATED = new Set(['all', 'news']);
+let _period = '';
 const PAGE_SIZES = Object.freeze({ all: 10, images: 30, news: 20, videos: 20 });
 const NORMAL_RESULT_COUNTS = new Set([3, 5, 8, 10, 20]);
 
@@ -2073,6 +2077,40 @@ function renderCorrection({ from, to }, typed) {
 }
 
 let _answerSeq = 0;
+function clearRelated() {
+  const section = el('andromeda-related');
+  if (section) section.hidden = true;
+  el('andromeda-related-list')?.replaceChildren();
+}
+
+// what people search next, under the results: the same list the search box completes from
+async function loadRelated(query, searchGeneration, signal) {
+  let items = [];
+  try {
+    const found = await jsonRequest(`/api/andromeda/suggest?q=${encodeURIComponent(query)}`, { signal });
+    items = Array.isArray(found?.suggestions) ? found.suggestions.slice(0, 8) : [];
+  } catch { return; }
+  const list = el('andromeda-related-list');
+  if (searchGeneration !== _searchGeneration || !list || items.length < 2) return;
+  list.replaceChildren(...items.map(text => {
+    const row = document.createElement('button');
+    row.type = 'button';
+    row.className = 'andromeda-related-item';
+    row.innerHTML = _si('search');
+    const label = document.createElement('span');
+    label.textContent = text;
+    row.appendChild(label);
+    row.addEventListener('click', () => runAndromedaSearch(text));
+    return row;
+  }));
+  el('andromeda-related').hidden = false;
+}
+
+function setPeriod(value) {
+  _period = PERIODS.has(value) ? value : '';
+  setDropdownValue(el('andromeda-period'), _period);
+}
+
 function clearKnowledge() {
   const node = el('andromeda-knowledge');
   if (!node) return;
@@ -2232,6 +2270,8 @@ export async function runAndromedaSearch(queryValue = '', options = {}) {
   route.searchParams.set('q', query);
   if (exact) route.searchParams.set('exact', '1');
   else route.searchParams.delete('exact');
+  if (_period) route.searchParams.set('t', _period);
+  else route.searchParams.delete('t');
   if (route.href !== location.href) replaceRouteUrl(route);
   const currentCategory = CATEGORIES.has(options.category) ? options.category : category();
   if (input) input.value = query;
@@ -2271,6 +2311,7 @@ export async function runAndromedaSearch(queryValue = '', options = {}) {
   renderWatch(null);
   renderAnswer(el('andromeda-answer'), null);
   clearKnowledge();
+  clearRelated();
   renderSpelling('');
   if (early) adoptCorrection(early, query, currentCategory, options);
   // calculator, converter, weather, dictionary... runs beside the search, never in front of it
@@ -2296,6 +2337,7 @@ export async function runAndromedaSearch(queryValue = '', options = {}) {
     max_results: pageSize(currentCategory),
     follow_up_of: _state.followUpOf,
     exact: asExact,
+    period: DATED.has(currentCategory) ? _period : '',
   };
   _state.request = { ...request, band: _prefs.band };
   try {
@@ -2322,6 +2364,10 @@ export async function runAndromedaSearch(queryValue = '', options = {}) {
     const panel = await Promise.race([knowledgeReady, new Promise(done => setTimeout(done, 150, undefined))]);
     if (searchGeneration !== _searchGeneration) return;
     renderAndromedaResults(_state.results, result.status, currentCategory);
+    // the engine says whether it can filter by date; a filter it can't apply is not offered
+    const period = el('andromeda-period');
+    if (period) period.hidden = !(result.can_filter_period && DATED.has(currentCategory));
+    if (plain && _state.results.length) void loadRelated(_state.query, searchGeneration, _searchAbort.signal);
     if (panel) showKnowledge(panel);
     else if (panel === undefined) {
       void knowledgeReady.then(late => {
@@ -2626,6 +2672,7 @@ function reopen(saved) {
   renderWatch(saved, saved.watch_new || []);
   renderAnswer(el('andromeda-answer'), null);
   clearKnowledge();
+  clearRelated();
   if ((saved.watch_new || []).length) {
     // seen once shown; the list stays on screen for this visit
     void jsonRequest(`/api/andromeda/saved/${encodeURIComponent(saved.id)}/watch/seen`, { method: 'POST' })
@@ -3032,6 +3079,9 @@ function resetToLanding() {
   clearVerificationView();
   setPageState('idle');
   setCategory('all', { search: false });
+  setPeriod('');
+  clearRelated();
+  clearKnowledge();
   if (el('andromeda-query')) el('andromeda-query').value = '';
   replaceRouteUrl(andromedaLandingUrl(window.location.href));
   requestAnimationFrame(() => el('andromeda-query')?.focus());
@@ -3112,6 +3162,10 @@ function bindOnce() {
   // 28.08: no follow-up field here; the answer goes on in aide, with the question, answer and sources
   el('andromeda-continue-aide')?.addEventListener('click', event => void explainResults(event.currentTarget));
   el('andromeda-watch-choices')?.addEventListener('change', event => void changeWatch(event.currentTarget.value));
+  el('andromeda-period')?.addEventListener('change', event => {
+    _period = PERIODS.has(event.currentTarget.value) ? event.currentTarget.value : '';
+    if (_state.rawQuery) runAndromedaSearch(_state.rawQuery, { category: category(), keepHistory: true, exact: _state.exact });
+  });
   el('andromeda-blocked-undo')?.addEventListener('click', () => void undoHideSite());
   el('andromeda-form')?.addEventListener('submit', event => {
     event.preventDefault();
@@ -3205,7 +3259,10 @@ export async function initAndromeda() {
     return;
   }
   const query = params.get('q');
-  if (query && !_state.rawQuery) runAndromedaSearch(query, { keepHistory: true, exact: params.get('exact') === '1' });
+  if (query && !_state.rawQuery) {
+    setPeriod(params.get('t') || '');
+    runAndromedaSearch(query, { keepHistory: true, exact: params.get('exact') === '1' });
+  }
   else if (!_state.rawQuery && (_pendingSave || _unreadableSave || _saveMessage)) {
     setPageState('results'); renderSaveRecovery();
   } else if (!_state.rawQuery) {

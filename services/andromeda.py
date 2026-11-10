@@ -341,12 +341,19 @@ def blend_engine(settings: dict, provider: str, category: str) -> str:
     return next((name for name in chain[1:] if name in WORD_ENGINES), "")
 
 
-async def _free_rows(query: str, engine: str = BLEND_ENGINE) -> list:
+async def _free_rows(query: str, engine: str = BLEND_ENGINE, period: str = "") -> list:
     from core.settings import load_settings
     from services.research.search import _search_provider
 
     try:
-        rows = await _search_provider(engine, query, load_settings(), BLEND_ROWS, "all")
+        rows = await _search_provider(
+            engine,
+            query,
+            load_settings(),
+            BLEND_ROWS,
+            "all",
+            **({"period": period} if period else {}),
+        )
     except Exception:
         return []
     return [row for row in rows or [] if not _AD_LINK.match(str(row.get("url") or ""))]
@@ -359,6 +366,7 @@ async def normal_search(
     max_results: int = 10,
     category: str = "all",
     provider: str = "",
+    period: str = "",
 ) -> dict:
     if not enabled:
         return {
@@ -381,7 +389,8 @@ async def normal_search(
     second = blend_engine(settings, provider, category)
     if second and time.monotonic() < _free_rest_until:
         second = ""
-    free = asyncio.create_task(_free_rows(query, second)) if second else None
+    since = {"period": period} if period else {}
+    free = asyncio.create_task(_free_rows(query, second, **since)) if second else None
     # set when the second engine's rows are in the list, or stand in for the chosen engine's
     blended: list = []
     stood_in: tuple[str, str] | None = None
@@ -406,6 +415,7 @@ async def normal_search(
             override=provider or chosen or None,
             max_results=provider_limit,
             category=category,
+            **since,
         )
         rows, provider, error = chain_result
         if free is not None:
@@ -442,7 +452,7 @@ async def normal_search(
                 else:
                     # nothing from either: the rest of the owner's chain, as before
                     chain_result = await search_chain(
-                        query, max_results=provider_limit, category=category
+                        query, max_results=provider_limit, category=category, **since
                     )
                     rows, provider, error = chain_result
             if not free.done():

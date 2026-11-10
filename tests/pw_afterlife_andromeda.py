@@ -34,6 +34,8 @@ def search_payload(body: dict) -> dict:
         # the chosen engine said no and a backup answered
         "backup_for": "exa" if "refused words" in clean else "",
         "backup_reason": "refused" if "refused words" in clean else "",
+        "period": body.get("period", "") if category in ("all", "news") else "",
+        "can_filter_period": True,
     }
     if category == "images":
         results = [
@@ -228,6 +230,87 @@ def check_knowledge(page, viewport: dict, requests: list[dict]) -> None:
     page.wait_for_function("() => !document.querySelector('.andromeda-knowledge-media')")
     assert page.locator(".andromeda-knowledge-text").is_visible()
     page.unroute("**/api/andromeda/media*")
+
+
+def check_period_and_related(page, viewport: dict, requests: list[dict]) -> None:
+    """the date filter by the tabs and the related searches under the results."""
+    page.locator("#andromeda-query").fill("toronto !ai")
+    page.locator("#andromeda-form").press("Enter")
+    page.wait_for_selector("#andromeda-related:not([hidden]) .andromeda-related-item")
+    period = page.locator("#andromeda-period")
+    assert period.is_visible()
+    assert requests[-1]["period"] == ""
+    tabs = page.locator(".andromeda-tabs").bounding_box()
+    box = period.bounding_box()
+    first = page.locator("#andromeda-results .andromeda-result").first.bounding_box()
+    assert tabs and box and first
+    assert box["height"] >= 44
+    assert box["x"] + box["width"] <= viewport["width"]
+    # beside the tabs with a gap, or on its own row under them: never touching, never over them
+    beside = box["y"] < tabs["y"] + tabs["height"]
+    assert (
+        (box["x"] >= tabs["x"] + tabs["width"] + 8)
+        if beside
+        else (box["y"] >= tabs["y"] + tabs["height"] + 8)
+    ), (tabs, box)
+    # opening it moves nothing (a real pointer: a scripted click scrolls the page first)
+    page.mouse.click(box["x"] + box["width"] / 2, box["y"] + box["height"] / 2)
+    page.wait_for_selector('[role="option"]:has-text("past week")', state="visible")
+    assert page.locator(".andromeda-tabs").bounding_box() == tabs
+    assert period.bounding_box() == box
+    assert page.locator("#andromeda-results .andromeda-result").first.bounding_box() == first
+    options = page.locator('[role="option"]:visible').all_inner_texts()
+    assert [text.strip() for text in options][-5:] == [
+        "any time",
+        "past 24 hours",
+        "past week",
+        "past month",
+        "past year",
+    ], options
+    sent = len(requests)
+    page.get_by_role("option", name="past week").click()
+    for _ in range(100):
+        if len(requests) > sent:
+            break
+        page.wait_for_timeout(50)
+    assert requests[-1]["period"] == "week", requests[-1]
+    assert "t=week" in page.url
+    assert period.get_attribute("data-value") == "week"
+    # a picture has no date: the filter leaves with the tab and is not sent
+    page.locator('[data-andromeda-category="images"]').click()
+    page.wait_for_function("() => document.getElementById('andromeda-period').hidden")
+    assert requests[-1]["period"] == ""
+    page.locator('[data-andromeda-category="all"]').click()
+    page.wait_for_selector("#andromeda-related:not([hidden]) .andromeda-related-item")
+    assert requests[-1]["period"] == "week"
+    # related searches: plain rows a finger can hit, and one tap searches it
+    rows = page.locator(".andromeda-related-item")
+    assert rows.count() >= 2
+    for index in range(rows.count()):
+        row = rows.nth(index).bounding_box()
+        assert row and row["height"] >= 44 and row["x"] + row["width"] <= viewport["width"], row
+    wanted = rows.first.inner_text().strip()
+    sent = len(requests)
+    rows.first.click()
+    for _ in range(100):
+        if len(requests) > sent:
+            break
+        page.wait_for_timeout(50)
+    assert requests[-1]["query"] == wanted, (requests[-1]["query"], wanted)
+    assert page.evaluate(
+        "document.documentElement.scrollWidth <= document.documentElement.clientWidth"
+    )
+    # back to any time, so the checks after this one search as before
+    box = period.bounding_box()
+    page.mouse.click(box["x"] + box["width"] / 2, box["y"] + box["height"] / 2)
+    sent = len(requests)
+    page.get_by_role("option", name="any time").click()
+    for _ in range(100):
+        if len(requests) > sent:
+            break
+        page.wait_for_timeout(50)
+    assert requests[-1]["period"] == ""
+    assert "t=" not in page.url.split("?", 1)[-1]
 
 
 def mock_api(route: Route, requests: list[dict], overview_requests: list[dict]) -> None:
@@ -683,6 +766,7 @@ def run_case(browser, *, viewport: dict, mobile: bool, theme: str, screenshot: s
         "document.documentElement.scrollWidth <= document.documentElement.clientWidth"
     )
     check_knowledge(page, viewport, requests)
+    check_period_and_related(page, viewport, requests)
     # worse results get their reason: one quiet line under the tabs, gone with the next search
     page.locator("#andromeda-query").fill("refused words !ai")
     page.locator("#andromeda-form").press("Enter")

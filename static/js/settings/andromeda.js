@@ -430,7 +430,7 @@ async function qualifyAutoModel() {
 }
 
 function showAnswerSettings() {
-  for (const [id, key] of [['s-andromeda-results', 'andromeda_normal_results'],
+  for (const [id, key] of [['s-andromeda-results', 'andromeda_normal_results'], ['s-andromeda-safe', 'andromeda_safe_search'],
     ['s-andromeda-overview', 'andromeda_overview'], ['s-andromeda-verification', 'andromeda_verification_enabled']]) {
     _bindSwitch($(id), () => _settings[key] !== false, next => write({ [key]: next }));
   }

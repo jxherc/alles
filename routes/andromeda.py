@@ -64,6 +64,8 @@ class SearchBody(BaseModel):
     overview: bool | None = None
     max_results: int | None = Field(default=None, ge=1, le=600)
     category: Literal["all", "images", "news", "videos"] = "all"
+    # only what was published in the past day, week, month or year ("" is any time)
+    period: Literal["", "day", "week", "month", "year"] = ""
     # any engine from services/research/engines.py, a custom one, or "disabled"
     provider: str = Field(default="", max_length=40)
     # the question this one follows up; a vague follow-up searches with it as context
@@ -232,6 +234,8 @@ async def search(body: SearchBody):
             max_results=count,
             category=body.category,
             provider=body.provider,
+            # a date has no meaning for a picture or a video row here
+            **({"period": body.period} if body.period and body.category in ("all", "news") else {}),
         )
 
     result = await run(used)
@@ -248,6 +252,7 @@ async def search(body: SearchBody):
 
     overview_seed = result.get("results", [])[:12] if parsed.overview else []
     from services import andromeda_answers
+    from services.research.search import PERIOD_ENGINES
 
     found = andromeda_answers.detect(used) if body.category == "all" else None
     if not normal_enabled:
@@ -259,6 +264,10 @@ async def search(body: SearchBody):
         "correction": fixed_by or None,
         "used_no_ai": parsed.used_no_ai,
         "category": body.category,
+        "period": body.period if body.category in ("all", "news") else "",
+        # the page offers the date filter only for an engine that can apply it
+        "can_filter_period": (body.provider or settings.get("search_provider") or "duckduckgo")
+        in PERIOD_ENGINES,
         "normal_results_enabled": bool(normal_enabled),
         "overview_requested": parsed.overview,
         "overview_seed": overview_seed,

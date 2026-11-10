@@ -229,11 +229,15 @@ async def _search_tavily(query, api_key, max_results=5):
     ]
 
 
-async def _search_brave(query, api_key, max_results=5):
+async def _search_brave(query, api_key, max_results=5, period="", safe=True):
+    # safesearch: off, moderate (brave's default) or strict
+    params = {"q": query, "count": max_results, "safesearch": "moderate" if safe else "off"}
+    if period in _BRAVE_PERIOD:
+        params["freshness"] = _BRAVE_PERIOD[period]
     async with httpx.AsyncClient(timeout=15) as c:
         r = await c.get(
             "https://api.search.brave.com/res/v1/web/search",
-            params={"q": query, "count": max_results},
+            params=params,
             headers={"X-Subscription-Token": api_key, "user-agent": "aide-research/1.0"},
         )
         r.raise_for_status()
@@ -251,7 +255,7 @@ async def _search_brave(query, api_key, max_results=5):
     return rows
 
 
-async def _search_searxng(query, base_url, max_results=5, category="all"):
+async def _search_searxng(query, base_url, max_results=5, category="all", period="", safe=True):
     from services.managed_searxng import managed_url
 
     base = base_url.rstrip("/")
@@ -276,6 +280,9 @@ async def _search_searxng(query, base_url, max_results=5, category="all"):
             params = {"q": query, "format": "json", "pageno": page}
             if category in {"images", "news", "videos"}:
                 params["categories"] = category
+            if period in _SEARXNG_PERIOD:
+                params["time_range"] = _SEARXNG_PERIOD[period]
+            params["safesearch"] = 1 if safe else 0
             url = base + "/search?" + urllib.parse.urlencode(params)
             if local_client is not None:
                 response = await local_client.get(url)
@@ -374,6 +381,17 @@ def _plain_snippet(text: str) -> str:
 
 
 NEWS_DAYS = 30
+# "past week" on the results page. each engine is told in its own words, read from its docs on
+# 2026-11-10: exa startPublishedDate (docs.exa.ai/reference/search), brave freshness pd/pw/pm/py
+# (api-dashboard.search.brave.com/app/documentation/web-search/query), searxng time_range, which
+# has day, month and year and no week (docs.searxng.org/dev/search_api.html), and the free
+# engines through ddgs timelimit d/w/m/y. an engine not listed has no such filter here, and a
+# search that asks for a period skips it instead of showing results that ignore the filter
+PERIOD_DAYS = {"day": 1, "week": 7, "month": 31, "year": 365}
+PERIOD_ENGINES = frozenset({"exa", "brave", "searxng", "duckduckgo"})
+_BRAVE_PERIOD = {"day": "pd", "week": "pw", "month": "pm", "year": "py"}
+_SEARXNG_PERIOD = {"day": "day", "week": "month", "month": "month", "year": "year"}
+_DDGS_PERIOD = {"day": "d", "week": "w", "month": "m", "year": "y"}
 _SITE = re.compile(r"(?:^|\s)(-?)site:([a-z0-9][a-z0-9.-]*\.[a-z]{2,})(?=\s|$)", re.I)
 
 
@@ -388,7 +406,7 @@ def split_sites(query: str) -> tuple[str, list[str], list[str]]:
     return words, keep, drop
 
 
-async def _search_exa(query, api_key, max_results=5, category="all"):
+async def _search_exa(query, api_key, max_results=5, category="all", period="", safe=True):
     # exa is a web index, not an image or video engine; empty hands those to the next engine
     if category in ("images", "videos"):
         return []
@@ -403,6 +421,8 @@ async def _search_exa(query, api_key, max_results=5, category="all"):
         "numResults": max_results,
         "contents": {"highlights": {"maxCharacters": 320}},
     }
+    if safe:
+        body["moderation"] = True  # exa's own filter for unsafe pages, off unless asked for
     if keep and words:
         body["includeDomains"] = keep[:20]
     elif drop and words:
@@ -412,8 +432,10 @@ async def _search_exa(query, api_key, max_results=5, category="all"):
         # 2017 for "toronto", a help center for "openai" (measured nov 10). a news tab wants
         # what was published lately
         body["category"] = "news"
+    days = PERIOD_DAYS.get(period) or (NEWS_DAYS if category == "news" else 0)
+    if days:
         body["startPublishedDate"] = (
-            datetime.datetime.now(datetime.UTC) - datetime.timedelta(days=NEWS_DAYS)
+            datetime.datetime.now(datetime.UTC) - datetime.timedelta(days=days)
         ).strftime("%Y-%m-%dT00:00:00.000Z")
     headers = {"x-api-key": api_key, "user-agent": "aide-research/1.0"}
     async with httpx.AsyncClient(timeout=15) as c:
@@ -682,15 +704,19 @@ def _text_backends(names=_TEXT_ENGINES):
     return {"backend": ",".join(keys)} if keys else {}
 
 
-def _web_rows(d, query: str, max_results: int, region: str) -> list:
+def _web_rows(
+    d, query: str, max_results: int, region: str, period: str = "", safe: bool = True
+) -> list:
     """web results from the keyless engines: the first one twice (measured nov 10: yahoo gives
     a readable page 5 times in 6, and a miss is usually a page with no results in it that the
     next request doesn't get), then the others once. a second page fills a short first one."""
     rows = []
+    since = {"timelimit": _DDGS_PERIOD[period]} if period in _DDGS_PERIOD else {}
+    since["safesearch"] = "moderate" if safe else "off"
     for names in (_TEXT_ENGINES[:1], _TEXT_ENGINES[:1], _TEXT_ENGINES[1:]):
         backends = _text_backends(names)
         try:
-            rows = d.text(query, max_results=max_results, region=region, **backends)
+            rows = d.text(query, max_results=max_results, region=region, **backends, **since)
         except Exception as error:  # ddgs raises when every engine came back empty
             log.debug("keyless engines %s: %s", backends.get("backend", "default"), error)
             rows = []
@@ -698,7 +724,9 @@ def _web_rows(d, query: str, max_results: int, region: str) -> list:
             break
     if rows and len(rows) < max_results and backends:
         try:
-            more = d.text(query, max_results=max_results, region=region, page=2, **backends)
+            more = d.text(
+                query, max_results=max_results, region=region, page=2, **backends, **since
+            )
         except Exception:
             more = []
         seen = {r.get("href") for r in rows}
@@ -706,7 +734,7 @@ def _web_rows(d, query: str, max_results: int, region: str) -> list:
     return rows
 
 
-async def _search_duckduckgo(query, max_results=6, category="all"):
+async def _search_duckduckgo(query, max_results=6, category="all", period="", safe=True):
     # prefer the maintained ddg lib if present; else scrape the html endpoints.
     # the lib got renamed duckduckgo_search -> ddgs, so try the new name first.
     try:
@@ -718,11 +746,12 @@ async def _search_duckduckgo(query, max_results=6, category="all"):
             from duckduckgo_search import DDGS
 
         region = search_region(query)
+        level = "moderate" if safe else "off"
 
         def _go():
             with DDGS() as d:
                 if category == "images":
-                    rows = d.images(query, max_results=max_results, region=region)
+                    rows = d.images(query, max_results=max_results, region=region, safesearch=level)
                     return [
                         {
                             "url": r.get("url") or r.get("image") or "",
@@ -738,7 +767,13 @@ async def _search_duckduckgo(query, max_results=6, category="all"):
                         if r.get("url") or r.get("image")
                     ]
                 if category == "news":
-                    rows = d.news(query, max_results=max_results, region=region)
+                    rows = d.news(
+                        query,
+                        max_results=max_results,
+                        region=region,
+                        safesearch=level,
+                        **({"timelimit": _DDGS_PERIOD[period]} if period in _DDGS_PERIOD else {}),
+                    )
                     return [
                         {
                             "url": r.get("url") or "",
@@ -752,7 +787,7 @@ async def _search_duckduckgo(query, max_results=6, category="all"):
                         if r.get("url")
                     ]
                 if category == "videos":
-                    rows = d.videos(query, max_results=max_results, region=region)
+                    rows = d.videos(query, max_results=max_results, region=region, safesearch=level)
                     output = []
                     for r in rows:
                         images = r.get("images") if isinstance(r.get("images"), dict) else {}
@@ -777,7 +812,7 @@ async def _search_duckduckgo(query, max_results=6, category="all"):
                         "title": r.get("title", ""),
                         "snippet": r.get("body", ""),
                     }
-                    for r in _web_rows(d, query, max_results, region)
+                    for r in _web_rows(d, query, max_results, region, period, safe)
                     if r.get("href")
                 ]
 
@@ -867,9 +902,13 @@ def _category_query(query: str, category: str) -> str:
     return query
 
 
-async def _search_provider(name, query, settings, max_results, category="all"):
+async def _search_provider(name, query, settings, max_results, category="all", period=""):
+    if period and name not in PERIOD_ENGINES:
+        raise SearchProviderFailure("no_period")
+    # adult pages and pictures stay out unless the owner turned safe search off
+    safe = settings.get("andromeda_safe_search") is not False
     if name == "duckduckgo":
-        return await _search_duckduckgo(query, max_results, category)
+        return await _search_duckduckgo(query, max_results, category, period, safe)
     if name == "wikipedia":
         if category != "all":
             return []
@@ -884,12 +923,12 @@ async def _search_provider(name, query, settings, max_results, category="all"):
         key = settings.get("brave_api_key") or os.getenv("BRAVE_API_KEY", "")
         if not key:
             raise SearchProviderFailure("configuration")
-        return await _search_brave(provider_query, key, max_results)
+        return await _search_brave(provider_query, key, max_results, period, safe)
     if name == "searxng":
         url = settings.get("searxng_url") or os.getenv("SEARXNG_URL", "")
         if not url:
             raise SearchProviderFailure("configuration")
-        return await _search_searxng(query, url, max_results, category)
+        return await _search_searxng(query, url, max_results, category, period, safe)
     if name == "google_pse":
         key = settings.get("google_pse_api_key") or os.getenv("GOOGLE_PSE_API_KEY", "")
         cx = settings.get("google_pse_cx") or os.getenv("GOOGLE_PSE_CX", "")
@@ -914,7 +953,7 @@ async def _search_provider(name, query, settings, max_results, category="all"):
         key = settings.get("exa_api_key") or os.getenv("EXA_API_KEY", "")
         if not key:
             raise SearchProviderFailure("configuration")
-        return await _search_exa(query, key, max_results, category)
+        return await _search_exa(query, key, max_results, category, period, safe)
     if name == "serper":
         key = settings.get("serper_api_key") or os.getenv("SERPER_API_KEY", "")
         if not key:
@@ -923,7 +962,9 @@ async def _search_provider(name, query, settings, max_results, category="all"):
     raise SearchProviderFailure("configuration")
 
 
-async def search_chain_report(query, override=None, max_results=10, category="all") -> SearchReport:
+async def search_chain_report(
+    query, override=None, max_results=10, category="all", period=""
+) -> SearchReport:
     """Run every needed provider and return safe, structured diagnostics."""
     from core.settings import load_settings
 
@@ -956,7 +997,14 @@ async def search_chain_report(query, override=None, max_results=10, category="al
         if safe_name not in attempted:
             attempted.append(safe_name)
         try:
-            results = await _search_provider(name, query, settings, max_results, category)
+            results = await _search_provider(
+                name,
+                query,
+                settings,
+                max_results,
+                category,
+                **({"period": period} if period else {}),
+            )
             if not fix[0] and getattr(results, "correction", ""):
                 fix = (str(results.correction), bool(results.correction_applied))
             if results:
@@ -993,7 +1041,7 @@ async def search_chain_report(query, override=None, max_results=10, category="al
     return SearchReport([], None, safe_error, failure_type, tuple(attempted), *fix)
 
 
-async def search_chain(query, override=None, max_results=10, category="all"):
+async def search_chain(query, override=None, max_results=10, category="all", period=""):
     """run the provider chain, return (results, provider_used, last_error).
 
     provider_used is the one that actually answered (for the report stats);
@@ -1003,7 +1051,9 @@ async def search_chain(query, override=None, max_results=10, category="all"):
     The value still unpacks exactly like the historical three-item tuple. Safe
     diagnostics are available as ``failure_type`` and ``attempted_sources``.
     """
-    return SearchChainResult(await search_chain_report(query, override, max_results, category))
+    return SearchChainResult(
+        await search_chain_report(query, override, max_results, category, period)
+    )
 
 
 async def web_search(query, max_results=5, provider=None):

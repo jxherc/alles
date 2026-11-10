@@ -170,6 +170,34 @@ class MetasearchEnginesTest(unittest.TestCase):
         self.assertEqual(calls[1]["page"], 2)
         self.assertEqual(calls[1]["backend"], calls[0]["backend"])
 
+    def test_the_free_engines_get_the_period_and_the_safe_search_level(self):
+        page = ["https://a.dev/1", "https://a.dev/2", "https://a.dev/3"]
+        _urls, calls = self.run_keyless([page])
+        self.assertEqual(calls[0]["safesearch"], "moderate")
+        self.assertNotIn("timelimit", calls[0])
+        calls = []
+
+        class Free:
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *_exc):
+                return False
+
+            def text(self, _query, **kwargs):
+                calls.append(kwargs)
+                return [{"href": url, "title": url, "body": "b"} for url in page]
+
+            def news(self, _query, **kwargs):
+                calls.append(kwargs)
+                return [{"url": page[0], "title": "t"}]
+
+        with mock.patch("ddgs.DDGS", Free):
+            asyncio.run(search_service._search_duckduckgo("x", 3, "all", "week", False))
+            asyncio.run(search_service._search_duckduckgo("x", 3, "news", "day", True))
+        self.assertEqual((calls[0]["timelimit"], calls[0]["safesearch"]), ("w", "off"))
+        self.assertEqual((calls[1]["timelimit"], calls[1]["safesearch"]), ("d", "moderate"))
+
     def test_startpage_is_not_a_search_engine_option(self):
         self.assertNotIn("startpage", search_service._KNOWN_PROVIDERS)
 
@@ -231,6 +259,75 @@ class ExaEngineTest(unittest.TestCase):
         self.assertTrue(datetime.timedelta(days=30) <= age < datetime.timedelta(days=31), age)
         _rows, seen = self.run_exa("all")
         self.assertNotIn("startPublishedDate", seen["body"])
+
+    def test_a_period_and_safe_search_reach_each_engine_in_its_own_words(self):
+        import datetime
+
+        def exa(**kwargs):
+            seen = {}
+
+            def handler(request):
+                seen.update(json.loads(request.content))
+                return httpx.Response(200, json={"results": []})
+
+            client = httpx.AsyncClient
+
+            def make(*args, **options):
+                return client(*args, transport=httpx.MockTransport(handler), **options)
+
+            with mock.patch.object(search_service.httpx, "AsyncClient", make):
+                asyncio.run(search_service._search_exa("toronto", "k-1", 8, "all", **kwargs))
+            return seen
+
+        body = exa(period="week")
+        age = datetime.datetime.now(datetime.UTC) - datetime.datetime.fromisoformat(
+            body["startPublishedDate"]
+        )
+        self.assertTrue(datetime.timedelta(days=7) <= age < datetime.timedelta(days=8), age)
+        self.assertIs(body["moderation"], True)
+        body = exa(safe=False)
+        self.assertNotIn("moderation", body)
+        self.assertNotIn("startPublishedDate", body)
+
+        def brave(**kwargs):
+            seen = {}
+
+            def handler(request):
+                seen.update(dict(request.url.params))
+                return httpx.Response(200, json={"web": {"results": []}})
+
+            client = httpx.AsyncClient
+
+            def make(*args, **options):
+                return client(*args, transport=httpx.MockTransport(handler), **options)
+
+            with mock.patch.object(search_service.httpx, "AsyncClient", make):
+                asyncio.run(search_service._search_brave("toronto", "k-1", 8, **kwargs))
+            return seen
+
+        self.assertEqual(brave(period="month")["freshness"], "pm")
+        self.assertEqual(brave()["safesearch"], "moderate")
+        self.assertNotIn("freshness", brave())
+        self.assertEqual(brave(safe=False)["safesearch"], "off")
+
+    def test_an_engine_that_cannot_filter_by_date_is_skipped_for_a_dated_search(self):
+        settings = {"research_search_provider": "tavily", "search_fallback_chain": ["duckduckgo"]}
+        asked = []
+
+        async def free(query, max_results=6, category="all", period="", safe=True):
+            asked.append((period, safe))
+            return [{"url": "https://a.dev/x", "title": "A", "snippet": "s"}]
+
+        with (
+            mock.patch("core.settings.load_settings", return_value=settings),
+            mock.patch.object(search_service, "_search_duckduckgo", new=free),
+            mock.patch.object(search_service, "_search_tavily", new=mock.AsyncMock()) as tavily,
+        ):
+            report = asyncio.run(search_service.search_chain_report("x", period="week"))
+        # results that ignore the filter would be worse than a second engine's that respect it
+        tavily.assert_not_called()
+        self.assertEqual((report.provider, asked), ("duckduckgo", [("week", True)]))
+        self.assertEqual(search_service.PERIOD_ENGINES, {"exa", "brave", "searxng", "duckduckgo"})
 
     def test_site_is_sent_the_way_exa_reads_it(self):
         # exa matches meaning: "site:reddit.com" in the words was just two more words to it

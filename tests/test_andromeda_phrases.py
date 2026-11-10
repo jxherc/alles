@@ -378,6 +378,13 @@ class PhraseTableTest(unittest.TestCase):
             "5英尺11英寸是多少厘米": {"kind": "units", "amount": 71.0, "from": "in", "to": "cm"},
             "how many kg is 180 lb": {"kind": "units", "amount": 180.0, "from": "lb", "to": "kg"},
             "1.5 l to oz": {"kind": "units", "amount": 1.5, "from": "l", "to": "floz"},
+            "1 acre in square feet": {"kind": "units", "amount": 1.0, "from": "acre", "to": "sqft"},
+            "1000平方英尺是多少平方米": {
+                "kind": "units",
+                "amount": 1000.0,
+                "from": "sqft",
+                "to": "sqm",
+            },
             "东京现在几点": {"kind": "time", "place": "tokyo", "zone": "Asia/Tokyo"},
             "time in markham": {"kind": "time", "place": "markham", "zone": ""},
             "距离圣诞节还有多少天": {
@@ -449,6 +456,20 @@ class PhraseTableTest(unittest.TestCase):
         card = asyncio.run(andromeda_answers.resolve(found))
         self.assertEqual((card["at"], card["difference_hours"]), ("15:00", -3.0))
         self.assertIn("T15:00:00", card["at_iso"])
+        # the same asked in chinese
+        for phrase, at, here, there in (
+            ("北京时间下午3点是多伦多几点", "15:00", "Asia/Shanghai", "America/Toronto"),
+            ("多伦多上午9点半是北京时间几点", "09:30", "America/Toronto", "Asia/Shanghai"),
+            ("东京时间15:30是纽约几点", "15:30", "Asia/Tokyo", "America/New_York"),
+            ("伦敦凌晨12点是北京几点", "00:00", "Europe/London", "Asia/Shanghai"),
+        ):
+            with self.subTest(phrase=phrase):
+                found = detect(phrase)
+                self.assertEqual(
+                    (found["at"], found["zone"], found["other_zone"]), (at, here, there)
+                )
+        for phrase in ("下午3点是几点", "我几点下班"):
+            self.assertIsNone(detect(phrase))
         # two places with "to" between them are a trip unless a zone or the word time says otherwise
         self.assertIsNone(detect("toronto to beijing"))
         self.assertEqual(detect("toronto to beijing time")["other_zone"], "Asia/Shanghai")

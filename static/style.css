@@ -9530,6 +9530,25 @@ body.afterlife-shell[data-space="andromeda"] .main { flex: 1 1 auto; }
 .andromeda-tab:hover,
 .andromeda-tab.active { color: var(--text); -webkit-text-stroke: 0.35px currentColor; }
 .andromeda-result-meta { color: var(--muted); font-size: 0.8125rem; white-space: nowrap; }
+/* "past week": a quiet dropdown at the end of the tabs row, the same height as a tab. it is
+   only there when the engine can filter by date, and it holds its place when it opens */
+.andromeda-view .andromeda-period { flex: 0 0 auto; width: 10.5rem; margin-inline-start: auto; }
+.andromeda-view .andromeda-period[hidden] + .andromeda-result-meta { margin-inline-start: auto; }
+/* what people search next: plain rows under the results, 2 across where there is room */
+.andromeda-related { max-width: var(--andromeda-text); margin-top: 32px; }
+.andromeda-related h2 { margin: 0 0 8px; color: var(--muted); font-size: 0.8125rem; font-weight: 560; }
+.andromeda-related-list { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--k-row-gap) 16px; }
+.andromeda-related-item {
+  min-width: 0; min-height: 44px; display: flex; align-items: center; gap: 12px; margin-inline-start: -12px; padding: 0 12px;
+  border: 0; border-radius: var(--k-radius-control); background: transparent; color: var(--text);
+  font-size: 0.9375rem; text-align: start; cursor: pointer;
+}
+.andromeda-related-item:hover { background: var(--k-hover); }
+.andromeda-related-item svg { flex: none; width: 16px; height: 16px; color: var(--muted); }
+.andromeda-related-item span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+@container (max-width: 40rem) {
+  .andromeda-related-list { grid-template-columns: minmax(0, 1fr); }
+}
 .andromeda-status { min-height: 0; padding-top: 4px; color: var(--muted); font-size: 0.8125rem; }
 .andromeda-status:empty { display: none; }
 
@@ -10351,8 +10370,10 @@ html[data-theme="light"] .andromeda-source-mark:has(img.loaded) { border-color: 
   .andromeda-head-actions { grid-column: 2; grid-row: 1; }
   .andromeda-search { grid-column: 1 / -1; grid-row: 2; }
   .andromeda-result-column { width: 100%; margin-inline-start: 0; }
-  .andromeda-result-tools { min-height: 44px; }
+  .andromeda-result-tools { min-height: 44px; flex-wrap: wrap; row-gap: 8px; }
   .andromeda-tabs { gap: 0; overflow-x: auto; }
+  /* no room beside 4 tabs on a phone: the date filter takes its own row, from the left edge */
+  .andromeda-view .andromeda-period { margin-inline-start: 0; }
   .andromeda-result-meta { display: none; }
   .andromeda-overview { padding: 16px 0 18px; }
   .andromeda-section-head { align-items: flex-start; flex-wrap: wrap; }

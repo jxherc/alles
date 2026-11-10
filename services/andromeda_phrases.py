@@ -268,7 +268,35 @@ _OTHER_CLOCK = re.compile(
 )
 
 
+_ZH_AT = re.compile(
+    r"^(?P<a>.+?)(?:时间|時間)?\s*(?P<part>上午|早上|早晨|凌晨|中午|下午|晚上|傍晚|夜里|夜裡)?\s*"
+    r"(?P<hour>\d{1,2})\s*(?:[点點时時:])\s*(?P<minute>\d{1,2}|半)?\s*分?\s*"
+    r"(?:是|等于|等於|相当于|相當於|在)?\s*(?P<b>.+?)(?:时间|時間)?的?"
+    r"(?:几点钟|幾點鐘|几点了|几点|幾點|什么时间|什麼時間|什么时候|什麼時候)$"
+)
+
+
+def _clock_elsewhere(low: str) -> str:
+    """北京时间下午3点是多伦多几点 as "15:00 beijing time in toronto"."""
+    found = _ZH_AT.fullmatch(low)
+    if not found:
+        return ""
+    hour = int(found["hour"])
+    minute = 30 if found["minute"] == "半" else int(found["minute"] or 0)
+    part = found["part"] or ""
+    if part in ("下午", "晚上", "傍晚", "夜里", "夜裡") and hour < 12:
+        hour += 12
+    elif part == "凌晨" and hour == 12:
+        hour = 0
+    if hour > 23 or minute > 59:
+        return ""
+    return f"{hour}:{minute:02d} {place(found['a'])} time in {place(found['b'])}"
+
+
 def _time(low: str) -> str:
+    found = _clock_elsewhere(low)
+    if found:
+        return found
     if _ZH_CLOCK.fullmatch(low) or _OTHER_CLOCK.fullmatch(low):
         return "what time is it" if low not in ("时间", "時間") else ""
     found = _ZH_DIFFERENCE.fullmatch(low)
@@ -371,11 +399,24 @@ UNIT_WORDS = {
     "l": "升 公升 リットル 리터 litros litres",
     "ml": "毫升 ミリリットル",
     "gal": "加仑 加侖 ガロン galones gallons",
+    "sqm": "平方米 平米 平方公尺 metros cuadrados mètres carrés",
+    "sqft": "平方英尺 平方呎 pies cuadrados pieds carrés",
+    "sqkm": "平方公里 平方千米",
+    "acre": "英亩 英畝",
+    "ha": "公顷 公頃 hectáreas",
     "h": "小时 小時 钟头 時間 horas heures",
     "min": "分钟 分鐘 分 minutos",
     "s": "秒 秒钟 秒鐘 segundos secondes",
 }
 _UNIT_KEY = {alias: key for key, names in UNIT_WORDS.items() for alias in names.split(" ")}
+_UNIT_KEY |= {
+    "metros cuadrados": "sqm",
+    "mètres carrés": "sqm",
+    "pies cuadrados": "sqft",
+    "pieds carrés": "sqft",
+}
+for _stray in ("metros", "cuadrados", "carrés"):
+    _UNIT_KEY.pop(_stray, None)
 _UNIT_NAME = (
     "(?:"
     + "|".join(sorted((re.escape(k) for k in _UNIT_KEY), key=len, reverse=True))

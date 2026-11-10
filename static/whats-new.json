@@ -1,6 +1,47 @@
 {
   "releases": [
     {
+      "id": "2026-11-10",
+      "date": "november 10, 2026",
+      "items": [
+        {
+          "key": "two_engines",
+          "title": "search asks two engines",
+          "body": "a web search now asks your engine and a word-matching one together and shows one list. exact words, lyrics, error messages and how-to pages show up where they used to be missed."
+        },
+        {
+          "key": "cards_any_wording",
+          "title": "tool cards in any wording",
+          "body": "weather, time, currency, units, the calculator, dates and the timer open however you ask, in english or chinese: 多伦多明天天气, 100美元等于多少人民币, 5'11 in cm, 12 times 12, 3pm est in pst."
+        },
+        {
+          "key": "knowledge_panel",
+          "title": "what the thing is",
+          "body": "search a place, a person or a thing and its wikipedia summary shows beside the results."
+        },
+        {
+          "key": "search_tools",
+          "title": "past week, related searches, safe search",
+          "body": "a date filter sits by the tabs, related searches show under the results, and adult results stay out unless you turn safe search off in settings."
+        },
+        {
+          "key": "suggestions",
+          "title": "suggestions while you type",
+          "body": "the search box completes what you type, in the language you type in."
+        },
+        {
+          "key": "stays_signed_in",
+          "title": "a restart keeps you signed in",
+          "body": "sign in survives a restart, a lost session shows sign in over the page you were on, and a page that can't start says so with a retry."
+        },
+        {
+          "key": "update_no_accept",
+          "title": "updates keep themselves",
+          "body": "alles update no longer ends by asking for alles update accept. the next update keeps the last one when alles is healthy, and alles update rollback still goes back."
+        }
+      ]
+    },
+    {
       "id": "2026-11-06",
       "date": "november 6, 2026",
       "items": [

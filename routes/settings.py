@@ -365,6 +365,7 @@ class SettingsPatch(BaseModel):
     andromeda_confirm_remote: bool | None = None
     search_fallback: str | None = None
     andromeda_normal_results: bool | None = None
+    andromeda_safe_search: bool | None = None
     andromeda_overview: bool | None = None
     andromeda_model_band: str | None = None
     andromeda_model_bands: dict | None = None

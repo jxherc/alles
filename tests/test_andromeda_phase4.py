@@ -689,6 +689,46 @@ class AndromedaApiTest(ApiTest):
             [30, andromeda.MAX_NORMAL_FETCH_RESULTS],
         )
 
+    def test_a_dated_search_passes_the_period_and_says_whether_the_engine_can_filter(self):
+        chain = mock.AsyncMock(
+            return_value=([{"url": "https://a.dev/x", "title": "A"}], "exa", None)
+        )
+        with (
+            mock.patch("services.research.search.search_chain", new=chain),
+            mock.patch("routes.andromeda.load_settings", return_value={"search_provider": "exa"}),
+        ):
+            dated = self.client.post(
+                "/api/andromeda/search",
+                json={"query": "toronto", "period": "week", "overview": False},
+            ).json()
+            pictures = self.client.post(
+                "/api/andromeda/search",
+                json={"query": "toronto", "period": "week", "category": "images"},
+            ).json()
+            bad = self.client.post("/api/andromeda/search", json={"query": "x", "period": "decade"})
+        self.assertEqual((dated["period"], dated["can_filter_period"]), ("week", True))
+        self.assertEqual(chain.await_args_list[0].kwargs["period"], "week")
+        # a picture has no date here: the filter is not passed on
+        self.assertEqual(pictures["period"], "")
+        self.assertNotIn("period", chain.await_args_list[-1].kwargs)
+        self.assertEqual(bad.status_code, 422)
+        with (
+            mock.patch("services.research.search.search_chain", new=chain),
+            mock.patch(
+                "routes.andromeda.load_settings", return_value={"search_provider": "tavily"}
+            ),
+        ):
+            other = self.client.post("/api/andromeda/search", json={"query": "toronto"}).json()
+        self.assertIs(other["can_filter_period"], False)
+
+    def test_safe_search_is_a_setting_that_is_on(self):
+        from core import settings as core_settings
+
+        self.assertIs(core_settings._defaults["andromeda_safe_search"], True)
+        saved = self.client.patch("/api/settings", json={"andromeda_safe_search": False})
+        self.assertEqual(saved.status_code, 200)
+        self.assertIs(self.client.get("/api/settings").json()["andromeda_safe_search"], False)
+
     def test_dead_search_media_returns_a_quiet_local_placeholder(self):
         with mock.patch(
             "services.net_guard.safe_get_public_async",

@@ -1334,7 +1334,8 @@ andromeda opens at `http://localhost:6769/?app=andromeda` or its own app host. i
   is read in another zone ("3pm est in pst", "9:30 toronto time in beijing"), zone letters are known (est, pst, cet, jst),
   and a place the zone table doesn't know ("time in markham", 成都现在几点) is looked up with the geocoder the weather card
   uses, told the language of the script it is written in (it finds 多伦多 only then). an ounce beside a volume is a fluid
-  ounce. words that only look like a tool question stay searches (天气之子, 时间简史, weather girls, 翻译官, the meaning of
+  ounce, areas convert (acres, hectares, square feet and metres), and a clock time asked in chinese is read in the other
+  place (北京时间下午3点是多伦多几点). words that only look like a tool question stay searches (天气之子, 时间简史, weather girls, 翻译官, the meaning of
   life). [tests/test_andromeda_phrases.py](tests/test_andromeda_phrases.py) holds 267 phrasings that must open their card
   and 25 that must not; before this layer 147 of 293 did (nov 10).
 - **the overview fits the query.** `POST /api/andromeda/search` reports `overview_mode` (`full`, `brief`, `ask`, `skip`, `none`): when a tool
@@ -1375,6 +1376,15 @@ andromeda opens at `http://localhost:6769/?app=andromeda` or its own app host. i
   composing. the typed text leaves the server for this, with no cookie or account; a search engine set to "disabled", a bang, or an
   empty box sends nothing. arrow keys, return, a tap and escape work as in the history list. a search that is still loading never
   writes over the next one being typed.
+- **a date filter, related searches and safe search.** a dropdown at the end of the tabs row limits web and news results to
+  the past 24 hours, week, month or year (`period` on `POST /api/andromeda/search`, `t=` in the address). each engine is told
+  in its own words: exa `startPublishedDate`, brave `freshness`, searxng `time_range` (it has no week, so a week asks for a
+  month), the free engines `timelimit`. the reply says whether the chosen engine can filter (`can_filter_period`), and the
+  page only shows the dropdown then; an engine that can't is skipped for a dated search, so results never ignore the filter.
+  pictures and videos carry no date here and get none. under the results, up to 8 related searches come from the same
+  suggestion service the search box completes from (2 or more, or the section stays away); one tap searches it. safe search
+  (`andromeda_safe_search`, on, a switch in settings › andromeda) keeps adult pages and pictures out: exa `moderation`,
+  brave and the free engines `safesearch` moderate, searxng `safesearch` 1; off sends them off.
 - **what the searched thing is.** a search that names one wikipedia page ("toronto", "nyc", "obama", 多倫多) gets a panel with the
   page's picture, title, short description and first sentences, from `GET /api/andromeda/knowledge`
   ([services/andromeda_knowledge.py](services/andromeda_knowledge.py)). "names" means the page's title or a redirect to it, in any
@@ -4505,6 +4515,7 @@ these are source defaults in [core/settings.py](core/settings.py), not values fr
 | `andromeda_translate_url` | `""` |
 | `search_fallback` | `"duckduckgo"` |
 | `andromeda_normal_results` | `true` |
+| `andromeda_safe_search` | `true` |
 | `andromeda_overview` | `true` |
 | `andromeda_model_band` | `"standard"` |
 | `andromeda_model_bands` | `{}` |

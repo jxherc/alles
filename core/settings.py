@@ -152,6 +152,8 @@ _defaults = {
     "andromeda_translate_url": "",
     "search_fallback": "duckduckgo",
     "andromeda_normal_results": True,
+    # adult pages and pictures are left out of results; the owner can turn that off
+    "andromeda_safe_search": True,
     "andromeda_overview": True,
     "andromeda_model_band": "standard",
     "andromeda_model_bands": {},

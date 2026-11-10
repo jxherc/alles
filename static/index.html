@@ -7,7 +7,7 @@
 <title>alles</title>
 <script src="/static/prepaint.js"></script>
 <link rel="stylesheet" href="/static/vendor/xterm/xterm.css?v=6.0.0">
-<link rel="stylesheet" href="/static/style.css?v=629">
+<link rel="stylesheet" href="/static/style.css?v=630">
   <link rel="stylesheet" href="/static/kokuen.css?v=99">
 <link rel="stylesheet" href="/static/aidecentral.css?v=23">
 <link rel="stylesheet" href="/static/aidecall.css?v=4">
@@ -24,7 +24,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="alles">
 <!-- modulepreload:start -->
-<link rel="modulepreload" href="/static/js/app.js?v=629">
+<link rel="modulepreload" href="/static/js/app.js?v=630">
 <link rel="modulepreload" href="/static/js/sessions.js">
 <link rel="modulepreload" href="/static/js/models.js?v=217">
 <link rel="modulepreload" href="/static/js/icons.js">
@@ -66,7 +66,7 @@
 <link rel="modulepreload" href="/static/js/aideworkspace.js?v=283">
 <link rel="modulepreload" href="/static/js/aidecentral.js?v=4">
 <link rel="modulepreload" href="/static/js/kokuen.js?v=5">
-<link rel="modulepreload" href="/static/js/andromeda.js?v=263">
+<link rel="modulepreload" href="/static/js/andromeda.js?v=264">
 <link rel="modulepreload" href="/static/js/app_rail.js">
 <link rel="modulepreload" href="/static/js/shortcuts.js">
 <link rel="modulepreload" href="/static/js/ask_panel.js">
@@ -346,6 +346,7 @@
               <button class="andromeda-tab" type="button" data-andromeda-category="news" data-i18n="andromeda.news">news</button>
               <button class="andromeda-tab" type="button" data-andromeda-category="videos" data-i18n="andromeda.videos">videos</button>
             </nav>
+            <div class="settings-input custom-select andromeda-period" id="andromeda-period" aria-label="time" data-i18n-aria-label="andromeda.period" data-value="" data-options="|any time;day|past 24 hours;week|past week;month|past month;year|past year" data-i18n-options="andromeda.period_any;andromeda.period_day;andromeda.period_week;andromeda.period_month;andromeda.period_year" hidden></div>
             <span id="andromeda-result-meta" class="andromeda-result-meta"></span>
           </div>
           <div id="andromeda-status" class="andromeda-status" role="status" aria-live="polite"></div>
@@ -436,6 +437,11 @@
           <div class="andromeda-results-tail" id="andromeda-results-tail" hidden>
             <button id="andromeda-more-results" type="button" data-i18n="andromeda.more_results">more results</button>
           </div>
+
+          <section class="andromeda-related" id="andromeda-related" aria-labelledby="andromeda-related-title" hidden>
+            <h2 id="andromeda-related-title" data-i18n="andromeda.related">related searches</h2>
+            <div class="andromeda-related-list" id="andromeda-related-list"></div>
+          </section>
 
           <div class="andromeda-actions" id="andromeda-actions" hidden>
             <button id="andromeda-explain" type="button" data-i18n="andromeda.ask_aide">ask aide about these results</button>
@@ -2121,6 +2127,10 @@
                 <button class="s-switch" id="s-andromeda-results" type="button" role="switch" aria-checked="true" aria-labelledby="s-andromeda-results-label"></button>
               </div>
               <div class="s-toggle-row">
+                <div><div class="s-toggle-label" id="s-andromeda-safe-label" data-i18n="andromeda.safe_search">safe search</div></div>
+                <button class="s-switch" id="s-andromeda-safe" type="button" role="switch" aria-checked="true" aria-labelledby="s-andromeda-safe-label"></button>
+              </div>
+              <div class="s-toggle-row">
                 <div><div class="s-toggle-label" id="s-andromeda-overview-label" data-i18n="common.ai_overview">ai overview</div></div>
                 <button class="s-switch" id="s-andromeda-overview" type="button" role="switch" aria-checked="true" aria-labelledby="s-andromeda-overview-label"></button>
               </div>
@@ -3137,6 +3147,6 @@
 </div>
 
 <script src="/static/js/bootwatch.js"></script>
-<script type="module" src="/static/js/app.js?v=629"></script>
+<script type="module" src="/static/js/app.js?v=630"></script>
 </body>
 </html>
