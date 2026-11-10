@@ -229,9 +229,9 @@ function renderLocations() {
       ${locationIcon(location.kind)}
       <span class="files-location-copy">
         <strong>${esc(location.name)}</strong>
-        <small>${esc(location.kind === 'local' ? t('files.kind_local') : location.kind.toUpperCase())}</small>
+        ${location.kind === 'local' ? '' : `<small>${esc(location.kind.toUpperCase())}</small>`}
       </span>
-      <span class="files-location-access">${location.access === 'managed' ? t('files.access_managed') : t('files.read_only')}</span>
+      ${location.access === 'managed' ? '' : `<span class="files-location-access">${t('files.read_only')}</span>`}
     </button>`).join('');
   if (focusedId && !host.hidden) {
     [...host.querySelectorAll('[data-location-id]')]
