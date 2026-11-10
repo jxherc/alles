@@ -2846,7 +2846,7 @@ mark.wiki-cmark { background: rgba(129, 140, 248, 0.28); color: inherit; border-
   flex-shrink: 0;
   /* wrap whole controls to a new row when narrow instead of clipping toolbar buttons off the
      right edge — only kicks in when the head would overflow, so desktop single rows are unchanged */
-  flex-wrap: wrap; row-gap: 0.4rem;
+  flex-wrap: wrap; row-gap: var(--k-control-gap);
 }
 .page-view-title {
   font-size: 1.125rem; font-weight: 600; letter-spacing: -0.01em;
@@ -6666,7 +6666,7 @@ button.cal-task { width: 100%; margin: 0; padding-inline-start: 6px; border: 0; 
 /* view toggle + form labels */
 #calendar-list { display: flex; flex-direction: column; }
 /* let the toolbar wrap as whole controls (not split labels / cog off-screen) when narrow */
-#calendar-view .page-view-head { flex-wrap: wrap; row-gap: 0.4rem; }
+#calendar-view .page-view-head { flex-wrap: wrap; row-gap: var(--k-control-gap); }
 #calendar-view .page-view-head .btn { white-space: nowrap; }
 .cal-date-controls, .cal-primary-actions, .cal-tools { display: contents; }
 #cal-tools-toggle { display: none; align-items: center; min-height: var(--k-control, 44px); }
