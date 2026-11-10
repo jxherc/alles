@@ -30,9 +30,9 @@ class SettingsHomesTest(unittest.TestCase):
         # or /?view=settings#s-ledger, so the anchor must stay inside a settings pane
         root = Path(__file__).resolve().parents[1]
         html = (root / "static" / "index.html").read_text()
-        tools = html.index('id="s-pane-tools"')
+        machine = html.index('id="s-pane-machine"')
         anchor = html.index('id="s-ledger"')
-        self.assertLess(tools, anchor)
+        self.assertLess(machine, anchor)
         self.assertLess(anchor, html.index('id="s-pane-developer"'))
         self.assertIn('id="s-ledger-body"', html)
         app = (root / "static" / "js" / "app.js").read_text()

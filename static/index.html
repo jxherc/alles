@@ -1711,7 +1711,9 @@
         <button class="s-nav-item" type="button" data-pane="andromeda" data-i18n="shell.app_andromeda">andromeda</button>
 
         <div class="s-nav-group" data-i18n="common.connections">connections</div>
-        <button class="s-nav-item" type="button" data-pane="tools" data-i18n="shell.settings.connections_tools">connections &amp; tools</button>
+        <button class="s-nav-item" type="button" data-pane="tools" data-i18n="common.connections">connections</button>
+        <button class="s-nav-item" type="button" data-pane="agent" data-i18n="settings.pane_agent">agent</button>
+        <button class="s-nav-item" type="button" data-pane="machine" data-i18n="settings.pane_machine">this machine</button>
         <button class="s-nav-item" type="button" data-pane="developer" data-i18n="shell.settings.api_shortcuts">api &amp; shortcuts</button>
         <button class="s-nav-item" type="button" data-pane="rules" data-i18n="settings.automation_delivery">automation & delivery</button>
 
@@ -1807,7 +1809,6 @@
         <div class="s-pane active" id="s-pane-models">
           <div class="s-card" id="s-model-defaults-card" hidden>
             <div class="s-card-head">
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 7h10M4 12h16M4 17h7"/><circle cx="17" cy="7" r="3"/><circle cx="14" cy="17" r="3"/></svg>
               <span data-i18n="shell.settings_models.model_defaults">model defaults</span>
             </div>
             <div class="s-card-body">
@@ -1823,7 +1824,6 @@
           </div>
           <div class="s-card">
             <div class="s-card-head">
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/></svg>
               <span data-i18n="shell.settings_models.model_connections">model connections</span>
               <button class="btn" id="s-ep-refresh-all" type="button" style="margin-left:auto" data-i18n="shell.settings_models.refresh_all">refresh all</button>
             </div>
@@ -1873,7 +1873,6 @@
                 </div>
               </details>
               <div class="s-oauth-connect">
-                <button class="btn" id="s-gemini-oauth-toggle" type="button" aria-expanded="false" data-i18n="shell.settings_models.connect_gemini_with_google_oauth">connect Gemini with Google OAuth</button>
                 <div class="s-oauth-panel" id="s-gemini-oauth-panel" hidden>
                   <p data-i18n="shell.s_gemini_oauth.use_a_desktop_oauth_client_from">Use a desktop OAuth client from your own Google Cloud project. Alles stores its refresh token encrypted and requests only the Cloud Platform scope required by Google's Gemini flow.</p>
                   <div class="s-ep-auth-grid">
@@ -1887,30 +1886,34 @@
               <p class="s-card-hint s-provider-warning" data-i18n="shell.settings_models.alles_uses_provider_api_keys_owner">Alles never imports consumer chat sessions. Requests may use provider quota or credits.</p>
             </div>
           </div>
-          <div class="s-card">
-            <div class="s-card-head">
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="4" width="16" height="16" rx="2"/><path d="M9 2v4M15 2v4M9 18v4M15 18v4M2 9h4M2 15h4M18 9h4M18 15h4"/></svg>
-              <span data-i18n="shell.settings_models.local_serving">local serving</span>
-            </div>
+          <div class="s-card" id="s-local-card">
+            <div class="s-card-head" data-i18n="shell.settings_models.local_serving">local serving</div>
             <div class="s-card-body">
-              <div id="s-local-ollama" style="font-size:0.8125rem;color:var(--muted);margin-bottom:0.45rem">checking Ollama…</div>
-              <div id="s-local-hw" style="font-size:0.8125rem;color:var(--muted);margin-bottom:0.65rem"></div>
-              <div id="s-local-presets" class="settings-list"></div>
-              <div class="s-field" style="margin-top:0.65rem"><label for="s-local-custom" data-i18n="shell.settings_models.pull_any_model">pull any model</label>
-                <div style="display:flex;gap:var(--k-control-gap)">
-                  <input type="text" class="settings-input" id="s-local-custom" aria-label="model to pull" spellcheck="false" style="flex:1" data-i18n-aria-label="shell.settings_models.model_to_pull">
-                  <button type="button" class="btn" id="s-local-pull-btn" data-i18n="shell.settings_models.pull">pull</button>
-                </div>
+              <div class="conn-catalog-row">
+                <span class="conn-catalog-who">
+                  <strong>Ollama</strong>
+                  <span id="s-local-ollama" role="status" aria-live="polite">checking Ollama…</span>
+                </span>
+                <span class="s-local-actions">
+                  <a class="btn" id="s-local-get-link" href="https://ollama.com/download" target="_blank" rel="noopener noreferrer" hidden data-i18n="providers.get_ollama">get Ollama</a>
+                  <button type="button" class="btn" id="s-local-start-btn" hidden data-i18n="shell.settings_models.start_ollama">start Ollama</button>
+                  <button type="button" class="btn" id="s-local-refresh-btn" hidden data-i18n="common.refresh">refresh</button>
+                </span>
               </div>
-              <div style="display:flex;gap:var(--k-control-gap);margin-top:0.4rem;flex-wrap:wrap">
-                <button type="button" class="btn" id="s-local-refresh-btn" data-i18n="common.refresh">refresh</button>
-                <button type="button" class="btn" id="s-local-start-btn" data-i18n="shell.settings_models.start_ollama">start Ollama</button>
+              <div class="s-local-running" id="s-local-running" hidden>
+                <div id="s-local-hw" class="s-card-hint"></div>
+                <div id="s-local-presets" class="settings-list"></div>
+                <div class="s-field"><label for="s-local-custom" data-i18n="shell.settings_models.pull_any_model">pull any model</label>
+                  <div class="s-local-pull">
+                    <input type="text" class="settings-input" id="s-local-custom" aria-label="model to pull" spellcheck="false" data-i18n-aria-label="shell.settings_models.model_to_pull">
+                    <button type="button" class="btn" id="s-local-pull-btn" data-i18n="shell.settings_models.pull">pull</button>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
           <div class="s-card">
             <div class="s-card-head">
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
               <span data-i18n="common.openai_compatible_api">openai-compatible api</span>
             </div>
             <div class="s-card-body" style="font-size:0.8125rem;color:var(--muted)">
@@ -2428,28 +2431,59 @@
         <div class="s-pane" id="s-pane-tools">
           <div class="s-card" id="conn-catalog-card">
             <div class="s-card-head">
-              <svg data-ic="link" aria-hidden="true"></svg>
               <span id="conn-catalog-title" data-i18n="connections.catalog_title">what alles can connect to</span>
             </div>
             <div class="s-card-body"><div class="conn-catalog" id="conn-catalog"></div></div>
           </div>
-          <div class="s-card" id="s-ledger" role="region" aria-labelledby="s-ledger-title">
+          <div class="s-card" id="photon-card">
             <div class="s-card-head">
-              <svg data-ic="dollar" aria-hidden="true"></svg>
-              <span id="s-ledger-title" data-i18n="finance.actual_ledger">Actual ledger</span>
+              <span data-i18n="shell.settings_tools.text_aide_over_imessage">text Aide over iMessage</span>
+              <span class="jarvis-discord-head-state" id="photon-head-state" data-i18n="connections.photon_state_off">off</span>
             </div>
-            <div class="s-card-body" id="s-ledger-body"></div>
+            <div class="s-card-body">
+              <div class="jarvis-discord-status">
+                <div><div class="s-toggle-label" data-i18n="shell.settings_tools.imessage_through_photon">iMessage through Photon</div><div class="s-toggle-desc" id="photon-detail" data-i18n="shell.settings_tools.photon_s_cloud_line_carries_the">Photon's cloud line carries the texts, so Photon's servers see them. approvals still happen only inside alles.</div></div>
+                <button class="s-switch" type="button" id="photon-enabled" role="switch" aria-checked="false" aria-label="text Aide over iMessage" data-i18n-aria-label="shell.settings_tools.text_aide_over_imessage"></button>
+              </div>
+              <div class="photon-connect">
+                <button class="btn primary" type="button" id="photon-connect-btn" data-i18n="shell.settings_tools.connect_with_photon">connect with Photon</button>
+                <p class="photon-connect-note" id="photon-connect-note" aria-live="polite" data-i18n="shell.settings_tools.sign_in_to_photon_once_alles">sign in to Photon once. alles sets up the project and lets your number through.</p>
+              </div>
+              <p class="photon-line" id="photon-line" aria-live="polite" hidden></p>
+              <div class="s-field"><label for="photon-owner"><span data-i18n="shell.settings_tools.your_phone_number_or_email">your phone number or email</span> <span class="s-field-note" data-i18n="shell.settings_tools.only_these_get_answers_one_per">only these get answers; one per line</span></label><textarea class="settings-textarea" id="photon-owner" rows="2" placeholder="+1 555 010 0199"></textarea></div>
+              <div class="jarvis-discord-status photon-receipts">
+                <div class="s-toggle-label" id="photon-receipts-label" data-i18n="connections.read_receipts">send read receipts</div>
+                <button class="s-switch" type="button" id="photon-read-receipts" role="switch" aria-checked="true" aria-labelledby="photon-receipts-label"></button>
+              </div>
+              <details class="photon-keys">
+                <summary data-i18n="shell.settings_tools.enter_photon_keys_yourself">enter Photon keys yourself</summary>
+                <div class="s-field"><label for="photon-project-id"><span data-i18n="shell.settings_tools.photon_project_id">Photon project id</span> <span class="s-field-note" data-i18n="shell.settings_tools.from_app_photon_codes">from app.photon.codes</span></label><input class="settings-input" id="photon-project-id" autocomplete="off" spellcheck="false" style="width:100%"></div>
+                <div class="s-field"><label for="photon-project-secret"><span data-i18n="shell.settings_tools.photon_project_secret">Photon project secret</span> </label><input type="password" class="settings-input" id="photon-project-secret" autocomplete="off" placeholder="paste the project secret" style="width:100%" data-i18n-placeholder="shell.settings_tools.paste_the_project_secret"></div>
+              </details>
+              <button class="btn" type="button" id="photon-save" style="width:100%" data-i18n="common.save">save</button>
+            </div>
           </div>
-          <div class="s-card" id="deps-card">
+          <div class="s-card" id="telegram-card">
             <div class="s-card-head">
-              <svg data-ic="download" aria-hidden="true"></svg>
-              <span data-i18n="dependencies.title">what Aide can use</span>
+              <span data-i18n="connections.telegram_title">text Aide on Telegram</span>
+              <span class="jarvis-discord-head-state" id="telegram-head-state" data-i18n="connections.photon_state_off">off</span>
             </div>
-            <div class="s-card-body"><div id="deps-list" role="group" aria-label="what Aide can use" data-i18n-aria-label="dependencies.title"></div></div>
+            <div class="s-card-body">
+              <div class="jarvis-discord-status">
+                <div><div class="s-toggle-label" data-i18n="connections.telegram_label">Aide on Telegram</div><div class="s-toggle-desc" id="telegram-detail" data-i18n="connections.telegram_detail">your own bot. Telegram's servers carry the messages, so approvals still happen only inside alles.</div></div>
+                <button class="s-switch" type="button" id="telegram-enabled" role="switch" aria-checked="false" aria-label="text Aide on Telegram" data-i18n-aria-label="connections.telegram_title"></button>
+              </div>
+              <ol class="finance-bank-steps telegram-steps" id="telegram-steps">
+                <li><a href="https://t.me/BotFather" target="_blank" rel="noopener noreferrer">@BotFather</a>: <span data-i18n="connections.telegram_step_bot">send /newbot, then copy the token it gives you</span></li>
+                <li data-i18n="connections.telegram_step_paste">paste it below and send your new bot any message</li>
+                <li data-i18n="connections.telegram_step_on">turn on the switch above</li>
+              </ol>
+              <div class="s-field"><label for="telegram-token"><span data-i18n="connections.telegram_token">bot token</span> </label><input type="password" class="settings-input" id="telegram-token" autocomplete="off" spellcheck="false" placeholder="paste the bot token" style="width:100%" data-i18n-placeholder="shell.settings_tools.paste_the_bot_token"></div>
+              <a class="btn conn-token-link" id="telegram-open-bot" target="_blank" rel="noopener noreferrer" hidden></a>
+            </div>
           </div>
           <div class="s-card" id="jarvis-discord-card">
             <div class="s-card-head">
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 9h8M7 15h.01M17 15h.01"/><path d="M5 5h14a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2h-3l-2 2h-4l-2-2H5a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2z"/></svg>
               <span data-i18n="shell.settings_tools.aide_on_discord">Aide on Discord</span>
               <span class="jarvis-discord-head-state" id="jarvis-discord-head-state" data-i18n="common.not_connected">not connected</span>
             </div>
@@ -2493,58 +2527,8 @@
               </div>
             </div>
           </div>
-          <div class="s-card" id="photon-card">
-            <div class="s-card-head">
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 5h16a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H9l-5 4v-4H4a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1z"/></svg>
-              <span data-i18n="shell.settings_tools.text_aide_over_imessage">text Aide over iMessage</span>
-              <span class="jarvis-discord-head-state" id="photon-head-state" data-i18n="connections.photon_state_off">off</span>
-            </div>
-            <div class="s-card-body">
-              <div class="jarvis-discord-status">
-                <div><div class="s-toggle-label" data-i18n="shell.settings_tools.imessage_through_photon">iMessage through Photon</div><div class="s-toggle-desc" id="photon-detail" data-i18n="shell.settings_tools.photon_s_cloud_line_carries_the">Photon's cloud line carries the texts, so Photon's servers see them. approvals still happen only inside alles.</div></div>
-                <button class="s-switch" type="button" id="photon-enabled" role="switch" aria-checked="false" aria-label="text Aide over iMessage" data-i18n-aria-label="shell.settings_tools.text_aide_over_imessage"></button>
-              </div>
-              <div class="photon-connect">
-                <button class="btn primary" type="button" id="photon-connect-btn" data-i18n="shell.settings_tools.connect_with_photon">connect with Photon</button>
-                <p class="photon-connect-note" id="photon-connect-note" aria-live="polite" data-i18n="shell.settings_tools.sign_in_to_photon_once_alles">sign in to Photon once. alles sets up the project and lets your number through.</p>
-              </div>
-              <p class="photon-line" id="photon-line" aria-live="polite" hidden></p>
-              <div class="s-field"><label for="photon-owner"><span data-i18n="shell.settings_tools.your_phone_number_or_email">your phone number or email</span> <span class="s-field-note" data-i18n="shell.settings_tools.only_these_get_answers_one_per">only these get answers; one per line</span></label><textarea class="settings-textarea" id="photon-owner" rows="2" placeholder="+1 555 010 0199"></textarea></div>
-              <div class="jarvis-discord-status photon-receipts">
-                <div class="s-toggle-label" id="photon-receipts-label" data-i18n="connections.read_receipts">send read receipts</div>
-                <button class="s-switch" type="button" id="photon-read-receipts" role="switch" aria-checked="true" aria-labelledby="photon-receipts-label"></button>
-              </div>
-              <details class="photon-keys">
-                <summary data-i18n="shell.settings_tools.enter_photon_keys_yourself">enter Photon keys yourself</summary>
-                <div class="s-field"><label for="photon-project-id"><span data-i18n="shell.settings_tools.photon_project_id">Photon project id</span> <span class="s-field-note" data-i18n="shell.settings_tools.from_app_photon_codes">from app.photon.codes</span></label><input class="settings-input" id="photon-project-id" autocomplete="off" spellcheck="false" style="width:100%"></div>
-                <div class="s-field"><label for="photon-project-secret"><span data-i18n="shell.settings_tools.photon_project_secret">Photon project secret</span> </label><input type="password" class="settings-input" id="photon-project-secret" autocomplete="off" placeholder="paste the project secret" style="width:100%" data-i18n-placeholder="shell.settings_tools.paste_the_project_secret"></div>
-              </details>
-              <button class="btn" type="button" id="photon-save" style="width:100%" data-i18n="common.save">save</button>
-            </div>
-          </div>
-          <div class="s-card" id="telegram-card">
-            <div class="s-card-head">
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M21 4 3 11l6 2.5M21 4l-4 16-8-6.5M21 4 9 13.5V19l3-3.5"/></svg>
-              <span data-i18n="connections.telegram_title">text Aide on Telegram</span>
-              <span class="jarvis-discord-head-state" id="telegram-head-state" data-i18n="connections.photon_state_off">off</span>
-            </div>
-            <div class="s-card-body">
-              <div class="jarvis-discord-status">
-                <div><div class="s-toggle-label" data-i18n="connections.telegram_label">Aide on Telegram</div><div class="s-toggle-desc" id="telegram-detail" data-i18n="connections.telegram_detail">your own bot. Telegram's servers carry the messages, so approvals still happen only inside alles.</div></div>
-                <button class="s-switch" type="button" id="telegram-enabled" role="switch" aria-checked="false" aria-label="text Aide on Telegram" data-i18n-aria-label="connections.telegram_title"></button>
-              </div>
-              <ol class="finance-bank-steps telegram-steps" id="telegram-steps">
-                <li><a href="https://t.me/BotFather" target="_blank" rel="noopener noreferrer">@BotFather</a>: <span data-i18n="connections.telegram_step_bot">send /newbot, then copy the token it gives you</span></li>
-                <li data-i18n="connections.telegram_step_paste">paste it below and send your new bot any message</li>
-                <li data-i18n="connections.telegram_step_on">turn on the switch above</li>
-              </ol>
-              <div class="s-field"><label for="telegram-token"><span data-i18n="connections.telegram_token">bot token</span> </label><input type="password" class="settings-input" id="telegram-token" autocomplete="off" spellcheck="false" placeholder="paste the bot token" style="width:100%" data-i18n-placeholder="shell.settings_tools.paste_the_bot_token"></div>
-              <a class="btn conn-token-link" id="telegram-open-bot" target="_blank" rel="noopener noreferrer" hidden></a>
-            </div>
-          </div>
           <div class="s-card" id="browser-signin-card">
             <div class="s-card-head">
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="5" y="11" width="14" height="10" rx="1.5"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>
               <span data-i18n="common.sign_in_to_a_site">sign in to a site</span>
               <span class="jarvis-discord-head-state" id="browser-signin-head-state"></span>
             </div>
@@ -2583,14 +2567,39 @@
               <button class="btn danger" type="button" id="browser-signin-forget" data-i18n="shell.settings_tools.forget_all_browser_data">forget all browser data</button>
             </div>
           </div>
-          <div class="s-card">
+          <div class="s-card" id="conn-main-card">
             <div class="s-card-head">
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v4"/><path d="M12 18v4"/><path d="M4.93 4.93l2.83 2.83"/><path d="M16.24 16.24l2.83 2.83"/><path d="M2 12h4"/><path d="M18 12h4"/><path d="M4.93 19.07l2.83-2.83"/><path d="M16.24 7.76l2.83-2.83"/></svg>
-              <span data-i18n="shell.settings_tools.agent_stack">agent stack</span>
+              <span data-i18n="connections.github_tokens">github and tokens</span>
+            </div>
+            <div class="s-card-body">
+              <div class="conn-signin" id="conn-github-signin"></div>
+              <div id="conn-list"></div>
+              <div class="conn-token-form" id="conn-token-form" hidden>
+              <div class="s-field"><label data-i18n="shell.settings_tools.service">service</label>
+                <div class="settings-input custom-select" id="conn-service" data-value="github" data-options="github|github;gitlab|gitlab;custom|custom…" data-i18n-options=";;settings.opt_custom" style="width:100%"></div>
+              </div>
+              <div class="s-field" id="conn-custom-row" style="display:none"><label for="conn-custom" data-i18n="common.name">name</label><input type="text" class="settings-input" id="conn-custom" placeholder="service id" style="width:100%" data-i18n-placeholder="shell.settings_tools.service_id"></div>
+              <a class="btn conn-token-link" id="conn-github-token" href="https://github.com/settings/personal-access-tokens/new?name=alles&amp;description=lets+aide+read+your+repos+and+open+issues+and+pull+requests&amp;expires_in=366&amp;contents=read&amp;issues=write&amp;pull_requests=write" target="_blank" rel="noopener noreferrer" data-i18n="shell.settings_tools.create_github_token">create a github token</a>
+              <div class="s-field"><label for="conn-token" data-i18n="shell.settings_tools.token">token</label><input type="password" class="settings-input" id="conn-token" placeholder="personal access token" style="width:100%" data-i18n-placeholder="shell.settings_tools.personal_access_token"></div>
+              <button type="button" class="btn primary" id="conn-add-btn" style="width:100%" data-i18n="shell.settings_tools.connect">connect</button>
+              <div class="s-card-hint" data-i18n="shell.settings_tools.github_a_fine_grained_or_classic">github: the button opens a token already filled in; pick your repos, create it and paste it here. aide gets github tools once connected.</div>
+              <div class="s-card-hint" data-i18n="shell.settings_tools.alles_cannot_show_quota_or_credits">alles cannot show quota or credits for token connections. check limits with the service, and disconnect here when access is no longer needed.</div>
+              </div>
+              <div id="conn-rotate-box" hidden>
+                <button type="button" class="btn" id="conn-rotate-key" style="width:100%;margin-top:0.65rem" data-i18n="shell.settings_tools.rotate_credential_key">rotate credential key</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="s-pane" id="s-pane-agent">
+          <div class="s-card" id="agent-stack-card">
+            <div class="s-card-head">
+              <span data-i18n="connections.status_tools">tools</span>
               <button type="button" class="btn" id="agent-status-refresh-btn" style="margin-left:auto" data-i18n="common.refresh">refresh</button>
             </div>
             <div class="s-card-body">
-              <div id="agent-status-grid" class="agent-status-grid"></div>
+              <p id="agent-status-line" class="s-card-hint" role="status" aria-live="polite"></p>
               <div class="agent-caps">
                 <div class="s-toggle-row"><div><div class="s-toggle-label" data-i18n="shell.settings_tools.context_files">read AGENTS.md in the working folder</div></div><div class="s-switch" id="s-agent-ctx-toggle"></div></div>
                 <div class="s-toggle-row"><div><div class="s-toggle-label" data-i18n="shell.settings_tools.shell_sandbox">run shell in docker</div><div class="s-toggle-desc" data-i18n="shell.settings_tools.run_shell_inside_docker_needs_docker">needs docker</div></div><div class="s-switch" id="s-agent-sandbox-toggle"></div></div>
@@ -2599,13 +2608,15 @@
                 <div class="s-field"><label for="s-agent-roots"><span data-i18n="shell.settings_tools.extra_approved_file_roots">extra approved file roots</span> <span class="s-field-note" data-i18n="shell.settings_tools.read_only_one_existing_folder_per">read-only; one existing folder per line</span></label><textarea class="settings-textarea" id="s-agent-roots" rows="3" placeholder="/path/to/another/folder"></textarea></div>
                 <button type="button" class="btn" id="s-agent-roots-save" data-i18n="shell.settings_tools.save_approved_roots">save approved roots</button>
               </div>
-              <div id="agent-tool-list" class="agent-tool-list"></div>
+              <details class="agent-tools" id="agent-tools-details">
+                <summary id="agent-tools-summary" data-i18n="connections.status_tools">tools</summary>
+                <div id="agent-tool-list" class="agent-tool-list"></div>
+              </details>
               <div id="agent-run-list" class="agent-run-list"></div>
             </div>
           </div>
-          <div class="s-card">
+          <div class="s-card" id="perm-rules-card">
             <div class="s-card-head">
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
               <span data-i18n="shell.settings_tools.permission_rules">permission rules</span>
             </div>
             <div class="s-card-body">
@@ -2619,9 +2630,8 @@
               <button type="button" class="btn primary" id="perm-rule-add-btn" style="width:100%" data-i18n="common.add_rule">add rule</button>
             </div>
           </div>
-          <div class="s-card">
+          <div class="s-card" id="mcp-card">
             <div class="s-card-head">
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>
               <span data-i18n="shell.settings_tools.mcp_servers">mcp servers</span>
             </div>
             <div class="s-card-body">
@@ -2643,38 +2653,28 @@
               <button type="button" class="btn primary" id="mcp-add-btn" style="width:100%" data-i18n="shell.settings_tools.add_server">add server</button>
             </div>
           </div>
-          <!-- 11a — macOS native integration status (Mac mini only) -->
-          <div class="s-card">
+        </div>
+
+        <div class="s-pane" id="s-pane-machine">
+          <div class="s-card" id="macos-card">
             <div class="s-card-head">
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
               <span data-i18n="shell.settings_tools.macos_integration">macOS integration</span>
             </div>
             <div class="s-card-body">
               <div id="macos-status" class="macos-status"></div>
             </div>
           </div>
-          <div class="s-card">
+          <div class="s-card" id="deps-card">
             <div class="s-card-head">
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.9a3.4 3.4 0 0 0-.9-2.6c3-.3 6.2-1.5 6.2-6.7A5.2 5.2 0 0 0 20 4.8 4.8 4.8 0 0 0 19.9 1S18.7.6 16 2.5a13.4 13.4 0 0 0-7 0C6.3.6 5.1 1 5.1 1A4.8 4.8 0 0 0 5 4.8a5.2 5.2 0 0 0-1.4 3.6c0 5.2 3.2 6.4 6.2 6.7a3.4 3.4 0 0 0-.9 2.6V22"/></svg>
-              <span data-i18n="common.connections">connections</span>
+              <span data-i18n="dependencies.title">what Aide can use</span>
             </div>
-            <div class="s-card-body">
-              <div class="conn-signin" id="conn-github-signin"></div>
-              <div id="conn-list"></div>
-              <div class="conn-token-form" id="conn-token-form" hidden>
-              <div class="s-field"><label data-i18n="shell.settings_tools.service">service</label>
-                <div class="settings-input custom-select" id="conn-service" data-value="github" data-options="github|github;gitlab|gitlab;custom|custom…" data-i18n-options=";;settings.opt_custom" style="width:100%"></div>
-              </div>
-              <div class="s-field" id="conn-custom-row" style="display:none"><label for="conn-custom" data-i18n="common.name">name</label><input type="text" class="settings-input" id="conn-custom" placeholder="service id" style="width:100%" data-i18n-placeholder="shell.settings_tools.service_id"></div>
-              <a class="btn conn-token-link" id="conn-github-token" href="https://github.com/settings/personal-access-tokens/new?name=alles&amp;description=lets+aide+read+your+repos+and+open+issues+and+pull+requests&amp;expires_in=366&amp;contents=read&amp;issues=write&amp;pull_requests=write" target="_blank" rel="noopener noreferrer" data-i18n="shell.settings_tools.create_github_token">create a github token</a>
-              <div class="s-field"><label for="conn-token" data-i18n="shell.settings_tools.token">token</label><input type="password" class="settings-input" id="conn-token" placeholder="personal access token" style="width:100%" data-i18n-placeholder="shell.settings_tools.personal_access_token"></div>
-              <button type="button" class="btn primary" id="conn-add-btn" style="width:100%" data-i18n="shell.settings_tools.connect">connect</button>
-              <div class="s-card-hint" data-i18n="shell.settings_tools.github_a_fine_grained_or_classic">github: the button opens a token already filled in; pick your repos, create it and paste it here. aide gets github tools once connected.</div>
-              <div class="s-card-hint" data-i18n="shell.settings_tools.alles_cannot_show_quota_or_credits">alles cannot show quota or credits for token connections. check limits with the service, and disconnect here when access is no longer needed.</div>
-              </div>
-              <button type="button" class="btn" id="conn-rotate-key" style="width:100%;margin-top:0.65rem" data-i18n="shell.settings_tools.rotate_credential_key">rotate credential key</button>
-              <div class="s-card-hint" data-i18n="shell.settings_tools.re_encrypts_saved_credentials_then_safely">re-encrypts saved credentials, then safely retires the old key.</div>
+            <div class="s-card-body"><p id="machine-status-line" class="s-card-hint"></p><div id="deps-list" role="group" aria-label="what Aide can use" data-i18n-aria-label="dependencies.title"></div></div>
+          </div>
+          <div class="s-card" id="s-ledger" role="region" aria-labelledby="s-ledger-title">
+            <div class="s-card-head">
+              <span id="s-ledger-title" data-i18n="finance.actual_ledger">Actual ledger</span>
             </div>
+            <div class="s-card-body" id="s-ledger-body"></div>
           </div>
         </div>
 
@@ -2896,44 +2896,39 @@
           <div class="s-card">
             <div class="s-card-head" data-i18n="common.setup">setup</div>
             <div class="s-card-body">
-              <p id="setup-resume-status" role="status" aria-live="polite" style="font-size:0.8125rem;color:var(--muted);margin-bottom:0.65rem" data-i18n="shell.settings_backup.checking_setup">checking setup…</p>
+              <p id="setup-resume-status" role="status" aria-live="polite" class="s-card-hint" data-i18n="shell.settings_backup.checking_setup">checking setup…</p>
               <button class="btn" id="setup-resume-btn" type="button" style="width:100%" data-i18n="shell.settings_backup.resume_setup">resume setup</button>
             </div>
           </div>
           <div class="s-card">
-            <div class="s-card-head">
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-              <span data-i18n="common.export">export</span>
-            </div>
+            <div class="s-card-head" data-i18n="common.export">export</div>
             <div class="s-card-body">
-              <p style="font-size:0.8125rem;color:var(--muted);margin-bottom:0.75rem" data-i18n-code="settings.backup_download_note">downloads an encrypted <code>.alles-backup</code> containing the selected local data and a verified manifest.</p>
               <button type="button" class="btn primary" id="backup-export-btn" style="width:100%" data-i18n="shell.settings_backup.download_encrypted_backup">download encrypted backup</button>
               <button type="button" class="btn" id="backup-key-export-btn" style="width:100%" data-i18n="shell.settings_backup.download_recovery_key">download recovery key</button>
-              <p style="font-size:0.8125rem;color:var(--muted);margin-top:0.6rem" data-i18n="shell.settings_backup.save_the_recovery_key_somewhere_separate">save the recovery key somewhere separate. a backup cannot be opened without it if this installation is lost.</p>
+              <p class="s-card-hint" data-i18n="shell.settings_backup.save_the_recovery_key_somewhere_separate">save the recovery key somewhere separate. a backup cannot be opened without it if this installation is lost.</p>
             </div>
           </div>
           <div class="s-card">
-            <div class="s-card-head">
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-              <span data-i18n="common.restore">restore</span>
-            </div>
+            <div class="s-card-head" data-i18n="common.restore">restore</div>
             <div class="s-card-body">
-              <p style="font-size:0.8125rem;color:var(--muted);margin-bottom:0.75rem" data-i18n="shell.settings_backup.select_an_encrypted_backup_or_zip">select an encrypted backup or ZIP to verify and stage. your live data stays unchanged until you stop Alles and run the shown CLI command.</p>
+              <p class="s-card-hint" data-i18n="shell.settings_backup.select_an_encrypted_backup_or_zip">your live data stays unchanged until you stop Alles and run the shown CLI command.</p>
               <button type="button" class="btn primary backup-file-action" id="backup-restore-btn" data-i18n="shell.settings_backup.choose_backup_file">choose backup file</button>
               <input type="file" id="backup-restore-input" accept=".alles-backup,.zip" hidden>
               <button type="button" class="btn backup-file-action" id="backup-recovery-key-btn" data-i18n="shell.settings_backup.choose_separate_recovery_key_optional">choose separate recovery key (optional)</button>
               <input type="file" id="backup-recovery-key-input" accept=".txt,.key" hidden>
-              <p id="backup-recovery-key-name" style="font-size:0.8125rem;color:var(--muted);margin-top:0.4rem" data-i18n="shell.settings_backup.no_separate_key_selected">no separate key selected</p>
-              <p id="backup-restore-status" hidden role="status" aria-live="polite" style="font-size:0.8125rem;color:var(--muted);margin-top:0.75rem;overflow-wrap:anywhere"></p>
+              <p id="backup-recovery-key-name" class="s-card-hint" data-i18n="shell.settings_backup.no_separate_key_selected">no separate key selected</p>
+              <p id="backup-restore-status" class="s-card-hint" hidden role="status" aria-live="polite" style="overflow-wrap:anywhere"></p>
             </div>
           </div>
-          <div class="s-card" id="webdav-backup-card">
-            <div class="s-card-head">
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 18H6a4 4 0 1 1 .7-7.9A5.5 5.5 0 0 1 17.4 8a4.5 4.5 0 0 1 .6 9H8"/><path d="M12 12v8m-3-3 3 3 3-3"/></svg>
-              <span data-i18n="shell.settings_backup.webdav_backup">webdav backup</span>
+          <div class="s-card remote-backup" id="webdav-backup-card">
+            <div class="conn-catalog-row">
+              <span class="conn-catalog-who">
+                <strong data-i18n="shell.settings_backup.webdav_backup">webdav backup</strong>
+                <span id="webdav-backup-status" role="status" aria-live="polite">checking connection…</span>
+              </span>
+              <button class="btn" id="webdav-backup-setup-btn" type="button" aria-expanded="false" aria-controls="webdav-backup-form">set up</button>
             </div>
-            <div class="s-card-body">
-              <p style="font-size:0.8125rem;color:var(--muted);margin-bottom:0.75rem" data-i18n="shell.settings_backup.send_the_same_encrypted_backup_to">send the same encrypted backup to your WebDAV server. Alles never shows the saved password. for disaster recovery, keep your WebDAV login and recovery key somewhere outside Alles.</p>
+            <div class="s-card-body" id="webdav-backup-form" hidden>
               <div class="s-field">
                 <label for="webdav-backup-url" data-i18n="shell.settings_backup.https_url">https url</label>
                 <input type="url" class="settings-input" id="webdav-backup-url" placeholder="https://cloud.example.com/remote.php/dav/files/you/alles" autocomplete="url" inputmode="url" spellcheck="false" style="width:100%">
@@ -2944,43 +2939,44 @@
               </div>
               <div class="s-field">
                 <label for="webdav-backup-password" data-i18n="common.password">password</label>
-                <input type="password" class="settings-input" id="webdav-backup-password" placeholder="blank keeps the saved password" autocomplete="new-password" aria-describedby="webdav-backup-password-help" style="width:100%" data-i18n-placeholder="shell.settings_backup.blank_keeps_the_saved_password">
-                <span id="webdav-backup-password-help" style="font-size:0.8125rem;color:var(--muted)" data-i18n="shell.settings_backup.use_an_app_password_when_your">use an app password when your WebDAV service supports one.</span>
+                <input type="password" class="settings-input" id="webdav-backup-password" placeholder="blank keeps the saved password" autocomplete="new-password" style="width:100%" data-i18n-placeholder="shell.settings_backup.blank_keeps_the_saved_password">
               </div>
-              <div style="display:flex;gap:0.5rem;flex-wrap:wrap">
-                <button class="btn primary" id="webdav-backup-save-btn" type="button" style="flex:1;min-width:150px" data-i18n="shell.settings_backup.connect_and_save">connect and save</button>
+              <div class="remote-backup-actions">
+                <button class="btn primary" id="webdav-backup-save-btn" type="button" data-i18n="shell.settings_backup.connect_and_save">connect and save</button>
                 <button class="btn danger" id="webdav-backup-disconnect-btn" type="button" hidden data-i18n="shell.settings_backup.disconnect">disconnect</button>
               </div>
-              <p id="webdav-backup-status" role="status" aria-live="polite" style="font-size:0.8125rem;color:var(--muted);margin-top:0.7rem">checking connection…</p>
-              <p style="font-size:0.8125rem;color:var(--muted);margin-top:0.25rem"><span data-i18n="shell.settings_backup.last_successful_backup">last successful backup:</span> <span id="webdav-backup-last-success" data-i18n="shell.settings_backup.never">never</span></p>
-              <p style="font-size:0.8125rem;color:var(--muted);margin-top:0.15rem"><span data-i18n="shell.settings_backup.last_verified">last verified:</span> <span id="webdav-backup-last-verified" data-i18n="shell.settings_backup.never">never</span></p>
-
-              <div style="border-top:1px solid var(--faint);margin:0.85rem 0;padding-top:0.85rem">
-                <div style="display:flex;gap:0.5rem;flex-wrap:wrap">
-                  <button class="btn primary" id="webdav-backup-run-btn" type="button" disabled style="flex:1;min-width:140px" data-i18n="shell.settings_backup.back_up_now">back up now</button>
-                  <button class="btn" id="webdav-backup-refresh-btn" type="button" disabled style="flex:1;min-width:140px" data-i18n="shell.settings_backup.refresh_backups">refresh backups</button>
-                </div>
-                <div class="s-field" style="margin-top:0.75rem">
-                  <label for="webdav-backup-list" data-i18n="shell.settings_backup.remote_backup">remote backup</label>
-                  <div class="settings-input custom-select" id="webdav-backup-list" data-value="" data-options="|no remote backups found" data-i18n-options="backups.none_found" aria-disabled="true" style="width:100%"></div>
-                </div>
-                <p id="webdav-backup-selection" style="font-size:0.8125rem;color:var(--muted);margin-top:-0.3rem" aria-live="polite" data-i18n="shell.settings_backup.choose_a_backup_to_stage_a">choose a backup to stage a restore.</p>
-                <button class="btn" id="webdav-backup-recovery-key-btn" type="button" style="width:100%;margin-top:0.65rem" data-i18n="shell.settings_backup.choose_separate_recovery_key_optional">choose separate recovery key (optional)</button>
+            </div>
+            <div class="s-card-body" id="webdav-backup-manage" hidden>
+              <p class="remote-backup-fact"><span data-i18n="shell.settings_backup.last_successful_backup">last successful backup:</span> <span id="webdav-backup-last-success" data-i18n="shell.settings_backup.never">never</span></p>
+              <p class="remote-backup-fact"><span data-i18n="shell.settings_backup.last_verified">last verified:</span> <span id="webdav-backup-last-verified" data-i18n="shell.settings_backup.never">never</span></p>
+              <div class="remote-backup-actions">
+                <button class="btn primary" id="webdav-backup-run-btn" type="button" disabled data-i18n="shell.settings_backup.back_up_now">back up now</button>
+                <button class="btn" id="webdav-backup-refresh-btn" type="button" disabled data-i18n="shell.settings_backup.refresh_backups">refresh backups</button>
+              </div>
+              <div class="s-field">
+                <label for="webdav-backup-list" data-i18n="shell.settings_backup.remote_backup">remote backup</label>
+                <div class="settings-input custom-select" id="webdav-backup-list" data-value="" data-options="|no remote backups found" data-i18n-options="backups.none_found" aria-disabled="true" style="width:100%"></div>
+              </div>
+              <p class="s-card-hint" id="webdav-backup-selection" aria-live="polite"></p>
+              <div id="webdav-backup-restore-box" hidden>
+                <button class="btn" id="webdav-backup-recovery-key-btn" type="button" data-i18n="shell.settings_backup.choose_separate_recovery_key_optional">choose separate recovery key (optional)</button>
                 <input type="file" id="webdav-backup-recovery-key" accept=".txt,.key" style="display:none">
-                <p id="webdav-backup-recovery-key-name" style="font-size:0.8125rem;color:var(--muted);margin-top:0.4rem" data-i18n="shell.settings_backup.no_separate_key_selected">no separate key selected</p>
-                <button class="btn" id="webdav-backup-restore-btn" type="button" disabled style="width:100%;margin-top:0.55rem" data-i18n="shell.settings_backup.verify_and_stage_selected_restore">verify and stage selected restore</button>
-                <p id="webdav-backup-restore-status" hidden role="status" aria-live="polite" style="font-size:0.8125rem;color:var(--muted);margin-top:0.75rem;overflow-wrap:anywhere"></p>
+                <p class="s-card-hint" id="webdav-backup-recovery-key-name" data-i18n="shell.settings_backup.no_separate_key_selected">no separate key selected</p>
+                <button class="btn" id="webdav-backup-restore-btn" type="button" disabled data-i18n="shell.settings_backup.verify_and_stage_selected_restore">verify and stage selected restore</button>
+                <p id="webdav-backup-restore-status" class="s-card-hint" hidden role="status" aria-live="polite" style="overflow-wrap:anywhere"></p>
               </div>
             </div>
           </div>
-          <div class="s-card" id="s3-backup-card">
-            <div class="s-card-head">
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 7c0-1.7 3.6-3 8-3s8 1.3 8 3-3.6 3-8 3-8-1.3-8-3Z"/><path d="M4 7v5c0 1.7 3.6 3 8 3s8-1.3 8-3V7"/><path d="M4 12v5c0 1.7 3.6 3 8 3s8-1.3 8-3v-5"/></svg>
-              <span data-i18n="shell.settings_backup.s3_backup">s3 backup</span>
+          <div class="s-card remote-backup" id="s3-backup-card">
+            <div class="conn-catalog-row">
+              <span class="conn-catalog-who">
+                <strong data-i18n="shell.settings_backup.s3_backup">s3 backup</strong>
+                <span id="s3-backup-status" role="status" aria-live="polite">checking connection…</span>
+              </span>
+              <button class="btn" id="s3-backup-setup-btn" type="button" aria-expanded="false" aria-controls="s3-backup-form">set up</button>
             </div>
-            <div class="s-card-body">
-              <p style="font-size:0.8125rem;color:var(--muted);margin-bottom:0.6rem" data-i18n="shell.settings_backup.manually_send_the_same_encrypted_backup">manually send the same encrypted backup to an existing S3 bucket. this is backup-only: Alles will not sync or manage other objects.</p>
-              <p style="font-size:0.8125rem;color:var(--muted);margin-bottom:0.75rem" data-i18n="shell.settings_backup.the_connection_check_creates_and_removes">the connection check creates and removes tiny probe objects. each backup is one copy, and the copy is not atomic. the artifact must be 5 GB or smaller. for disaster recovery, keep your S3 credentials and recovery-key file somewhere outside Alles.</p>
+            <div class="s-card-body" id="s3-backup-form" hidden>
+              <p class="s-card-hint" data-i18n="shell.settings_backup.the_connection_check_creates_and_removes">connecting writes and removes tiny test objects in the bucket. each backup is one copy, not atomic, and must be 5 GB or smaller.</p>
               <div class="s-field">
                 <label for="s3-backup-endpoint" data-i18n="shell.settings_backup.https_endpoint">https endpoint</label>
                 <input type="url" class="settings-input" id="s3-backup-endpoint" placeholder="https://s3.example.com" autocomplete="url" inputmode="url" spellcheck="false" style="width:100%">
@@ -3008,31 +3004,31 @@
               <div class="s-field">
                 <label for="s3-backup-secret-access-key" data-i18n="shell.settings_backup.secret_access_key">secret-access key</label>
                 <input type="password" class="settings-input" id="s3-backup-secret-access-key" placeholder="blank keeps the saved credential pair" autocomplete="new-password" aria-describedby="s3-backup-credentials-help" style="width:100%" data-i18n-placeholder="shell.settings_backup.blank_keeps_the_saved_credential_pair">
-                <span id="s3-backup-credentials-help" style="font-size:0.8125rem;color:var(--muted)" data-i18n="shell.settings_backup.enter_both_credentials_together_leaving_both">enter both credentials together. leaving both blank keeps the saved pair.</span>
+                <span id="s3-backup-credentials-help" class="s-field-note" data-i18n="shell.settings_backup.enter_both_credentials_together_leaving_both">enter both credentials together. leaving both blank keeps the saved pair.</span>
               </div>
-              <div style="display:flex;gap:0.5rem;flex-wrap:wrap">
-                <button class="btn primary" id="s3-backup-save-btn" type="button" style="flex:1;min-width:150px" data-i18n="shell.settings_backup.connect_and_save">connect and save</button>
+              <div class="remote-backup-actions">
+                <button class="btn primary" id="s3-backup-save-btn" type="button" data-i18n="shell.settings_backup.connect_and_save">connect and save</button>
                 <button class="btn danger" id="s3-backup-disconnect-btn" type="button" hidden data-i18n="shell.settings_backup.disconnect">disconnect</button>
               </div>
-              <p id="s3-backup-status" role="status" aria-live="polite" style="font-size:0.8125rem;color:var(--muted);margin-top:0.7rem">checking connection…</p>
-              <p style="font-size:0.8125rem;color:var(--muted);margin-top:0.25rem"><span data-i18n="shell.settings_backup.last_successful_backup">last successful backup:</span> <span id="s3-backup-last-success" data-i18n="shell.settings_backup.never">never</span></p>
-              <p style="font-size:0.8125rem;color:var(--muted);margin-top:0.15rem"><span data-i18n="shell.settings_backup.last_verified_upload_read_back">last verified upload read-back:</span> <span id="s3-backup-last-verified" data-i18n="shell.settings_backup.never">never</span></p>
-
-              <div style="border-top:1px solid var(--faint);margin:0.85rem 0;padding-top:0.85rem">
-                <div style="display:flex;gap:0.5rem;flex-wrap:wrap">
-                  <button class="btn primary" id="s3-backup-run-btn" type="button" disabled style="flex:1;min-width:140px" data-i18n="shell.settings_backup.back_up_now">back up now</button>
-                  <button class="btn" id="s3-backup-refresh-btn" type="button" disabled style="flex:1;min-width:140px" data-i18n="shell.settings_backup.refresh_backups">refresh backups</button>
-                </div>
-                <div class="s-field" style="margin-top:0.75rem">
-                  <label for="s3-backup-list" data-i18n="shell.settings_backup.remote_backup">remote backup</label>
-                  <div class="settings-input custom-select" id="s3-backup-list" data-value="" data-options="|no remote backups found" data-i18n-options="backups.none_found" aria-disabled="true" style="width:100%"></div>
-                </div>
-                <p id="s3-backup-selection" style="font-size:0.8125rem;color:var(--muted);margin-top:-0.3rem" aria-live="polite" data-i18n="shell.settings_backup.choose_a_backup_to_stage_a">choose a backup to stage a restore.</p>
-                <button class="btn" id="s3-backup-recovery-key-btn" type="button" style="width:100%;margin-top:0.65rem" data-i18n="shell.settings_backup.choose_separate_recovery_key_optional">choose separate recovery key (optional)</button>
+            </div>
+            <div class="s-card-body" id="s3-backup-manage" hidden>
+              <p class="remote-backup-fact"><span data-i18n="shell.settings_backup.last_successful_backup">last successful backup:</span> <span id="s3-backup-last-success" data-i18n="shell.settings_backup.never">never</span></p>
+              <p class="remote-backup-fact"><span data-i18n="shell.settings_backup.last_verified_upload_read_back">last verified upload read-back:</span> <span id="s3-backup-last-verified" data-i18n="shell.settings_backup.never">never</span></p>
+              <div class="remote-backup-actions">
+                <button class="btn primary" id="s3-backup-run-btn" type="button" disabled data-i18n="shell.settings_backup.back_up_now">back up now</button>
+                <button class="btn" id="s3-backup-refresh-btn" type="button" disabled data-i18n="shell.settings_backup.refresh_backups">refresh backups</button>
+              </div>
+              <div class="s-field">
+                <label for="s3-backup-list" data-i18n="shell.settings_backup.remote_backup">remote backup</label>
+                <div class="settings-input custom-select" id="s3-backup-list" data-value="" data-options="|no remote backups found" data-i18n-options="backups.none_found" aria-disabled="true" style="width:100%"></div>
+              </div>
+              <p class="s-card-hint" id="s3-backup-selection" aria-live="polite"></p>
+              <div id="s3-backup-restore-box" hidden>
+                <button class="btn" id="s3-backup-recovery-key-btn" type="button" data-i18n="shell.settings_backup.choose_separate_recovery_key_optional">choose separate recovery key (optional)</button>
                 <input type="file" id="s3-backup-recovery-key" accept=".txt,.key" style="display:none">
-                <p id="s3-backup-recovery-key-name" style="font-size:0.8125rem;color:var(--muted);margin-top:0.4rem" data-i18n="shell.settings_backup.no_separate_key_selected">no separate key selected</p>
-                <button class="btn" id="s3-backup-restore-btn" type="button" disabled style="width:100%;margin-top:0.55rem" data-i18n="shell.settings_backup.verify_and_stage_selected_restore">verify and stage selected restore</button>
-                <p id="s3-backup-restore-status" hidden role="status" aria-live="polite" style="font-size:0.8125rem;color:var(--muted);margin-top:0.75rem;overflow-wrap:anywhere"></p>
+                <p class="s-card-hint" id="s3-backup-recovery-key-name" data-i18n="shell.settings_backup.no_separate_key_selected">no separate key selected</p>
+                <button class="btn" id="s3-backup-restore-btn" type="button" disabled data-i18n="shell.settings_backup.verify_and_stage_selected_restore">verify and stage selected restore</button>
+                <p id="s3-backup-restore-status" class="s-card-hint" hidden role="status" aria-live="polite" style="overflow-wrap:anywhere"></p>
               </div>
             </div>
           </div>

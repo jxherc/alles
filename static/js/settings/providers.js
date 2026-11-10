@@ -82,6 +82,16 @@ function _hasEndpointDrafts() {
     || !!document.activeElement?.matches('#s-ep-list [data-edit-models], #s-ep-list [data-edit-adapter]');
 }
 
+// ollama is one row until it runs: not installed offers the download, stopped offers start, and
+// the hardware line, models and pull field show once it answers
+function _syncLocalRow(state) {
+  const show = (id, on) => { const node = document.getElementById(id); if (node) node.hidden = !on; };
+  show('s-local-get-link', state === 'missing');
+  show('s-local-start-btn', state === 'stopped');
+  show('s-local-refresh-btn', state === 'running' || state === 'failed');
+  show('s-local-running', state === 'running');
+}
+
 // ── models pane ───────────────────────────────────────────────────────────────
 async function loadLocalModels() {
   const ollamaEl = document.getElementById('s-local-ollama');
@@ -98,12 +108,14 @@ async function loadLocalModels() {
     const gpu = (hw.gpus || []).map(g => t('providers.gpu', { name: g.name, vram: g.vram_gb })).join(', ') || t('providers.no_gpu');
     const state = o.running ? t('providers.ollama_running')
       : (o.installed ? t('providers.ollama_stopped') : t('providers.ollama_not_installed'));
-    ollamaEl.textContent = t('providers.ollama_status', { state, url: o.base_url || 'http://localhost:11434' });
+    ollamaEl.textContent = o.running ? t('providers.ollama_status', { state, url: o.base_url || 'http://localhost:11434' }) : state;
     hwEl.textContent = t('providers.hardware', { ram: hw.ram_gb || '?', gpu });
     renderLocalPresets(data.presets || []);
+    _syncLocalRow(o.running ? 'running' : (o.installed ? 'stopped' : 'missing'));
   } catch (e) {
     if (!_providersActive || generation !== _localLoadGeneration) return;
     ollamaEl.textContent = plainError(e.message || t('providers.local_status_failed'));
+    _syncLocalRow('failed');
     hwEl.textContent = '';
     if (!_localPresetPending.size) listEl.innerHTML = '';
   }
@@ -891,13 +903,6 @@ function _wireProvidersPane() {
     event.currentTarget.hidden = true;
     document.getElementById('s-ep-url')?.focus();
   });
-  document.getElementById('s-gemini-oauth-toggle')?.addEventListener('click', event => {
-    const panel = document.getElementById('s-gemini-oauth-panel');
-    if (!panel) return;
-    panel.hidden = !panel.hidden;
-    event.currentTarget.setAttribute('aria-expanded', String(!panel.hidden));
-    if (!panel.hidden) document.getElementById('s-gemini-client-id')?.focus();
-  });
   document.getElementById('s-gemini-oauth-start')?.addEventListener('click', startGeminiOAuth);
   document.getElementById('s-role-save-btn')?.addEventListener('click', saveModelRoles);
   document.getElementById('s-ep-refresh-all')?.addEventListener('click', refreshAllModelEndpoints);
@@ -975,6 +980,13 @@ function _mountModelSignin() {
   if (_modelSignin) { _modelSignin.refresh(); return; }
   _modelSignin = mountSignin(host, {
     use: 'models',
+    // google's one time setup here is the desktop client of the owner's own cloud project
+    setup() {
+      const panel = document.getElementById('s-gemini-oauth-panel');
+      if (!panel) return;
+      panel.hidden = false;
+      document.getElementById('s-gemini-client-id')?.focus();
+    },
     fallback: {
       label: t('signin.fallback_key'),
       reason: t('signin.why_models'),

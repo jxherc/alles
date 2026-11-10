@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import sys
 from pathlib import Path
 from urllib.parse import urlsplit
@@ -45,7 +46,7 @@ def permission_first_read_case(page, api, events, destination):
                 route.continue_()
 
         fresh.route("**/api/settings", initial_failure)
-        choose_settings_section(fresh, "tools")
+        choose_settings_section(fresh, "agent")
         expect(fresh.locator("#toast-container .toast.error").last).to_have_text(
             "could not load permission rules"
         )
@@ -59,7 +60,7 @@ def permission_first_read_case(page, api, events, destination):
         fresh.unroute("**/api/settings", initial_failure)
         fresh.locator("#settings-modal-close").click()
         fresh.locator("#today-settings").click()
-        choose_settings_section(fresh, "tools")
+        choose_settings_section(fresh, "agent")
         expect(fresh.locator("#perm-rules-list")).to_contain_text("example-existing-rule")
         expect(add).to_be_enabled()
         add.click()
@@ -98,7 +99,7 @@ def connection_write_cases(page, api, pane, reopen, choose_edge, destination):
         {"tool": "example-rule-b", "path": "", "action": "deny"},
     ]
     assert api.patch("/api/settings", data={"permission_rules": rules}).ok
-    reopen("tools")
+    reopen("agent")
     expect(page.locator("#perm-rules-list .perm-rule-tool")).to_have_text(
         [rule["tool"] for rule in rules]
     )
@@ -124,7 +125,7 @@ def connection_write_cases(page, api, pane, reopen, choose_edge, destination):
     page.wait_for_function("window.__ruleWrites === 1")
     expect(delete).to_be_disabled()
     delete.dispatch_event("click")
-    reopen("tools")
+    reopen("agent")
     assert page.locator("#perm-rules-list .perm-rule-del").evaluate_all(
         "buttons => buttons.length === 2 && buttons.every(button => button.disabled)"
     )
@@ -145,7 +146,7 @@ def connection_write_cases(page, api, pane, reopen, choose_edge, destination):
     add.click()
     page.wait_for_function("window.__ruleWrites === 2")
     page.locator("#perm-rule-tool").fill("example newer rule draft")
-    reopen("tools")
+    reopen("agent")
     expect(add).to_be_disabled()
     expect(delete).to_be_disabled()
     delete.dispatch_event("click")
@@ -318,7 +319,7 @@ def connection_write_cases(page, api, pane, reopen, choose_edge, destination):
             )
             assert independent_record.ok
             independent_id = independent_record.json()["id"]
-        reopen("tools")
+        reopen("tools" if kind == "connection" else "agent")
         remove = page.locator(f'#{list_id} button[data-id="{record_id}"]')
         expect(remove).to_be_visible()
         held_deletes = []
@@ -335,7 +336,7 @@ def connection_write_cases(page, api, pane, reopen, choose_edge, destination):
             remove.click()
             page.wait_for_function("count => window.__connectorDeletes === count", arg=count)
             remove.dispatch_event("click")
-            reopen("tools")
+            reopen("tools" if kind == "connection" else "agent")
             expect(remove).to_be_disabled()
             remove.dispatch_event("click")
             assert len(held_deletes) == count
@@ -399,7 +400,7 @@ def connection_write_cases(page, api, pane, reopen, choose_edge, destination):
             )
             assert response.ok
             record_id = response.json()["id"]
-            reopen("tools")
+            reopen("tools" if kind == "connection" else "agent")
             remove = page.locator(f'#{list_id} button[data-id="{record_id}"]')
             expect(remove).to_be_visible()
             page.wait_for_load_state("networkidle")
@@ -421,7 +422,7 @@ def connection_write_cases(page, api, pane, reopen, choose_edge, destination):
             page.route("**" + collection, current_read)
             page.route(pattern, hold_delete)
             page.evaluate("window.__connectorReadHeld = false; window.__connectorDeletes = 0")
-            reopen("tools")
+            reopen("tools" if kind == "connection" else "agent")
             page.wait_for_function("window.__connectorReadHeld === true")
             remove.click()
             page.wait_for_function("window.__connectorDeletes === 1")
@@ -485,13 +486,13 @@ def connection_write_cases(page, api, pane, reopen, choose_edge, destination):
         page.evaluate("count => window.__presetPosts = count", len(preset_posts))
 
     page.route("**/api/mcp/presets/filesystem", hold_preset)
-    reopen("tools")
+    reopen("agent")
     button = page.locator('.mcp-preset[data-id="filesystem"]')
     expect(button).to_be_visible()
     button.click()
     page.wait_for_function("window.__presetPosts === 1")
     button.dispatch_event("click")
-    reopen("tools")
+    reopen("agent")
     expect(button).to_be_disabled()
     expect(page.locator('.mcp-preset[data-id="example-other"]')).to_be_enabled()
     button.dispatch_event("click")
@@ -1623,7 +1624,7 @@ def local_preset_cases(page, reopen, destination):
         return page.locator(f'[data-local-{action}="{model or state["model"]}"]')
 
     def ready(present=True):
-        expect(page.locator("#s-local-ollama")).to_contain_text("Ollama: running")
+        expect(page.locator("#s-local-ollama")).to_contain_text("running - http")
         presets = page.locator("#s-local-presets")
         if present:
             expect(presets).to_contain_text(state["model"])
@@ -2476,6 +2477,16 @@ def exercise(page, api, endpoint, destination):
         choose_settings_section(page, name)
         expect(page.locator(f"#s-pane-{name}")).to_be_visible()
         assert_layout(locale=name == "notifications")
+        if name == "backup":
+            open_remote_forms()
+
+    def open_remote_forms():
+        # a remote is one row until its form is opened; the checks below fill and save the forms
+        for kind in ("webdav", "s3"):
+            setup = page.locator(f"#{kind}-backup-setup-btn")
+            if setup.get_attribute("aria-expanded") != "true":
+                setup.click()
+            expect(page.locator(f"#{kind}-backup-form")).to_be_visible()
 
     def close_and_reopen(name):
         page.locator("#settings-modal-close").click()
@@ -2626,7 +2637,7 @@ def exercise(page, api, endpoint, destination):
 
     # OAuth starts only create temporary UI for the opening that requested them.
     pane("models")
-    page.locator("#s-gemini-oauth-toggle").click()
+    page.locator('#s-ep-signin [data-act="setup"][data-provider="google"]').click()
     page.locator("#s-gemini-client-id").fill("example-client")
     page.locator("#s-gemini-client-secret").fill("example")
     page.locator("#s-gemini-project-id").fill("example-project")
@@ -3480,6 +3491,7 @@ def exercise(page, api, endpoint, destination):
 
     pane("tools")
     expect(page.locator("#conn-list")).to_contain_text("nothing connected")
+    pane("agent")
     expect(page.locator("#mcp-server-list")).to_contain_text("no servers")
     expect(page.locator("#perm-rules-list")).to_contain_text("no rules")
     for form, route_url, button_id, fields in (
@@ -3498,6 +3510,7 @@ def exercise(page, api, endpoint, destination):
         ),
     ):
         held = []
+        pane("tools" if form == "connection" else "agent")
 
         def hold_form_create(route, request, form=form):
             if request.method == ("PATCH" if form == "permission" else "POST"):
@@ -3557,7 +3570,7 @@ def exercise(page, api, endpoint, destination):
                 if form == "permission":
                     choose_edge("perm-rule-action")
             draft = {id: page.locator(f"#{id}").input_value() for id in fields}
-            close_and_reopen("tools")
+            close_and_reopen("tools" if form == "connection" else "agent")
             expect(button).to_be_disabled()
             button.dispatch_event("click")
             assert len(held) == count
@@ -3595,7 +3608,7 @@ def exercise(page, api, endpoint, destination):
     assert api.patch("/api/settings", data={"permission_rules": []}).ok
 
     pane("models")
-    expect(page.locator("#s-local-ollama")).to_contain_text("Ollama:")
+    expect(page.locator("#s-local-ollama")).to_contain_text(re.compile("installed|running|stopped"))
     pulls = []
 
     def hold_custom_pull(route):
@@ -4354,21 +4367,19 @@ def exercise(page, api, endpoint, destination):
 
     page.route("**/api/agent/status", agent_read)
     page.route("**/api/jarvis/discord", discord_api)
-    pane("tools")
-    status_fields = page.locator("#agent-status-grid > div > strong")
-    expect(status_fields).to_have_count(7)
-    expect(page.locator("#agent-status-grid #example-connection-label")).to_have_count(0)
-    expect(status_fields).to_have_text(
-        ["17", "installed", "3", "2", "yes", "no", f"github, {connection_name}"]
-    )
+    pane("agent")
+    status_line = page.locator("#agent-status-line")
+    expect(page.locator("#agent-status-line #example-connection-label")).to_have_count(0)
+    expect(status_line).to_have_text(f"opencode installed · mcp 3 · skills 2 · connections github, {connection_name}")
+    expect(page.locator("#agent-tools-summary")).to_have_text("17 tools")
     expect(page.locator("#agent-tool-list")).to_have_text("example-tool")
     page.locator("#agent-status-refresh-btn").click()
-    expect(status_fields.first).to_have_text("18")
+    expect(page.locator("#agent-tools-summary")).to_have_text("18 tools")
     assert len(agent_reads) == 2
     hold_agent_read = True
     page.locator("#agent-status-refresh-btn").click()
     page.wait_for_function("window.__settingsPaneAgentReadHeld === true")
-    close_and_reopen("tools")
+    close_and_reopen("agent")
     expect(status_fields.first).to_have_text("20")
     held_agent_reads[0].fulfill(json={**agent_status, "tool_count": 999})
     page.wait_for_load_state("networkidle")
@@ -4396,7 +4407,7 @@ def exercise(page, api, endpoint, destination):
     page.wait_for_function("window.__settingsPaneRootWrites === 1")
     roots.fill("")
     roots_save.dispatch_event("click")
-    close_and_reopen("tools")
+    close_and_reopen("agent")
     expect(roots_save).to_be_disabled()
     expect(roots_save).to_have_text("saving…")
     expect(roots).to_have_value("")
@@ -4447,7 +4458,9 @@ def exercise(page, api, endpoint, destination):
     expect(page.locator("#jarvis-pairing-code")).to_have_text("example-connect-code")
     expect(page.locator("#jarvis-discord-token")).to_have_value("")
     page.locator("#jarvis-discord-channels").fill("123\n456")
+    pane("agent")
     page.locator("#s-agent-roots").fill("/synthetic/owner-draft")
+    pane("tools")
     page.locator("#jarvis-discord-quiet").click()
     page.locator("#jarvis-discord-quiet-start").fill("22:30")
     discord_pair = []
@@ -4473,7 +4486,9 @@ def exercise(page, api, endpoint, destination):
     assert discord_mutations == ["connect", "pair", "channels"]
     expect(page.locator("#jarvis-discord-channels")).to_have_value("123\n456\n789\n999")
     expect(page.locator("#jarvis-discord-quiet-start")).to_have_value("22:30")
+    pane("agent")
     expect(page.locator("#s-agent-roots")).to_have_value("/synthetic/owner-draft")
+    pane("tools")
     reads_before = len(discord_reads)
     discord["connection_state"] = "fixture status reloaded"
     close_and_reopen("tools")
@@ -4760,7 +4775,7 @@ def exercise(page, api, endpoint, destination):
             indent=2,
         )
     )
-    for name in ("home", "notifications", "models", "backup", "tools"):
+    for name in ("home", "notifications", "models", "backup", "tools", "agent", "machine"):
         pane(name)
         page.wait_for_load_state("networkidle")
         page.screenshot(path=str(destination / f"{name}.png"), full_page=True)

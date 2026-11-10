@@ -118,18 +118,16 @@ test('s3 backup list drops invalid rows and puts the newest backup first', () =>
   ]);
 });
 
-test('s3 settings hide secrets and explain backup limits and recovery needs', () => {
+test('s3 settings hide secrets and explain backup limits', () => {
   assert.match(html, /id="s3-backup-access-key-id"[^>]*type="password"|type="password"[^>]*id="s3-backup-access-key-id"/);
   assert.match(html, /id="s3-backup-secret-access-key"[^>]*type="password"|type="password"[^>]*id="s3-backup-secret-access-key"/);
   assert.match(html, /id="s3-backup-recovery-key"[^>]*type="file"|type="file"[^>]*id="s3-backup-recovery-key"/);
   assert.match(html, /id="s3-backup-status"[^>]*aria-live="polite"/);
   assert.match(html, /id="s3-backup-restore-status"[^>]*aria-live="polite"/);
   assert.doesNotMatch(html, /id="s3-backup-(?:access-key-id|secret-access-key)"[^>]*\svalue=/);
-  assert.match(html, /creates and removes tiny probe objects/i);
-  assert.match(html, /backup-only/i);
-  assert.match(html, /copy is not atomic/i);
+  assert.match(html, /writes and removes tiny test objects/i);
+  assert.match(html, /not atomic/i);
   assert.match(html, /5 GB or smaller/i);
-  assert.match(html, /keep your S3 credentials and recovery-key file somewhere outside Alles/i);
 });
 
 test('every s3 mutation uses recent-owner confirmation and restore sends multipart fields', () => {

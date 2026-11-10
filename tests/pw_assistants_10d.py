@@ -89,7 +89,7 @@ def main():
         r["persona_share_button_clicks"] = True  # no exception thrown
 
         # MCP presets — one-click add
-        choose_settings_section(pg, "tools")
+        choose_settings_section(pg, "agent")
         pg.wait_for_selector("#mcp-presets .mcp-preset", timeout=8000)
         r["mcp_presets_visible"] = len(pg.query_selector_all("#mcp-presets .mcp-preset")) >= 3
         pg.screenshot(path=str(EVID / "mcp-presets.png"))

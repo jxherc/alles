@@ -22,7 +22,7 @@ export function account(provider, use, extra = {}) {
   };
 }
 
-// scenario: {provider, ready, notReadyText, accounts, start: 'device'|'redirect'|'paste_code'|'never'|'not_ready'|'provider_error',
+// scenario: {provider, ready, notReadyCode, notReadyText, accounts, start: 'device'|'redirect'|'paste_code'|'never'|'not_ready'|'provider_error',
 //            outcome: 'waiting'|'done'|'expired'|'denied'|'error'|'lost', afterMs, codeError}
 export function fakeSignin(scenario = {}) {
   const attempts = new Map();
@@ -31,7 +31,7 @@ export function fakeSignin(scenario = {}) {
   const p = PROVIDERS[scenario.provider || 'github'];
   const ready = scenario.ready !== false;
   const answer = (status, body) => new Response(JSON.stringify(body), { status, headers: { 'content-type': 'application/json' } });
-  const noReason = ready ? null : { code: 'no_client_id', text: scenario.notReadyText || `alles's ${p.name} sign in isn't set up yet` };
+  const noReason = ready ? null : { code: scenario.notReadyCode || 'no_client_id', text: scenario.notReadyText || `alles's ${p.name} sign in isn't set up yet` };
 
   async function fetcher(url, init = {}) {
     const method = (init.method || 'GET').toUpperCase();

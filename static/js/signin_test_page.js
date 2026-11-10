@@ -13,7 +13,8 @@ const fallback = { label: 'use an app password instead', reason: 'outlook.com ac
 
 const STATES = {
   idle: { scenario: { provider: 'github' }, use: 'github', fallback },
-  'not-ready': { scenario: { provider: 'github', ready: false }, use: 'github', fallback },
+  'not-ready': { scenario: { provider: 'google', ready: false, notReadyCode: 'no_client' }, use: 'mail' },
+  'not-drawn': { scenario: { provider: 'github', ready: false }, use: 'github', fallback },
   starting: { scenario: { provider: 'microsoft', start: 'never' }, use: 'mail' },
   waiting: { scenario: { provider: 'microsoft', outcome: 'waiting' }, use: 'mail' },
   redirect: { scenario: { provider: 'google' }, use: 'mail' },

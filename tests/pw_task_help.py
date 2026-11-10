@@ -345,7 +345,7 @@ def run():
                         "rules": "automation & delivery",
                         "andromeda": "andromeda",
                     }
-                    expect(page.locator(".s-nav-item[data-pane]")).to_have_count(20)
+                    expect(page.locator(".s-nav-item[data-pane]")).to_have_count(22)
                     # plus the one link that leaves settings for the server app
                     expect(page.locator(".s-nav-item:not([data-pane])")).to_have_count(1)
                     expect(page.locator('.s-nav-item[data-link="server"]')).to_have_count(1)

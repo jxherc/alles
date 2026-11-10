@@ -71,10 +71,10 @@ function _connectionRead(name, isCurrent) {
 // ── agent + mcp servers ───────────────────────────────────────────────────────
 async function loadAgentStatus(isCurrent = () => true) {
   const current = _connectionRead('agent', isCurrent);
-  const grid = document.getElementById('agent-status-grid');
+  const facts = document.getElementById('agent-status-line');
   const list = document.getElementById('agent-tool-list');
   const runsEl = document.getElementById('agent-run-list');
-  if (!grid || !list) return;
+  if (!facts || !list) return;
   const cfg = await fetch('/api/settings').then(r => r.json()).catch(() => ({}));
   if (!current()) return;
   _bindSwitch(document.getElementById('s-agent-ctx-toggle'),
@@ -132,17 +132,16 @@ async function loadAgentStatus(isCurrent = () => true) {
     const opencode = s.opencode?.installed
       ? t('connections.opencode_installed')
       : (s.opencode?.npx_fallback ? t('connections.opencode_npx_fallback') : t('connections.opencode_missing'));
-    const yesNo = value => (value ? t('common.yes') : t('common.no'));
-    grid.innerHTML = `
-      <div><span>${_esc(t('connections.status_tools'))}</span><strong>${s.tool_count || 0}</strong></div>
-      <div><span>opencode</span><strong>${_esc(opencode)}</strong></div>
-      <div><span>mcp</span><strong>${s.mcp?.connected_tool_count || 0}</strong></div>
-      <div><span>${_esc(t('connections.status_skills'))}</span><strong>${s.skills?.count || 0}</strong></div>
-      <div><span>docker</span><strong>${yesNo(s.sandbox?.docker)}</strong></div>
-      <div><span>pyautogui</span><strong>${yesNo(s.computer_use?.pyautogui)}</strong></div>
-      <div><span>${_esc(t('connections.status_connections'))}</span><strong>${_esc((s.connections || []).join(', ') || t('common.none'))}</strong></div>
-    `;
-    list.innerHTML = (s.tools || []).map(tool => `<span>${_esc(tool)}</span>`).join('');
+    facts.textContent = [
+      `opencode ${opencode}`,
+      `mcp ${s.mcp?.connected_tool_count || 0}`,
+      `${t('connections.status_skills')} ${s.skills?.count || 0}`,
+      `${t('connections.status_connections')} ${(s.connections || []).join(', ') || t('common.none')}`,
+    ].join(' · ');
+    const tools = s.tools || [];
+    const summary = document.getElementById('agent-tools-summary');
+    if (summary) summary.textContent = tp('connections.tool_count', s.tool_count ?? tools.length);
+    list.innerHTML = tools.map(tool => `<span>${_esc(tool)}</span>`).join('');
 
     if (runsEl) {
       runsEl.innerHTML = Array.isArray(runs) && runs.length
@@ -153,11 +152,11 @@ async function loadAgentStatus(isCurrent = () => true) {
             <em>${_esc((r.updated_at || '').replace('T', ' ').slice(0, 19))}</em>
           </div>
         `).join('')
-        : `<div class="settings-row-empty">${_esc(t('connections.no_agent_runs'))}</div>`;
+        : `<p class="s-card-hint">${_esc(t('connections.no_agent_runs'))}</p>`;
     }
   } catch {
     if (!current()) return;
-    grid.innerHTML = `<div class="settings-row-empty">${_esc(t('connections.agent_status_unavailable'))}</div>`;
+    facts.textContent = t('connections.agent_status_unavailable');
     list.innerHTML = '';
     if (runsEl) runsEl.innerHTML = '';
   }
@@ -303,29 +302,40 @@ function _photokitState(state) {
   return labels[state] || state.replace('_', ' ');
 }
 
-// 11a — macOS native integration status (available only on the Mac mini)
+// 11a — macOS native integration status (available only on the Mac mini). one row with its
+// state; the parts (keychain, calendar, photos, icloud drive) show when the row is opened
 async function loadMacosStatus(isCurrent = () => true) {
   const current = _connectionRead('macos', isCurrent);
   const box = document.getElementById('macos-status');
   if (!box) return;
   let cap;
   try { cap = await fetch('/api/macos/status').then(r => r.json()); }
-  catch { if (current()) box.innerHTML = `<div class="settings-row-empty">${_esc(t('connections.status_unavailable'))}</div>`; return; }
+  catch { if (current()) box.innerHTML = `<p class="s-card-hint">${_esc(t('connections.status_unavailable'))}</p>`; return; }
   if (!current()) return;
   const dot = ok => `<span class="status-dot" style="background:${ok ? 'var(--green)' : 'var(--faint)'}"></span>`;
   const row = (label, ok) => `<div class="macos-row">${dot(ok)}<span>${label}</span></div>`;
   if (!cap.available) {
-    box.innerHTML = `<div class="settings-row-empty">${_esc(t('connections.macos_unavailable', { platform: cap.platform }))}</div>`;
+    box.innerHTML = `<div class="conn-catalog-row"><span class="conn-catalog-who"><strong>${_esc(t('connections.macos_unavailable', { platform: cap.platform }))}</strong></span></div>`;
     return;
   }
   const photos = cap.photokit_authorization && !cap.photokit_ready
     ? t('connections.macos_photokit_state', { state: _photokitState(cap.photokit_authorization) })
     : t('connections.macos_photokit');
-  box.innerHTML = `<div class="macos-avail">${_si('check')} ${_esc(t('connections.macos_available'))}</div>`
+  const wasOpen = !!box.querySelector('[aria-expanded="true"]');
+  box.innerHTML = `<div class="conn-catalog-row"><span class="conn-catalog-who"><strong>${_esc(t('connections.macos_available'))}</strong></span>
+      <button class="btn" type="button" id="macos-toggle" aria-expanded="${wasOpen}" aria-controls="macos-parts">${_esc(t(wasOpen ? 'common.hide' : 'common.show'))}</button></div>
+    <div id="macos-parts"${wasOpen ? '' : ' hidden'}>`
     + row(_esc(t('connections.macos_keychain')), cap.keychain)
     + row(_esc(t('connections.macos_eventkit')), cap.eventkit)
     + row(_esc(photos), cap.photokit_ready)
-    + row('iCloud Drive', cap.icloud);
+    + row('iCloud Drive', cap.icloud) + '</div>';
+  const toggle = box.querySelector('#macos-toggle');
+  toggle.addEventListener('click', () => {
+    const open = toggle.getAttribute('aria-expanded') !== 'true';
+    toggle.setAttribute('aria-expanded', String(open));
+    toggle.textContent = t(open ? 'common.hide' : 'common.show');
+    box.querySelector('#macos-parts').hidden = !open;
+  });
 }
 
 // 10d — one-click connector presets
@@ -432,7 +442,7 @@ const _CATALOG_TARGET = {
   imessage: { anchor: '#photon-card' },
   telegram: { anchor: '#telegram-card' },
   discord: { anchor: '#jarvis-discord-card' },
-  mcp: { anchor: '#mcp-server-list' },
+  mcp: { pane: 'agent', anchor: '#mcp-server-list' },
 };
 const _catalogTarget = row => _CATALOG_TARGET[row.id] || _CATALOG_TARGET[row.group] || {};
 const _catalogRows = () => catalogByGroup().flatMap(group => group.rows);
@@ -501,11 +511,13 @@ export async function loadConnections(isCurrent = () => true) {
     _connectionServices.clear();
     all.forEach(connection => _connectionServices.set(connection.id, connection.service.trim().toLowerCase()));
     const conns = all.filter(connection => !signedIn.has(String(connection.id)));
+    const rotate = document.getElementById('conn-rotate-box');
+    if (rotate) rotate.hidden = !all.length;
     // a token already pasted keeps its form open, so its row has its context
     if (conns.length) document.getElementById('conn-token-form').hidden = false;
     // signed in accounts show in their own row, so the empty line is for no connection at all
     if (!conns.length) {
-      el.innerHTML = all.length ? '' : `<div class="settings-row-empty">${_esc(t('connections.nothing_connected'))}</div>`;
+      el.innerHTML = all.length ? '' : `<p class="s-card-hint">${_esc(t('connections.nothing_connected'))}</p>`;
       return;
     }
     el.innerHTML = conns.map(c => `
@@ -1296,7 +1308,7 @@ function _renderSignedIn(sites) {
   _signinEl('browser-signin-head-state').textContent = sites.length ? tp('connections.signin_count', sites.length) : '';
   _signinEl('browser-signin-forget').hidden = !sites.length;
   if (!sites.length) {
-    list.innerHTML = `<div class="settings-row-empty">${_esc(t('connections.signin_none'))}</div>`;
+    list.innerHTML = `<p class="s-card-hint">${_esc(t('connections.signin_none'))}</p>`;
     return;
   }
   list.innerHTML = sites.map(site => {
@@ -1601,19 +1613,58 @@ export async function focusBrowserSignin() {
 window._focusBrowserSignin = focusBrowserSignin;
 
 
+// docker and pyautogui say what this machine can run for the agent: one line of facts
+async function loadMachineStatus(isCurrent = () => true) {
+  const line = document.getElementById('machine-status-line');
+  if (!line) return;
+  try {
+    const status = await fetch('/api/agent/status').then(r => (r.ok ? r.json() : Promise.reject()));
+    if (!isCurrent()) return;
+    const yesNo = value => (value ? t('common.yes') : t('common.no'));
+    line.textContent = `docker ${yesNo(status.sandbox?.docker)} · pyautogui ${yesNo(status.computer_use?.pyautogui)}`;
+  } catch {
+    if (isCurrent()) line.textContent = t('connections.agent_status_unavailable');
+  }
+}
+
+// one wiring serves the three panes: the buttons it binds sit in connections, agent and this machine
+let _wired = false;
+function _wireOnce() {
+  if (_wired) return;
+  _wired = true;
+  _wireConnectionsPane();
+}
+
+function _invalidateConnectionReads() {
+  for (const [name, generation] of _connectionLoads) _connectionLoads.set(name, generation + 1);
+}
+
 export const connectionsPane = createSettingsPane({
-  init: _wireConnectionsPane,
+  init: _wireOnce,
   load: isCurrent => (_connectionsLoaded = Promise.all([
-    loadAgentStatus(isCurrent), loadMcpServers(isCurrent), loadConnections(isCurrent),
-    loadDiscordConnection(isCurrent), loadPermRules(isCurrent), loadMacosStatus(isCurrent),
-    loadPhoton(isCurrent), loadTelegram(isCurrent), loadBrowserSignin(isCurrent), loadDependencies(), loadLedger(isCurrent),
+    loadConnections(isCurrent), loadDiscordConnection(isCurrent), loadPhoton(isCurrent),
+    loadTelegram(isCurrent), loadBrowserSignin(isCurrent),
   ])),
   dispose() {
     // leaving the pane ends the live view, so Aide isn't kept waiting on a page nobody watches
     _signinLeft = true;
     void _finishSignin({ quiet: true });
-    for (const [name, generation] of _connectionLoads) _connectionLoads.set(name, generation + 1);
+    _invalidateConnectionReads();
     _discordGeneration += 1;
+  },
+});
+
+export const agentPane = createSettingsPane({
+  init: _wireOnce,
+  load: isCurrent => Promise.all([loadAgentStatus(isCurrent), loadMcpServers(isCurrent), loadPermRules(isCurrent)]),
+  dispose: _invalidateConnectionReads,
+});
+
+export const machinePane = createSettingsPane({
+  init: _wireOnce,
+  load: isCurrent => Promise.all([loadMacosStatus(isCurrent), loadMachineStatus(isCurrent), loadDependencies(), loadLedger(isCurrent)]),
+  dispose() {
+    _invalidateConnectionReads();
     _dependencies?.stop();
   },
 });

@@ -6,7 +6,7 @@ import { createBackupPane } from './settings/backups.js';
 import { providersPane, _endpointJson } from './settings/providers.js';
 import { andromedaPane } from './settings/andromeda.js';
 import { loadSearchEngines, wireSearchEngines } from './settings/search_engines.js';
-import { connectionsPane } from './settings/connections.js';
+import { agentPane, connectionsPane, machinePane } from './settings/connections.js';
 import { applyOrganization, saveOrganization, savedOrganization } from './settings/organization.js';
 export { _mergeHomeShortcutOrder } from './settings/home.js';
 export { normalizeWebdavBackupConfig, webdavBackupConfigPayload, webdavBackupsFromResponse, normalizeS3BackupConfig, s3BackupConfigPayload, s3BackupsFromResponse } from './settings/backups.js';
@@ -65,6 +65,8 @@ const _ownedPanes = {
   models: providersPane,
   andromeda: andromedaPane,
   tools: connectionsPane,
+  agent: agentPane,
+  machine: machinePane,
   backup: createBackupPane(closeSettings),
 };
 
