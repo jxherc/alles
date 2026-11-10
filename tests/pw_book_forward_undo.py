@@ -169,7 +169,9 @@ with sync_playwright() as pw:
                 )
                 idle()
                 assert stored()["rating"] == 2
-                expect(card().locator('.book-rate [data-value="2"]')).to_have_attribute("aria-checked", "true")
+                expect(card().locator('.book-rate [data-value="2"]')).to_have_attribute(
+                    "aria-checked", "true"
+                )
                 expect(card().locator('[data-undo="rating"]')).to_have_count(0)
                 rejected = writes[-1]["body"]
                 assert rejected["rating"] == 3 and rejected["expected_rating"] == 1

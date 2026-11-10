@@ -246,13 +246,19 @@ with sync_playwright() as pw:
             mode = "fail-overview"
             use(card.locator('.book-rate [data-value="2"]'))
             expect(card.locator('[data-undo="rating"]')).to_be_visible()
-            expect(card.locator('.book-rate [data-value="2"]')).to_have_attribute("aria-checked", "true")
+            expect(card.locator('.book-rate [data-value="2"]')).to_have_attribute(
+                "aria-checked", "true"
+            )
             use(card.locator('.book-rate [data-value="5"]'))
-            expect(card.locator('.book-rate [data-value="5"]')).to_have_attribute("aria-checked", "true")
+            expect(card.locator('.book-rate [data-value="5"]')).to_have_attribute(
+                "aria-checked", "true"
+            )
             expect(card).not_to_have_attribute("aria-busy", "true")
             use(card.locator('[data-undo="rating"]'))
             expect(card.locator('[data-undo="rating"]')).to_have_count(0)
-            expect(card.locator('.book-rate [data-value="2"]')).to_have_attribute("aria-checked", "true")
+            expect(card.locator('.book-rate [data-value="2"]')).to_have_attribute(
+                "aria-checked", "true"
+            )
             assert stored()["rating"] == 2
             edit_note("first acknowledged note")
             expect(card.locator('[data-act="notes"]')).to_have_text("first acknowledged note")

@@ -87,7 +87,9 @@ with sync_playwright() as pw:
             star = card.locator('.book-rate [data-value="4"]')
             star.focus()
             page.keyboard.press("Enter")
-            expect(card.locator('.book-rate [data-value="4"]')).to_have_attribute("aria-checked", "true")
+            expect(card.locator('.book-rate [data-value="4"]')).to_have_attribute(
+                "aria-checked", "true"
+            )
             expect(card.locator('.book-rate [data-value="4"]')).to_be_enabled()
             assert current()["rating"] == 4
             card.locator('[data-act="notes"]').click()
