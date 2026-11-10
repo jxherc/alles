@@ -1659,6 +1659,7 @@
     "andromeda.tool_tails": "뒷면",
     "andromeda.tool_text_on_it": "적을 내용",
     "andromeda.tool_text_to_convert": "변환할 텍스트",
+    "andromeda.tool_time_at": "{place}이(가) {time}일 때 {other}은(는)",
     "andromeda.tool_time_in": "{place}의 시간",
     "andromeda.tool_timer": "타이머",
     "andromeda.tool_timer_length": "타이머 시간 (예: 5:00, 90s)",

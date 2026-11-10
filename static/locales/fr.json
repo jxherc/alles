@@ -1659,6 +1659,7 @@
     "andromeda.tool_tails": "pile",
     "andromeda.tool_text_on_it": "texte dessus",
     "andromeda.tool_text_to_convert": "texte à convertir",
+    "andromeda.tool_time_at": "quand il est {time} à {place}, à {other} il est",
     "andromeda.tool_time_in": "heure à {place}",
     "andromeda.tool_timer": "minuteur",
     "andromeda.tool_timer_length": "durée du minuteur, comme 5:00 ou 90s",

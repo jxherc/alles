@@ -1324,6 +1324,19 @@ andromeda opens at `http://localhost:6769/?app=andromeda` or its own app host. i
   every lookup goes through the ssrf-safe fetcher with an 8 second limit. a source that is down says so in
   the card with a retry; a typed place or word that doesn't exist says so; a search that only looks like
   a tool ("climate change weather") stays a search.
+- **the same question in other words.** the tool patterns are short english. a question asked another way is first tried as
+  typed, then in the short form [services/andromeda_phrases.py](services/andromeda_phrases.py) `plain()` writes for it:
+  chinese (simplified and traditional), japanese, korean, spanish, french and arabic for weather, and chinese plus the
+  common japanese, spanish and french forms for time, currency, units, arithmetic, dates, the timer and the tools by name
+  (多伦多明天天气, 东京现在几点, 100美元等于多少人民币, 180磅是多少公斤, 2的10次方, 距离圣诞节还有多少天, 東京の天気, clima en toronto),
+  and longer english ("what is 180 lbs in kg", "how many kg is 180 lb", "5'11 in cm", "tokyo weather tomorrow", "will it
+  rain in toronto tomorrow", "12 times 12", "230 plus 13%", "5!"). numbers written in chinese count (1万, 一百). a clock time
+  is read in another zone ("3pm est in pst", "9:30 toronto time in beijing"), zone letters are known (est, pst, cet, jst),
+  and a place the zone table doesn't know ("time in markham", 成都现在几点) is looked up with the geocoder the weather card
+  uses, told the language of the script it is written in (it finds 多伦多 only then). an ounce beside a volume is a fluid
+  ounce. words that only look like a tool question stay searches (天气之子, 时间简史, weather girls, 翻译官, the meaning of
+  life). [tests/test_andromeda_phrases.py](tests/test_andromeda_phrases.py) holds 267 phrasings that must open their card
+  and 25 that must not; before this layer 147 of 293 did (nov 10).
 - **the overview fits the query.** `POST /api/andromeda/search` reports `overview_mode` (`full`, `brief`, `ask`, `skip`, `none`): when a tool
   answers the query fully, the overview shrinks to one line with "write one" and runs only when asked; a
   lookup that came up short brings the full overview back. an element card or the f1 card gets a brief
@@ -1432,11 +1445,18 @@ nearest article title first whatever was asked.
 one list ([services/andromeda.py](services/andromeda.py) `blend_results`, reciprocal rank: a page both found rises, the
 rest alternate, the free engine's row first). an engine that understands meaning and one that matches words miss
 different things: exa answered 沙底下一个女 with a film, the word engine with the character 娑, and with both the overview
-answers 娑 (measured nov 10 with the owner's exa key: 12 of 12 searches merged, median 0.9 s). the free engine gets 2.2
-seconds from the start of the search and at least 3 rows, or the chosen engine's list is shown alone; when the chosen
-engine has nothing, the free one stands in and the page says why. this only happens when the free engine is among the
-fallbacks the owner allows (fallback "none" stays one engine), never for a search with one engine picked, and not for
-images, news or videos. the reply's `provider` then names both ("exa, duckduckgo").
+answers 娑 (measured nov 10 with the owner's exa key: 12 of 12 searches merged, median 0.9 s). the second engine is the
+first word engine among the owner's fallbacks (brave, serper, google, searxng, or the free one): one with a key answers
+every time, the free one is a page read from a public site. it gets 1.6 seconds from the start of the search and needs 3
+rows, or the chosen engine's list is shown alone; after 2 misses in a row it is left alone for 3 minutes, so a search
+never keeps waiting for an engine that stopped answering. when the chosen engine has nothing, the second one stands in
+and the page says why. this only happens when a word engine is among the fallbacks the owner allows (fallback "none"
+stays one engine), never for a search with one engine picked, and not for images, news or videos. the reply's
+`provider` then names both ("exa, duckduckgo"). `site:` and `-site:` hold across both: exa gets them as its own
+include and exclude lists (it matches meaning and read them as two more words), and the merged rows are checked once more.
+a test set of 102 searches across 15 kinds (site names, typos, lyrics and error messages, "what's the word for", facts,
+cards, code, shopping, people, fresh things, local, school, chinese and japanese, ambiguous words, operators) scored
+97 with the owner's keys on nov 10; the 5 misses were one character riddle and 4 good pages from other sites than listed.
 the owner can add up to 12 custom engines in settings → search: any https json api (plain http only on this
 machine), with {query} and {count} in the address or a json body, an optional key header, and dotted paths for the
 result list and its link, title and snippet. custom keys are sealed per engine; removing an engine also resets

@@ -1659,6 +1659,7 @@
     "andromeda.tool_tails": "cruz",
     "andromeda.tool_text_on_it": "texto en ella",
     "andromeda.tool_text_to_convert": "texto a convertir",
+    "andromeda.tool_time_at": "cuando son las {time} en {place}, en {other} son las",
     "andromeda.tool_time_in": "hora en {place}",
     "andromeda.tool_timer": "temporizador",
     "andromeda.tool_timer_length": "duración del temporizador, como 5:00 o 90s",

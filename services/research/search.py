@@ -374,6 +374,18 @@ def _plain_snippet(text: str) -> str:
 
 
 NEWS_DAYS = 30
+_SITE = re.compile(r"(?:^|\s)(-?)site:([a-z0-9][a-z0-9.-]*\.[a-z]{2,})(?=\s|$)", re.I)
+
+
+def split_sites(query: str) -> tuple[str, list[str], list[str]]:
+    """ "site:reddit.com best keyboard -site:quora.com" as (words, sites to keep, sites to drop).
+    engines that match words read the operator themselves; the others are told in their own way,
+    and the page checks the rows once more."""
+    keep, drop = [], []
+    for minus, host in _SITE.findall(str(query or "")):
+        (drop if minus else keep).append(host.lower().removeprefix("www."))
+    words = " ".join(_SITE.sub(" ", str(query or "")).split())
+    return words, keep, drop
 
 
 async def _search_exa(query, api_key, max_results=5, category="all"):
@@ -383,12 +395,18 @@ async def _search_exa(query, api_key, max_results=5, category="all"):
     # "auto" is exa's default and the mode its docs recommend; "instant" (used here before) is a
     # legacy mode that trades depth for speed (docs.exa.ai/reference/search, read 2026-11-09).
     # highlights give the result list a snippet
+    # exa matches meaning and reads "site:reddit.com" as two more words; it has its own fields
+    words, keep, drop = split_sites(query)
     body = {
-        "query": query,
+        "query": words or query,
         "type": "auto",
         "numResults": max_results,
         "contents": {"highlights": {"maxCharacters": 320}},
     }
+    if keep and words:
+        body["includeDomains"] = keep[:20]
+    elif drop and words:
+        body["excludeDomains"] = drop[:20]
     if category == "news":
         # exa's news category alone is "pages from news sites", any age: travel pieces from
         # 2017 for "toronto", a help center for "openai" (measured nov 10). a news tab wants

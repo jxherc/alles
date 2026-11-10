@@ -232,6 +232,35 @@ class ExaEngineTest(unittest.TestCase):
         _rows, seen = self.run_exa("all")
         self.assertNotIn("startPublishedDate", seen["body"])
 
+    def test_site_is_sent_the_way_exa_reads_it(self):
+        # exa matches meaning: "site:reddit.com" in the words was just two more words to it
+        real = search_service._search_exa
+
+        def ask(query):
+            seen = {}
+
+            def handler(request):
+                seen.update(json.loads(request.content))
+                return httpx.Response(200, json={"results": []})
+
+            client = httpx.AsyncClient
+
+            def make(*args, **kwargs):
+                return client(*args, transport=httpx.MockTransport(handler), **kwargs)
+
+            with mock.patch.object(search_service.httpx, "AsyncClient", make):
+                asyncio.run(real(query, "k-1", 8, "all"))
+            return seen
+
+        body = ask("site:reddit.com best mechanical keyboard")
+        self.assertEqual(
+            (body["query"], body["includeDomains"]), ("best mechanical keyboard", ["reddit.com"])
+        )
+        body = ask("best keyboard -site:quora.com")
+        self.assertEqual((body["query"], body["excludeDomains"]), ("best keyboard", ["quora.com"]))
+        body = ask("best keyboard")
+        self.assertNotIn("includeDomains", body)
+
     def test_a_busy_exa_is_asked_once_more_and_a_refusal_is_not(self):
         found = {"results": [{"url": "https://a.dev/x", "title": "A"}]}
         with mock.patch.object(search_service.asyncio, "sleep", new=mock.AsyncMock()) as pause:
@@ -421,6 +450,8 @@ class BlendTest(unittest.TestCase):
         from services import andromeda
 
         asked = {"chain": [], "free": 0}
+        if kwargs.pop("fresh", True):
+            andromeda._free_misses, andromeda._free_rest_until = 0, 0.0
 
         async def chain(query, override=None, max_results=10, category="all"):
             asked["chain"].append(override)
@@ -435,8 +466,9 @@ class BlendTest(unittest.TestCase):
                 )
             return search_service.SearchChainResult(report)
 
-        async def free_rows(_query):
+        async def free_rows(_query, engine="duckduckgo"):
             asked["free"] += 1
+            asked["engine"] = engine
             if isinstance(free, (int, float)):
                 await asyncio.sleep(free)
                 return self.page("late", 5)
@@ -451,7 +483,8 @@ class BlendTest(unittest.TestCase):
             mock.patch.object(andromeda, "_free_rows", new=free_rows),
             mock.patch.object(andromeda, "BLEND_WAIT_SECONDS", 0.2),
         ):
-            result = asyncio.run(andromeda.normal_search("沙底下一个女", **kwargs))
+            query = kwargs.pop("query", "沙底下一个女")
+            result = asyncio.run(andromeda.normal_search(query, **kwargs))
         return result, asked
 
     def test_two_engines_become_one_list_with_shared_pages_on_top(self):
@@ -504,6 +537,25 @@ class BlendTest(unittest.TestCase):
         # the chosen engine is asked alone: its fallback is already on its way
         self.assertEqual((asked["chain"], asked["free"]), (["exa"], 1))
 
+    def test_the_second_engine_is_the_first_word_engine_among_the_fallbacks(self):
+        from services import andromeda
+
+        def second(settings, provider="", category="all"):
+            return andromeda.blend_engine(settings, provider, category)
+
+        self.assertEqual(second({"search_provider": "exa"}), "duckduckgo")
+        # one with a key answers every time; the free one is a page read from a public site
+        keyed = {"search_provider": "exa", "search_fallback_chain": ["brave", "duckduckgo"]}
+        self.assertEqual(second(keyed), "brave")
+        self.assertEqual(
+            second({"search_provider": "tavily", "search_fallback_chain": ["serper"]}), "serper"
+        )
+        # a word engine as the chosen one needs no second
+        self.assertEqual(second({"search_provider": "brave"}), "")
+        self.assertEqual(second({"search_provider": "exa", "search_fallback_chain": []}), "")
+        result, asked = self.search(self.page("exa", 6), self.page("free", 5), keyed)
+        self.assertEqual((result["provider"], asked["engine"]), ("exa, brave", "brave"))
+
     def test_a_slow_or_thin_free_engine_never_holds_the_results_back(self):
         result, _asked = self.search(self.page("exa", 6), 5)
         self.assertEqual(result["provider"], "exa")
@@ -511,6 +563,46 @@ class BlendTest(unittest.TestCase):
         self.assertEqual(result["attempted_sources"], ["exa"])
         result, _asked = self.search(self.page("exa", 6), self.page("free", 2))
         self.assertEqual(result["provider"], "exa")
+
+    def test_a_free_engine_that_keeps_missing_is_left_alone_for_a_while(self):
+        # 14 of 102 test searches in a row waited the whole time for an engine that had stopped
+        # answering: after 2 misses the search asks the chosen engine alone, as fast as before
+        self.search(self.page("exa", 6), 5)
+        result, asked = self.search(self.page("exa", 6), 5, fresh=False)
+        self.assertEqual((result["provider"], asked["free"]), ("exa", 1))
+        result, asked = self.search(self.page("exa", 6), self.page("free", 5), fresh=False)
+        self.assertEqual((result["provider"], asked["free"]), ("exa", 0))
+        # the chosen engine keeps its own fallbacks while the free one rests
+        self.assertEqual(asked["chain"], [None])
+        result, asked = self.search(self.page("exa", 6), self.page("free", 5))
+        self.assertEqual(result["provider"], "exa, duckduckgo")
+
+    def test_site_and_minus_site_hold_across_both_engines(self):
+        from services import andromeda
+
+        self.assertEqual(
+            search_service.split_sites("site:reddit.com best keyboard -site:quora.com"),
+            ("best keyboard", ["reddit.com"], ["quora.com"]),
+        )
+        self.assertEqual(search_service.split_sites("website builder"), ("website builder", [], []))
+        rows = [
+            {"url": "https://www.reddit.com/r/a", "title": "a"},
+            {"url": "https://old.reddit.com/r/b", "title": "b"},
+            {"url": "https://whatredditthinks.com/c", "title": "c"},
+            {"url": "https://quora.com/d", "title": "d"},
+        ]
+        kept = andromeda.keep_sites(rows, "site:reddit.com best keyboard")
+        self.assertEqual([row["title"] for row in kept], ["a", "b"])
+        kept = andromeda.keep_sites(rows, "best keyboard -site:quora.com -site:reddit.com")
+        self.assertEqual([row["title"] for row in kept], ["c"])
+        self.assertEqual(andromeda.keep_sites(rows, "best keyboard"), rows)
+        result, _asked = self.search(
+            rows[:3], rows[2:] + self.page("free", 3), query="site:reddit.com kb"
+        )
+        self.assertEqual(
+            {row["url"].split("/")[2] for row in result["results"]},
+            {"www.reddit.com", "old.reddit.com"},
+        )
 
     def test_the_free_engine_stands_in_when_the_chosen_one_has_nothing_and_says_why(self):
         for kind, reason in (

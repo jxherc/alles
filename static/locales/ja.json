@@ -1659,6 +1659,7 @@
     "andromeda.tool_tails": "裏",
     "andromeda.tool_text_on_it": "書く文字",
     "andromeda.tool_text_to_convert": "変換するテキスト",
+    "andromeda.tool_time_at": "{place} が {time} のとき、{other} は",
     "andromeda.tool_time_in": "{place} の時刻",
     "andromeda.tool_timer": "タイマー",
     "andromeda.tool_timer_length": "タイマーの長さ（5:00 や 90s など）",

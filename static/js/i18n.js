@@ -1658,6 +1658,7 @@ const BUILTIN_ENGLISH = {
     "andromeda.tool_tails": "tails",
     "andromeda.tool_text_on_it": "text on it",
     "andromeda.tool_text_to_convert": "text to convert",
+    "andromeda.tool_time_at": "when it's {time} in {place}, in {other} it's",
     "andromeda.tool_time_in": "time in {place}",
     "andromeda.tool_timer": "timer",
     "andromeda.tool_timer_length": "timer length, like 5:00 or 90s",

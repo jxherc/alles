@@ -1659,6 +1659,7 @@
     "andromeda.tool_tails": "反面",
     "andromeda.tool_text_on_it": "上面的文字",
     "andromeda.tool_text_to_convert": "要转换的文字",
+    "andromeda.tool_time_at": "{place} {time} 时，{other} 是",
     "andromeda.tool_time_in": "{place}的时间",
     "andromeda.tool_timer": "计时器",
     "andromeda.tool_timer_length": "计时时长，如 5:00 或 90s",

@@ -1659,6 +1659,7 @@
     "andromeda.tool_tails": "كتابة",
     "andromeda.tool_text_on_it": "النص عليه",
     "andromeda.tool_text_to_convert": "النص المراد تحويله",
+    "andromeda.tool_time_at": "عندما تكون الساعة {time} في {place}، تكون في {other}",
     "andromeda.tool_time_in": "الوقت في {place}",
     "andromeda.tool_timer": "مؤقت",
     "andromeda.tool_timer_length": "مدة المؤقت، مثل 5:00 أو 90s",

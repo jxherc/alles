@@ -364,6 +364,16 @@ export function clockTool(_data, ctx) {
 }
 
 export function timeTool(data, ctx) {
+  if (data.at_iso && data.other_zone) {
+    // "3pm est in pst": one moment, read on both clocks
+    const clock = zone => formatTime(data.at_iso, { timeZone: zone, hour: 'numeric', minute: '2-digit' });
+    const day = zone => formatDate(data.at_iso, { timeZone: zone, weekday: 'short', month: 'short', day: 'numeric' });
+    return [
+      heading(t('andromeda.tool_time_at', { time: clock(data.zone), place: data.place, other: data.other_place })),
+      make('p', 'andromeda-answer-value', clock(data.other_zone)),
+      note(`${day(data.other_zone)} · ${data.other_zone.replace(/_/g, ' ')}`),
+    ];
+  }
   const big = make('p', 'andromeda-answer-value', timeIn(data.zone));
   const parts = [heading(t('andromeda.tool_time_in', { place: data.place })), big];
   const day = note(`${dayIn(data.zone)} · ${data.zone.replace(/_/g, ' ')} (UTC${data.offset.slice(0, 3)}:${data.offset.slice(3)}) · ${relative(offsetHours(data.zone))}`);

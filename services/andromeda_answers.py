@@ -18,6 +18,7 @@ import urllib.parse
 from datetime import datetime
 from zoneinfo import ZoneInfo, available_timezones
 
+from services.andromeda_phrases import NOT_PLACES, plain
 from services.elements import BY_NAME, BY_SYMBOL, CATEGORY_LABELS, ELEMENTS
 from services.units import ALIASES, UNITS, convert, find
 
@@ -41,6 +42,7 @@ _FUNCS = {
     "abs": abs,
     "round": round,
     "exp": math.exp,
+    "factorial": lambda n: math.factorial(int(n)) if n == int(n) and 0 <= n <= 170 else math.nan,
 }
 _CONSTS = {"pi": math.pi, "e": math.e}
 _MATHY = re.compile(r"^[\d\s.+\-*/%^()a-z,×÷]+$")
@@ -72,7 +74,7 @@ def calculate(text: str, *, loose: bool = False):
     if percent:
         return float(percent.group(1)) / 100 * float(percent.group(2))
     if not _MATHY.match(expression) or not (
-        loose or re.search(r"[\d)]\s*[-+*/%^×÷]|[a-z]+\(|sqrt", expression)
+        loose or re.search(r"(?:[\d)]|\b(?:pi|e))\s*[-+*/%^×÷]|[a-z]+\(|sqrt", expression)
     ):
         return None
     expression = expression.replace("^", "**").replace("×", "*").replace("÷", "/")
@@ -129,6 +131,36 @@ _CITY_ZONES = {
     "utc": "UTC",
     "gmt": "UTC",
 }
+# the letters people write for a zone ("3pm est in pst"). cst is read as north america's
+_ZONE_CODES = {
+    "et": "America/New_York",
+    "est": "America/New_York",
+    "edt": "America/New_York",
+    "eastern": "America/New_York",
+    "ct": "America/Chicago",
+    "cst": "America/Chicago",
+    "cdt": "America/Chicago",
+    "central": "America/Chicago",
+    "mt": "America/Denver",
+    "mst": "America/Denver",
+    "mdt": "America/Denver",
+    "mountain": "America/Denver",
+    "pt": "America/Los_Angeles",
+    "pst": "America/Los_Angeles",
+    "pdt": "America/Los_Angeles",
+    "pacific": "America/Los_Angeles",
+    "bst": "Europe/London",
+    "cet": "Europe/Paris",
+    "cest": "Europe/Paris",
+    "jst": "Asia/Tokyo",
+    "kst": "Asia/Seoul",
+    "ist": "Asia/Kolkata",
+    "hkt": "Asia/Hong_Kong",
+    "sgt": "Asia/Singapore",
+    "aest": "Australia/Sydney",
+    "aedt": "Australia/Sydney",
+}
+_CITY_ZONES |= _ZONE_CODES
 _ZONES_BY_CITY = {
     zone.rsplit("/", 1)[-1].replace("_", " ").lower(): zone
     for zone in available_timezones()
@@ -272,6 +304,12 @@ _NOT_WORDS = {
     "time",
     "art",
     "truth",
+    # tools of their own
+    "weather",
+    "forecast",
+    "temperature",
+    "date",
+    "news",
 }
 
 # the default pair a converter opens on, by what it converts
@@ -548,6 +586,11 @@ def _units(low: str) -> dict | None:
     found = re.fullmatch(r"(-?[\d.,]+)?\s*([a-z°/ ]+?)\s+(?:to|in|into|as)\s+([a-z°/ ]+)", value)
     if found:
         source, target = _unit(found[2]), _unit(found[3])
+        if source and target and "oz" in (source, target):
+            # an ounce of something poured is a fluid ounce: "1.5 l to oz", "8 oz in ml"
+            other = target if source == "oz" else source
+            if _UNITS[other][0] == "volume":
+                source, target = ("floz" if unit == "oz" else unit for unit in (source, target))
         if source and target and source != target and _UNITS[source][0] == _UNITS[target][0]:
             try:
                 amount = float((found[1] or "1").replace(",", ""))
@@ -587,14 +630,47 @@ def _time(low: str) -> dict | None:
                 "other_place": two.strip(),
                 "other_zone": zone_for(two),
             }
-    for pattern in (
+    # "3pm est in pst", "9:30 toronto time in beijing": one clock time read in another zone
+    found = re.fullmatch(
+        r"(\d{1,2})(?::(\d{2}))?\s*(am|pm)?\s+(.+?)(?: time)? (?:in|to) (.+?)(?: time)?", low
+    )
+    if found and zone_for(found[4]) and zone_for(found[5]):
+        hour, minute = int(found[1]), int(found[2] or 0)
+        if found[3]:
+            hour = hour % 12 + (12 if found[3] == "pm" else 0)
+        if hour < 24 and minute < 60:
+            return {
+                "kind": "time",
+                "place": found[4].strip(),
+                "zone": zone_for(found[4]),
+                "other_place": found[5].strip(),
+                "other_zone": zone_for(found[5]),
+                "at": f"{hour:02d}:{minute:02d}",
+            }
+    # "est to pst", "toronto to beijing time": a zone's letters or the word time say it is no trip
+    found = re.fullmatch(r"(.+?) (?:to|vs|in) (.+?)( time)?", low)
+    if found and zone_for(found[1]) and zone_for(found[2]):
+        if found[3] or {found[1], found[2]} & set(_ZONE_CODES):
+            return {
+                "kind": "time",
+                "place": found[1].strip(),
+                "zone": zone_for(found[1]),
+                "other_place": found[2].strip(),
+                "other_zone": zone_for(found[2]),
+            }
+    patterns = (
         r"(?:what(?:'s| is) the )?(?:current |local )?time (?:is it )?(?:in|at) (.+?)(?: now| right now)?",
-        r"what time is it (?:in|at) (.+)",
+        r"what time is it (?:in|at) (.+?)(?: now| right now)?",
         r"(.+?) (?:local )?time(?: now| zone)?",
-    ):
+    )
+    for index, pattern in enumerate(patterns):
         found = re.fullmatch(pattern, low)
         if found and zone_for(found[1]):
             return {"kind": "time", "place": found[1].strip(), "zone": zone_for(found[1])}
+        # "time in markham", "time in 成都": said as a place, so the card looks the zone up.
+        # "x time" alone needs a zone the table knows ("dinner time" is no place)
+        if found and index < 2 and len(found[1]) <= 40 and not re.search(r"[0-9]", found[1]):
+            return {"kind": "time", "place": found[1].strip(), "zone": ""}
     return None
 
 
@@ -613,7 +689,9 @@ def _weather(low: str) -> dict | None:
         r"\b(?:today|tomorrow|this week|now|right now|tonight|this weekend)\b", "", found[1]
     )
     place = re.sub(r"^(?:in|for|at) ", "", re.sub(r"\s+", " ", place).strip())
-    if len(place) > 60:
+    words = place.split(" ")
+    if len(place) > 60 or words[0] in NOT_PLACES or words[-1] in NOT_PLACES:
+        # "weather girls" is a band, "weather channel" a site
         return None
     return {"kind": "weather", "place": place}
 
@@ -646,7 +724,7 @@ def _word(low: str) -> dict | None:
     found = (
         re.fullmatch(r"(?:define|definition of|meaning of|dictionary) ([a-z][a-z' -]{0,40})", low)
         or re.fullmatch(r"what does ([a-z][a-z'-]{0,40}) mean", low)
-        or re.fullmatch(r"([a-z][a-z'-]{0,40}) (?:meaning|definition|define)", low)
+        or re.fullmatch(r"([a-z][a-z'-]{0,40}) (?:meaning|definition|define)(?: in english)?", low)
     )
     if found:
         return {"kind": "define", "word": found[1].strip(), "focus": ""}
@@ -716,8 +794,22 @@ def _translate(text: str) -> dict | None:
         phrase = clean[len("translate ") :].strip(" \"'“”")
         if phrase:
             return {"kind": "translate", "text": phrase, "from": "", "to": "english"}
-    if clean in ("翻译", "翻譯", "在线翻译", "線上翻譯", "谷歌翻译"):
+    if clean in (
+        "翻译",
+        "翻譯",
+        "在线翻译",
+        "線上翻譯",
+        "谷歌翻译",
+        "翻译器",
+        "翻譯器",
+        "翻译软件",
+        "翻譯軟體",
+    ):
         return {"kind": "translate", "text": "", "from": "", "to": "english"}
+    if re.fullmatch(
+        r"(?:翻译|翻譯)(?:官|家|员|員|机|機|公司|专业|專業|硕士|碩士|资格证|理论|理論|学|學)", clean
+    ):
+        return None  # 翻译官 is a job and a tv show, not "translate 官"
     chinese = _ZH_TRANSLATE.fullmatch(clean)
     if chinese:
         phrase = chinese[1].strip(" \"'“”「」《》")
@@ -745,7 +837,21 @@ def detect(query: str) -> dict | None:
     """which answer or tool fits this query, if any. pure pattern matching, nothing leaves the machine.
 
     one rule runs through it: asking for a tool opens the tool, empty; asking with the input answers.
+    the patterns are short english; a question asked another way (chinese, japanese, spanish,
+    "what is 180 lbs in kg", "12 times 12") is first tried as typed, then in the short form
+    andromeda_phrases.plain() writes for it.
     """
+    found = _detect(query)
+    if found:
+        return found
+    for other in plain(query):
+        found = _detect(other)
+        if found:
+            return found
+    return None
+
+
+def _detect(query: str) -> dict | None:
     from services import andromeda_dates, andromeda_f1, andromeda_utilities
 
     text = re.sub(r"\s+", " ", str(query or "").strip())
@@ -1326,14 +1432,37 @@ async def _currency_answer(found: dict) -> dict:
     }
 
 
+def _place_query(name: str) -> str:
+    """the geocoder's address for a place name. it only knows a name written in another script
+    when told the language: 多伦多 finds nothing bare and toronto with language=zh (nov 10)."""
+    params = {"name": name, "count": 1}
+    for pattern, language in (
+        (r"[\u3040-\u30ff]", "ja"),
+        (r"[\uac00-\ud7af]", "ko"),
+        (r"[\u4e00-\u9fff]", "zh"),
+        (r"[\u0400-\u04ff]", "ru"),
+        (r"[\u0600-\u06ff]", "ar"),
+    ):
+        if re.search(pattern, name):
+            params["language"] = language
+            break
+    return "https://geocoding-api.open-meteo.com/v1/search?" + urllib.parse.urlencode(params)
+
+
+async def _place_zone(name: str) -> str:
+    try:
+        places = await _get_json(_place_query(name))
+    except Exception:
+        return ""
+    zone = str(((places.get("results") or [{}])[0]).get("timezone") or "")
+    return zone if zone in available_timezones() else ""
+
+
 async def _weather_answer(found: dict, strict: bool) -> dict | None:
     if not found["place"]:
         return {"kind": "weather", "place": "", "status": "empty", "source": "Open-Meteo"}
     try:
-        places = await _get_json(
-            "https://geocoding-api.open-meteo.com/v1/search?"
-            + urllib.parse.urlencode({"name": found["place"], "count": 1})
-        )
+        places = await _get_json(_place_query(found["place"]))
     except Exception:
         return {
             "kind": "weather",
@@ -1447,6 +1576,12 @@ async def resolve(found: dict, *, strict: bool = False) -> dict | None:
             "status": "ok",
         }
     if kind == "time":
+        if not found.get("zone"):
+            # a place the zone table doesn't know: the geocoder the weather card uses names its zone
+            zone = await _place_zone(found["place"])
+            if not zone:
+                return None
+            found = {**found, "zone": zone}
         now = datetime.now(ZoneInfo(found["zone"]))
         out = {
             "kind": kind,
@@ -1467,6 +1602,11 @@ async def resolve(found: dict, *, strict: bool = False) -> dict | None:
                 )
                 / 3600,
             )
+            if found.get("at"):
+                # that clock time today in the first zone, as one moment the page shows in both
+                hour, minute = (int(part) for part in found["at"].split(":"))
+                moment = now.replace(hour=hour, minute=minute, second=0, microsecond=0)
+                out.update(at=found["at"], at_iso=moment.isoformat(timespec="seconds"))
         return out
     if kind == "clock":
         return {

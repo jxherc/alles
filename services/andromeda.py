@@ -267,10 +267,20 @@ def order_results(rows, query: str) -> list:
 # "woman in the dunes", the word engine with the character 娑; for "how to tie a tie" only the
 # word engine had wikihow. a web search asks both and shows one list (measured nov 10)
 BLEND_ENGINE = "duckduckgo"
+# engines that match words. the first one among the owner's fallbacks is the second engine: one
+# with a key (brave, serper, google) answers every time, the free one is a page read from a
+# public site and rests when asked too often
+WORD_ENGINES = ("brave", "serper", "google_pse", "searxng", BLEND_ENGINE)
 BLEND_ROWS = 7  # one page of the free engine: more would cost it a second request
 BLEND_MIN_ROWS = 3
-BLEND_WAIT_SECONDS = 2.2  # for the free engine, from the start of the search
+BLEND_WAIT_SECONDS = 1.6  # for the free engine, from the start of the search
+# the free engine is a page read from a public site: it slows down or stops answering for a
+# while when asked too often (14 of 102 test searches in a row waited the whole time for
+# nothing). after 2 misses in a row it is left alone, and the search is as fast as before
+BLEND_REST_SECONDS = 180
 _BLEND_K = 10
+_free_misses = 0
+_free_rest_until = 0.0
 
 
 def _page_key(url) -> str:
@@ -300,6 +310,22 @@ def blend_results(words: list, meaning: list) -> list:
     return [kept[key] for key in sorted(score, key=lambda key: -score[key])]
 
 
+def keep_sites(rows: list, query: str) -> list:
+    """rows for a search with site: in it: only that site, or without the sites behind -site:.
+    an engine may ignore the operator, and two engines as one list must not."""
+    from services.research.search import split_sites
+
+    _words, keep, drop = split_sites(query)
+    if not keep and not drop:
+        return rows
+
+    def inside(row, sites) -> bool:
+        host = _site(str(row.get("url") or ""))
+        return any(host == site or host.endswith("." + site) for site in sites)
+
+    return [row for row in rows or [] if (not keep or inside(row, keep)) and not inside(row, drop)]
+
+
 def blend_engine(settings: dict, provider: str, category: str) -> str:
     """the second engine a web search asks beside the chosen one, or "" for none: only for the
     "all" tab, never when the owner picked one engine for this search, and only when the free
@@ -310,16 +336,17 @@ def blend_engine(settings: dict, provider: str, category: str) -> str:
         return ""
     primary = settings.get("research_search_provider") or settings.get("search_provider") or ""
     chain = _provider_chain(primary or BLEND_ENGINE, settings.get("search_fallback_chain"))
-    if not chain or chain[0] in (BLEND_ENGINE, "wikipedia") or BLEND_ENGINE not in chain[1:]:
-        return ""
-    return BLEND_ENGINE
+    if not chain or chain[0] in (*WORD_ENGINES, "wikipedia"):
+        return ""  # a word engine is the chosen one already
+    return next((name for name in chain[1:] if name in WORD_ENGINES), "")
 
 
-async def _free_rows(query: str) -> list:
-    from services.research.search import _search_duckduckgo
+async def _free_rows(query: str, engine: str = BLEND_ENGINE) -> list:
+    from core.settings import load_settings
+    from services.research.search import _search_provider
 
     try:
-        rows = await _search_duckduckgo(query, BLEND_ROWS, "all")
+        rows = await _search_provider(engine, query, load_settings(), BLEND_ROWS, "all")
     except Exception:
         return []
     return [row for row in rows or [] if not _AD_LINK.match(str(row.get("url") or ""))]
@@ -350,8 +377,11 @@ async def normal_search(
     settings = load_settings()
     blocked = blocked_sites(settings.get("andromeda_blocked_sites"))
     started = time.perf_counter()
+    global _free_misses, _free_rest_until
     second = blend_engine(settings, provider, category)
-    free = asyncio.create_task(_free_rows(query)) if second else None
+    if second and time.monotonic() < _free_rest_until:
+        second = ""
+    free = asyncio.create_task(_free_rows(query, second)) if second else None
     # set when the second engine's rows are in the list, or stand in for the chosen engine's
     blended: list = []
     stood_in: tuple[str, str] | None = None
@@ -388,6 +418,12 @@ async def normal_search(
                     extra = []
                 if len(extra) >= BLEND_MIN_ROWS:
                     blended = extra
+                    _free_misses = 0
+                else:
+                    _free_misses += 1
+                    if _free_misses >= 2:
+                        _free_misses = 0
+                        _free_rest_until = time.monotonic() + BLEND_REST_SECONDS
             else:
                 # it did not: the free engine is the backup, and it has been asked already
                 extra = await free
@@ -416,6 +452,7 @@ async def normal_search(
             # every pass of this loop asks the chosen engine for more: the second engine's page
             # goes into each
             rows = blend_results(blended, list(rows))
+        rows = keep_sites(list(rows or []), query)
         shown = drop_blocked(order_results(rows, query) if category == "all" else rows, blocked)
         normalized = normalize_results(shown, provider or "", 0, limit=requested + 1)
         if (
