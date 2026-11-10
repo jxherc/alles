@@ -27,3 +27,7 @@ pills that never showed which one was picked.
 - a failed reflection is one line beside the reflect button ("could not reflect: ... choose reflect to
   retry"), not a bar above the search box. it clears when reflect works, when the entry changes or
   when the day changes. on a phone the line wraps under the buttons.
+- contacts' four filter pills (favorites, birthdays, groups, duplicates) with no picked state are one
+  dropdown, "show", with "all" first; it reads what the list shows, also after a back button or a
+  search. a contact row has no "open" button: its avatar and name are one 44px button, next to the
+  star and the "..." menu, named by the contact's name and address.

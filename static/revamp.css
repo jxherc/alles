@@ -1552,18 +1552,10 @@ html:not(#_):not(#_) #contacts-view .contact-rowmain :is(.row-name, .row-meta) {
   html:not(#_):not(#_) #contacts-view .contacts-head { row-gap: var(--k-space-2); }
   html:not(#_):not(#_) #contacts-view .contacts-head > .contacts-search { flex: 1 1 12rem; width: auto; min-width: 0; }
   html:not(#_):not(#_) #contacts-view .contacts-head > .app-cog { order: 1; margin-inline: 0; }
-  html:not(#_):not(#_) #contacts-view .contacts-head > :is(.btn, a.btn) { order: 2; margin-inline-start: 0; }
+  html:not(#_):not(#_) #contacts-view .contacts-head > :is(.btn, a.btn, .contacts-show) { order: 2; margin-inline-start: 0; }
 }
 
 @media (max-width: 600px) {
-  /* the open and del buttons took 190 of 360px, leaving a name 130px; they drop under it */
-  html:not(#_):not(#_) #contacts-view .contact-item {
-    display: grid;
-    grid-template-columns: auto auto minmax(0, 1fr);
-    align-items: center;
-    column-gap: var(--k-space-2);
-  }
-  html:not(#_):not(#_) #contacts-view .contact-item > .contact-rowacts { grid-column: 3; }
   html:not(#_):not(#_) #contacts-view .contacts-head {
     display: grid;
     grid-template-columns: repeat(3, minmax(0, 1fr));

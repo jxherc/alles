@@ -124,7 +124,8 @@ def run():
                 )
                 page.screenshot(path=str(output / f"{width}-contacts.png"))
 
-                click(page.locator("#contacts-groups-btn"))
+                click(page.locator("#contacts-show"))
+                click(page.get_by_role("option", name="groups", exact=True))
                 click(page.locator("#cg-add"))
                 page.get_by_role("textbox", name="group name", exact=True).fill(f"VIPs {width}")
                 click(page.locator("[data-dialog-confirm]"))
@@ -145,7 +146,8 @@ def run():
                 )
                 page.screenshot(path=str(output / f"{width}-groups.png"))
 
-                click(page.locator("#contacts-dups-btn"))
+                click(page.locator("#contacts-show"))
+                click(page.get_by_role("option", name="duplicates", exact=True))
                 cluster = page.locator(".dup-cluster").filter(has_text=f"Jane {width}")
                 expect(cluster).to_be_visible()
                 before = len(read("/api/contacts"))
