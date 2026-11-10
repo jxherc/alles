@@ -1,0 +1,99 @@
+/* aide: the chat window. desktop first, then the phone's own sizes (.ai-phone) */
+.ai { position: absolute; inset: 0; display: flex; flex-direction: column; --col: 560px; font-size: 12px; }
+.ai .dm-app { font-size: 13px; }
+.ai-top { display: flex; align-items: center; gap: 2px; margin-right: -8px; }
+.ai-act { display: inline-flex; align-items: center; gap: 5px; height: 28px; padding: 0 8px; border-radius: 8px; color: var(--muted); transition: color 140ms, background-color 140ms; }
+.ai-act:hover { color: var(--text); background: var(--raised); }
+
+/* the thread is pinned to the bottom, so older turns leave from the top */
+.ai-thread { position: relative; flex: 1; min-height: 0; margin-bottom: 31px; overflow: hidden; overflow: clip; }
+.ai-stack { position: absolute; bottom: 0; left: 50%; width: var(--col); margin-left: calc(var(--col) / -2); display: flex; flex-direction: column; }
+.ai-turn { min-width: 0; }
+.ai-turn + .ai-bot { margin-top: 30px; }
+.ai-turn + .ai-me { margin-top: 24px; }
+.ai-me { align-self: flex-end; position: relative; max-width: 100%; }
+.ai-bubble { width: fit-content; max-width: 100%; margin-left: auto; padding: 6px 10px; border-radius: 10px; background: var(--raised); line-height: 18px; overflow-wrap: anywhere; }
+.ai-meta { position: absolute; right: 0; top: 100%; display: flex; align-items: center; gap: 10px; height: 18px; color: var(--muted); white-space: nowrap; }
+.ai-read { min-width: 24px; text-align: right; }
+.ai-hov { opacity: 0; transition: opacity 140ms; }
+.ai-me:hover .ai-hov, .ai-me:focus-within .ai-hov { opacity: 1; }
+
+.ai-bot { max-width: 428px; }
+.ai-body { line-height: 18px; overflow-wrap: anywhere; }
+.ai-body p, .ai-body ul { margin: 0 0 8px; }
+.ai-body > :last-child { margin-bottom: 0; }
+.ai-body ul { padding-left: 17px; list-style: disc; }
+.ai-body ul li { margin-bottom: 3px; }
+.ai-body ul li:last-child { margin-bottom: 0; }
+.ai-body strong { font-weight: 600; }
+.ai-dots { display: inline-flex; align-items: center; gap: 4px; height: 18px; }
+.ai-dots i { width: 5px; height: 5px; border-radius: 50%; background: var(--muted); animation: ai-blink 1.2s infinite both; }
+.ai-dots i:nth-child(2) { animation-delay: 0.2s; }
+.ai-dots i:nth-child(3) { animation-delay: 0.4s; }
+@keyframes ai-blink { 0%, 60%, 100% { opacity: 0.3; } 30% { opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .ai-dots i { animation: none; opacity: 0.6; } }
+
+.ai-row { display: flex; align-items: center; gap: 10px; height: 24px; margin-top: 10px; }
+.ai-link { display: inline-flex; align-items: center; height: 24px; padding: 0; border-radius: 6px; color: var(--muted); transition: color 140ms; }
+.ai-link:hover { color: var(--text); }
+.ai-ico { width: 24px; justify-content: center; }
+.ai-ico .ic { font-size: 14px; }
+
+/* the composer: its own edge shows focus, nothing is drawn on top */
+.ai-composer { flex: none; align-self: center; box-sizing: border-box; width: var(--col); height: 68px; margin-bottom: 16px; padding: 3px 5px; border: 1px solid transparent; border-radius: 12px; background: var(--raised); transition: border-color 140ms; }
+.ai-composer:focus-within { border-color: var(--line-strong); }
+.ai-root .ai-input { display: block; box-sizing: border-box; width: 100%; height: 24px; padding: 0 6px; border: 0; border-radius: 0; background: transparent; outline: none; }
+.ai-root .ai-input:focus-visible { outline: none; }
+.ai-input::placeholder { color: var(--muted); }
+.ai-foot { display: flex; align-items: center; height: 28px; margin-top: 8px; }
+.ai-btn { display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; border-radius: 8px; color: var(--muted); transition: color 140ms, background-color 140ms; }
+.ai-btn:hover { color: var(--text); background: var(--hover); }
+.ai-btn .ic { font-size: 17.2px; }
+.ai-send.ready { color: var(--text); }
+.ai-mode, .ai-model { height: 28px; padding: 0 4px; border-radius: 8px; transition: color 140ms, background-color 140ms; }
+.ai-mode { margin-left: 5px; color: var(--soft); }
+.ai-model { margin-right: 2px; color: var(--muted); }
+.ai-mode:hover, .ai-model:hover { color: var(--text); background: var(--hover); }
+.ai-root .dm-toast { bottom: 96px; }
+
+/* phone: the app at 390 by 844 with its own type */
+.ai-phone .ai { --col: 358px; font-size: 17.2px; }
+.ai-phone .dm-top { padding: 0 22px 0 16px; }
+.ai-phone .dm-app { font-size: 16px; }
+.ai-phone .ai-top { margin-right: 0; gap: 0; }
+.ai-phone .ai-act { padding: 0 9px; font-size: 15px; }
+.ai-phone .ai-act.bare .ai-lab { display: none; }
+.ai-phone .ai-thread { margin-bottom: 35px; }
+.ai-phone .ai-turn + .ai-bot { margin-top: 45px; }
+.ai-phone .ai-turn + .ai-me { margin-top: 43px; }
+.ai-phone .ai-me { max-width: 88%; }
+.ai-phone .ai-bubble { padding: 8px 14px; border-radius: 16px; line-height: 28.5px; }
+.ai-phone .ai-meta { top: calc(100% + 1px); gap: 14px; height: 24px; font-size: 15px; }
+.ai-phone .ai-mode, .ai-phone .ai-model { font-size: 15px; }
+.ai-phone .ai-hov { display: none; }
+.ai-phone .ai-last .ai-hov, .ai-phone .ai-me:focus-within .ai-hov { display: inline-flex; opacity: 1; }
+.ai-phone .ai-bot { max-width: 100%; }
+.ai-phone .ai-body { line-height: 28.5px; }
+.ai-phone .ai-body p, .ai-phone .ai-body ul { margin-bottom: 12px; }
+.ai-phone .ai-body p.ai-title { margin-bottom: 14px; }
+.ai-phone .ai-body ul { padding-left: 22px; margin-bottom: 13px; }
+.ai-phone .ai-body ul li { margin-bottom: 5px; }
+.ai-phone .ai-dots { height: 28px; }
+.ai-phone .ai-row { margin-top: 18px; font-size: 15px; gap: 16px; }
+.ai-phone .ai-ico .ic { font-size: 16px; }
+.ai-phone .ai-composer { height: 105px; margin-bottom: 13px; padding: 9px 9px 11px; border-radius: 16px; }
+.ai-phone .ai-input { height: 28px; padding: 0 6px; }
+.ai-phone .ai-foot { height: 36px; margin-top: 19px; }
+.ai-phone .ai-btn { width: 36px; height: 36px; }
+.ai-phone .ai-btn .ic { font-size: 19px; }
+.ai-phone .ai-mode { height: 36px; margin-left: 17px; padding: 0; }
+.ai-phone .ai-model { height: 36px; margin-right: 12px; padding: 0; }
+.ai-phone .ai-send { margin-left: 8px; }
+.ai-phone .dm-toast { bottom: 190px; }
+.ai-tabs { flex: none; display: flex; height: 55px; background: var(--panel); }
+.ai-tab { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 1px; padding: 6px 0 0; border-radius: 0; background: none; color: var(--muted); font-size: 15px; line-height: 20px; }
+.ai-tab .ic { font-size: 22px; }
+.ai-tab[aria-current="page"] { color: var(--text); font-weight: 600; }
+.ai-tab:hover { color: var(--text); }
+.ai-tab:focus-visible { outline-offset: -4px; }
+.ai-nb { white-space: nowrap; }

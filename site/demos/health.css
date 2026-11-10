@@ -1,0 +1,82 @@
+/* health: the logs and habits tabs from shots/health.webp and shots/health-habits.webp */
+.hl { --hl-blue: #6d9eeb; }
+.hl .dm-top { height: 35px; padding: 0 16px; }
+.hl .dm-tab { height: 24px; padding: 0 8px; }
+.hl .dm-tabs { gap: 4px; }
+.hl .dm-app { padding-right: 4px; }
+.hl-view { position: absolute; left: 0; right: 0; top: 35px; bottom: 0; overflow: hidden; }
+.hl-view[hidden] { display: none; }
+
+/* habits and overview share a centered column */
+.hl-col { position: absolute; left: 240px; width: 480px; top: 15px; }
+.hl-tools { display: flex; align-items: center; gap: 8px; height: 30px; }
+.hl-count { color: var(--muted); }
+.hl-new { display: flex; align-items: center; gap: 8px; flex: 1; min-width: 0; }
+.hl-new[hidden] { display: none; }
+.hl-new .dm-input { flex: 1; min-width: 0; }
+.hl-list { margin-top: 10px; }
+.hl-habit { display: flex; align-items: center; height: 40px; padding-left: 32px; }
+.hl-name { flex: 1; min-width: 0; display: flex; flex-direction: column; justify-content: center; }
+.hl-name strong { font-size: 14px; font-weight: 500; line-height: 1.25; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.hl-name span { font-size: 12px; line-height: 1.25; color: var(--muted); font-variant-numeric: tabular-nums; }
+.hl-dots { display: flex; align-items: center; gap: 3px; width: 55px; flex: none; }
+.hl-dot { width: 5px; height: 5px; margin: 0 0; border-radius: 50%; background: var(--faint); flex: none; }
+.hl-dot.on { background: var(--soft); }
+.hl-dot.today { width: 8px; height: 8px; margin-left: 0; box-sizing: border-box; background: transparent; box-shadow: inset 0 0 0 1.5px var(--muted); }
+.hl-dot.today.on { background: var(--soft); box-shadow: inset 0 0 0 1.5px var(--soft), inset 0 0 0 3px var(--bg); }
+.hl-streak { display: flex; align-items: center; gap: 3px; width: 26px; margin-left: 18px; color: var(--muted); font-variant-numeric: tabular-nums; flex: none; }
+.hl-streak.on { color: var(--signal); }
+.hl-streak .ic { font-size: 9px; }
+.hl-check { width: 29px; height: 29px; margin-left: 10px; border-radius: 50%; border: 1px solid var(--faint); background: var(--raised); color: var(--muted); display: grid; place-items: center; padding: 0; flex: none; transition: background-color 140ms, color 140ms; }
+.hl-check:hover { background: var(--hover); color: var(--text); }
+.hl-check[aria-pressed="true"] { color: var(--text); }
+
+/* overview */
+.hl-sum { display: flex; align-items: center; justify-content: space-between; height: 44px; padding-left: 32px; border-bottom: 1px solid var(--faint); }
+.hl-sum:last-child { border-bottom: 0; }
+.hl-sum strong { font-size: 14px; font-weight: 500; }
+.hl-sum span { color: var(--soft); font-variant-numeric: tabular-nums; }
+.hl-sum small { margin-left: 8px; font-size: 12px; color: var(--muted); }
+
+/* logs */
+.hl-bar { position: absolute; left: 16px; right: 16px; top: 15px; display: flex; align-items: center; gap: 8px; height: 30px; }
+.hl-range, .hl-metric { display: flex; align-items: center; justify-content: space-between; gap: 10px; width: 116px; padding: 0 10px; text-align: left; cursor: pointer; }
+.hl-metric { width: 150px; }
+.hl-range .ic, .hl-metric .ic { font-size: 12px; color: var(--muted); }
+.hl-form { display: flex; align-items: center; gap: 8px; margin-left: 8px; }
+.hl-form[hidden] { display: none; }
+.hl-form .dm-input { width: 90px; }
+.hl-form .hl-note { width: 190px; }
+.hl-form .dm-input[aria-invalid="true"] { border-color: var(--error); }
+.hl-cards { position: absolute; left: 16px; right: 16px; top: 57px; display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+.hl-card { height: 158px; padding: 10px 12px 0; border-radius: 12px; background: var(--panel); min-width: 0; }
+.hl-card-top { display: flex; align-items: center; justify-content: space-between; height: 29px; color: var(--muted); }
+.hl-tgt { height: 28px; padding: 0 10px; border-radius: 8px; border: 1px solid var(--faint); background: transparent; color: var(--muted); white-space: nowrap; display: inline-flex; align-items: center; gap: 4px; transition: color 140ms, border-color 140ms; }
+.hl-tgt:hover { color: var(--soft); border-color: var(--line-strong); }
+.hl-tgt.on { color: var(--soft); }
+.hl-tgt .ic { font-size: 12px; }
+.hl-tgt-in { width: 82px; height: 28px; }
+.hl-big { margin-top: -1px; line-height: 26px; font-variant-numeric: tabular-nums; }
+.hl-big strong { font-size: 22px; font-weight: 600; letter-spacing: -0.02em; }
+.hl-big span { margin-left: 4px; color: var(--muted); }
+.hl-usual { margin-top: -2px; height: 17px; line-height: 17px; color: var(--muted); font-size: 12px; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.hl-usual em { font-style: normal; color: var(--muted); opacity: 0.8; margin-left: 4px; }
+.hl-usual[hidden] { display: none; }
+.hl-chart { display: block; width: 100%; height: 44px; margin-top: 5px; overflow: visible; }
+.hl-chart .l { fill: none; stroke: var(--hl-blue); stroke-width: 1.4; stroke-linejoin: round; }
+.hl-chart .p { fill: var(--hl-blue); }
+.hl-chart .t { stroke: var(--signal); stroke-width: 1; stroke-dasharray: 3 3; opacity: 0.85; }
+.hl-foot { margin-top: 5px; height: 16px; line-height: 16px; color: var(--muted); font-size: 12px; white-space: nowrap; }
+
+.hl-recent { position: absolute; left: 16px; right: 16px; top: 229px; }
+.hl-recent-h { height: 24px; line-height: 24px; color: var(--muted); }
+.hl-row { display: grid; grid-template-columns: 87px 151px 95px 184px max-content max-content; justify-content: start; align-items: center; height: 42.5px; }
+.hl-row > :first-child { color: var(--muted); }
+.hl-row .hl-val { font-variant-numeric: tabular-nums; }
+.hl-row .hl-nt { color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.hl-row .dm-input { width: 76px; height: 30px; }
+.hl-row .dm-btn.icon { margin-left: 6px; background: transparent; color: var(--muted); }
+.hl-row .dm-btn.icon:hover { background: var(--raised); color: var(--text); }
+.hl-sums { margin-top: 0; }
+.hl-tools .dm-btn:nth-last-child(2) { margin-left: auto; }
+.hl-row .dm-btn:not(.icon) { min-width: 48px; }

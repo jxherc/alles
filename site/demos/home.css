@@ -1,0 +1,98 @@
+/* home: date, greeting, capture box, what needs you, pinned apps and the schedule */
+.hm { position: absolute; inset: 0; display: flex; flex-direction: column; font-size: 12px; }
+.hm .dm-app { font-size: 13px; }
+/* the bar floats over the top of the page so the greeting sits where it does in the app */
+.hm-bar { position: relative; z-index: 1; margin-bottom: -18px; }
+.hm-topr { display: flex; align-items: center; gap: 16px; color: var(--muted); }
+.hm-plain { padding: 0; height: 24px; border-radius: 6px; color: var(--soft); transition: color 140ms; }
+.hm-plain:hover { color: var(--text); }
+.hm-page { flex: 1; min-height: 0; overflow: hidden; overflow: clip; padding: 16px 16px 0; }
+.hm-date { margin: 0; line-height: 16px; color: var(--muted); }
+.hm-hi { margin: 3px 0 0; font-family: inherit; font-size: 16px; font-weight: 600; line-height: 22px; letter-spacing: -0.01em; }
+.hm-open { display: block; margin-top: 11px; padding: 0; line-height: 17px; text-decoration: underline; text-underline-offset: 3px; text-decoration-thickness: 1px; color: var(--text); border-radius: 4px; }
+.hm-open:hover { color: var(--soft); }
+.hm-ask { display: block; margin-top: 18px; padding: 0; line-height: 17px; color: var(--muted); border-radius: 4px; transition: color 140ms; }
+.hm-ask:hover { color: var(--text); }
+
+.hm-capture { display: flex; align-items: center; gap: 8px; box-sizing: border-box; height: 32px; margin-top: 16px; padding: 0 5px 0 4px; border: 1px solid var(--faint); border-radius: 9px; background: var(--panel); transition: border-color 140ms; }
+.hm-capture:focus-within { border-color: var(--line-strong); }
+.hm-kind { flex: none; box-sizing: border-box; width: 38px; height: 22px; padding: 0; border-radius: 6px; background: color-mix(in srgb, var(--accent) 14%, var(--raised)); color: var(--text); text-align: center; transition: background-color 140ms; }
+.hm-kind:hover { background: color-mix(in srgb, var(--accent) 22%, var(--raised)); }
+.hm-root .hm-input { flex: 1; min-width: 0; height: 100%; padding: 0; border: 0; background: transparent; outline: none; }
+.hm-root .hm-input:focus-visible { outline: none; }
+.hm-input::placeholder { color: var(--muted); }
+.hm-send { flex: none; display: inline-flex; align-items: center; justify-content: center; width: 22px; height: 22px; border-radius: 6px; background: var(--raised); color: var(--soft); transition: background-color 140ms, color 140ms; }
+.hm-send:hover { background: var(--hover); color: var(--text); }
+.hm-send .ic { font-size: 13px; }
+
+.hm-cols { display: grid; grid-template-columns: 448px 1fr; column-gap: 32px; margin-top: 25px; }
+.hm-sec header { display: flex; align-items: center; justify-content: space-between; height: 18px; }
+.hm .hm-sec h4 { margin: 0; padding: 0; font-family: inherit; font-size: 13px; font-weight: 600; line-height: 18px; letter-spacing: 0; }
+.hm-meta { color: var(--muted); }
+.hm-edit { color: var(--soft); }
+.hm-list { margin-top: 10px; }
+.hm-needs .hm-list { margin-top: 12px; }
+.hm-needs + .hm-sec { margin-top: 28px; }
+.hm-empty { margin: 2px 0 0; line-height: 17px; color: var(--muted); }
+.hm-now { display: flex; align-items: center; height: 20px; }
+.hm-now span { width: 70px; flex: none; color: var(--signal); font-weight: 600; }
+.hm-now i { flex: 1; height: 1px; background: color-mix(in srgb, var(--signal) 50%, var(--bg)); }
+.hm-row { display: grid; grid-template-columns: 70px minmax(0, 1fr) auto; align-items: center; box-sizing: border-box; min-height: 43px; padding: 4px 0; }
+.hm-time { color: var(--muted); }
+.hm-text b { display: block; overflow: hidden; font-size: 13px; font-weight: 500; line-height: 17px; text-overflow: ellipsis; white-space: nowrap; }
+.hm-text small { display: block; margin-top: 2px; overflow: hidden; font-size: 12px; line-height: 16px; color: var(--muted); text-overflow: ellipsis; white-space: nowrap; }
+.hm-check { position: relative; width: 26px; height: 26px; margin-left: -6px; padding: 0; border-radius: 50%; background: none; }
+.hm-check::before { content: ""; position: absolute; left: 6.5px; top: 6.5px; width: 12px; height: 12px; border: 1.2px solid var(--muted); border-radius: 50%; transition: border-color 140ms, background-color 140ms; }
+.hm-check:hover::before { border-color: var(--text); background: color-mix(in srgb, var(--text) 12%, transparent); }
+.hm-snooze { height: 24px; padding: 0 9px 0 8px; border-radius: 6px; color: var(--muted); transition: color 140ms; }
+.hm-snooze:hover { color: var(--text); }
+.hm-done .hm-text small { color: var(--soft); }
+
+.hm-right { min-width: 0; }
+.hm-tiles { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 12px; }
+.hm-tile { display: grid; grid-template-columns: 22px 1fr; align-content: start; align-items: center; box-sizing: border-box; min-height: 65px; padding: 9px 4px 9px 13px; border-radius: 10px; background: var(--panel); text-align: left; transition: background-color 140ms; }
+.hm-tile:hover { background: var(--raised); }
+.hm-tile .ic { font-size: 16px; color: var(--soft); }
+.hm-tile b { font-size: 13px; font-weight: 500; line-height: 18px; }
+.hm-tile small { grid-column: 2; font-size: 12px; line-height: 15px; color: var(--muted); }
+.hm-root .dm-toast { bottom: 18px; }
+
+/* phone: the app at 390 by 844 with its own type */
+.hm-phone .hm { font-size: 16px; }
+.hm-phone .dm-top { padding: 0 16px; }
+.hm-phone .dm-app { font-size: 16px; }
+.hm-phone .hm-bar { margin-bottom: 0; }
+.hm-phone .hm-topr { gap: 22px; font-size: 15px; }
+.hm-phone .hm-topr .hm-plain { margin-right: -2px; }
+.hm-phone .hm-page { padding: 23px 16px 0; }
+.hm-phone .hm-date { line-height: 22px; }
+.hm-phone .hm-hi { margin-top: 8px; font-size: 22.4px; line-height: 28px; letter-spacing: 0; }
+.hm-phone .hm-open { margin-top: 23px; line-height: 22px; }
+.hm-phone .hm-ask { margin-top: 30px; line-height: 22px; }
+.hm-phone .hm-capture { height: 49px; margin-top: 26px; gap: 8px; padding: 0 6px 0 7px; border-radius: 14px; }
+.hm-phone .hm-kind { width: 52px; height: 32px; border-radius: 9px; }
+.hm-phone .hm-input { font-size: 17px; }
+.hm-phone .hm-send { width: 32px; height: 32px; border-radius: 9px; }
+.hm-phone .hm-send .ic { font-size: 17px; }
+.hm-phone .hm-cols { display: block; margin-top: 42px; }
+.hm-phone .hm-sec header { height: 22px; }
+.hm-phone .hm .hm-sec h4 { font-size: 16px; line-height: 22px; }
+.hm-phone .hm-needs .hm-list { margin-top: 25px; }
+.hm-phone .hm-empty { margin-top: 0; font-size: 15px; line-height: 22px; }
+.hm-phone .hm-needs + .hm-sec { margin-top: 42px; }
+.hm-phone .hm-list { margin-top: 17px; }
+.hm-phone .hm-now { height: 28px; margin-bottom: 2px; }
+.hm-phone .hm-now span { width: 76px; }
+.hm-phone .hm-row { grid-template-columns: 76px minmax(0, 1fr) auto; min-height: 67px; padding: 8px 0 10px; }
+.hm-phone .hm-time { font-size: 15px; }
+.hm-phone .hm-text b { font-size: 16px; line-height: 24px; }
+.hm-phone .hm-text small { margin-top: 4px; font-size: 15px; line-height: 20px; }
+.hm-phone .hm-check { width: 36px; height: 36px; margin-left: -10px; }
+.hm-phone .hm-check::before { left: 9px; top: 9px; width: 17px; height: 17px; }
+.hm-phone .hm-snooze { height: 32px; font-size: 15px; }
+.hm-tabs { flex: none; display: flex; height: 55px; background: var(--panel); }
+.hm-tab { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 1px; padding: 6px 0 0; border-radius: 0; background: none; color: var(--muted); font-size: 15px; line-height: 20px; }
+.hm-tab .ic { font-size: 22px; }
+.hm-tab[aria-current="page"] { color: var(--text); font-weight: 600; }
+.hm-tab:hover { color: var(--text); }
+.hm-tab:focus-visible { outline-offset: -4px; }

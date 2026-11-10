@@ -1,0 +1,63 @@
+/* finance: the overview from shots/finance.webp, plus money, subscriptions and imports */
+.fn .dm-top { height: 35px; padding: 0 16px; }
+.fn .dm-tab { height: 24px; padding: 0 8px; }
+.fn .dm-tabs { gap: 4px; }
+.fn .dm-app { padding-right: 4px; }
+.fn-guide { height: 24px; padding: 0 9px; }
+.fn-view { position: absolute; left: 0; right: 0; top: 35px; bottom: 0; overflow: hidden; }
+.fn-view[hidden] { display: none; }
+
+/* overview */
+.fn-ov { position: absolute; left: 16px; right: 16px; top: 16px; display: grid; grid-template-columns: 1fr 1fr; gap: 11px 10px; }
+.fn-card { border-radius: 12px; background: var(--panel); padding: 10px 9px 0; min-width: 0; overflow: hidden; }
+.fn .fn-card h4 { height: 28px; padding: 0 8px; font-size: 14px; font-weight: 500; line-height: 28px; white-space: nowrap; }
+.fn .fn-card h4 span { margin-left: 6px; font-weight: 400; color: var(--muted); font-size: 12px; }
+.fn-spent { grid-column: 1 / 3; height: 96px; padding: 10px 17px 0; }
+.fn .fn-spent h4 { padding: 0; }
+.fn-big { margin-top: -2px; font-size: 22px; font-weight: 600; line-height: 28px; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; }
+.fn-sub { margin-top: 0; line-height: 18px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.fn-mid { height: 214px; }
+.fn-low { height: 300px; }
+.fn-line { display: flex; align-items: center; justify-content: space-between; gap: 12px; width: 100%; padding: 0 8px; border-bottom: 1px solid var(--faint); border-radius: 0; text-align: left; font-variant-numeric: tabular-nums; }
+.fn-line:last-child { border-bottom: 0; }
+.fn-line .nm { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.fn-line .when { color: var(--muted); margin-right: 8px; white-space: nowrap; }
+.fn-line .amt { white-space: nowrap; }
+.fn-cat, .fn-tx, .fn-ren { height: 32px; }
+button.fn-cat, button.fn-acc { color: var(--text); transition: background-color 140ms; }
+.fn-acc { height: 42.5px; }
+.fn-acc .nums { text-align: right; line-height: 15px; color: var(--soft); }
+.fn-acc .nums span { display: block; }
+.fn-acc .nums .ch { color: var(--soft); }
+.fn-acc .spark { flex: none; width: 46px; height: 18px; margin-left: 4px; overflow: visible; }
+.fn-spk { fill: none; stroke: var(--soft); stroke-width: 1.2; stroke-linejoin: round; }
+button.fn-cat:hover, button.fn-acc:hover { background: color-mix(in srgb, var(--text) 5%, transparent); }
+button.fn-cat[aria-pressed="true"], button.fn-acc[aria-pressed="true"] { background: var(--raised); border-radius: 8px; border-bottom-color: transparent; }
+.fn-none { padding: 0 8px; color: var(--muted); line-height: 32px; }
+
+/* money */
+.fn-money, .fn-subs, .fn-imp { position: absolute; left: 16px; right: 16px; top: 16px; bottom: 0; }
+.fn-find { display: flex; align-items: center; gap: 12px; height: 32px; }
+.fn-find .dm-input { width: 300px; }
+.fn-find .n { margin-left: auto; color: var(--muted); font-variant-numeric: tabular-nums; }
+.fn-table { margin-top: 10px; }
+.fn-th, .fn-tr { display: grid; grid-template-columns: 90px 1fr 110px 120px 120px; align-items: center; gap: 8px; padding: 0 8px; }
+.fn-th { height: 26px; color: var(--muted); border-bottom: 1px solid var(--faint); }
+.fn-tr { height: 32px; border-bottom: 1px solid var(--faint); font-variant-numeric: tabular-nums; }
+.fn-tr > :first-child, .fn-tr .c2 { color: var(--muted); }
+.fn-tr > :last-child, .fn-th > :last-child { text-align: right; }
+.fn-tr > span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+/* subscriptions */
+.fn-sh { display: flex; align-items: baseline; gap: 10px; height: 32px; }
+.fn-sh strong { font-size: 14px; font-weight: 500; }
+.fn-sh span { color: var(--muted); font-variant-numeric: tabular-nums; }
+.fn-sr { display: grid; grid-template-columns: 1fr 150px 100px 150px; align-items: center; gap: 8px; height: 46px; padding: 0 8px; border-bottom: 1px solid var(--faint); font-variant-numeric: tabular-nums; }
+.fn-sr .d { color: var(--muted); }
+.fn-sr .p { text-align: right; }
+.fn-sr .dm-btn { width: 150px; justify-self: end; }
+
+/* imports */
+.fn-ir { display: flex; align-items: center; justify-content: space-between; gap: 16px; height: 56px; padding: 0 8px; border-bottom: 1px solid var(--faint); }
+.fn-ir strong { display: block; font-size: 14px; font-weight: 500; }
+.fn-ir span { color: var(--muted); font-size: 12px; }

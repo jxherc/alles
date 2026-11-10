@@ -352,6 +352,59 @@ $$('section, footer').forEach((sec) => {
   $$('.rv', sec).forEach((el, i) => { el.style.transitionDelay = i * 80 + 'ms'; seen.observe(el); });
 });
 
+// working copies: each picture with data-demo turns into that app, built by demos/<name>.js, once
+// it gets near the screen. without the script, or when a copy fails, the screenshot stays
+let kitReady = null;
+const loadKit = () => kitReady || (kitReady = new Promise((done) => {
+  const link = Object.assign(document.createElement('link'), { rel: 'stylesheet', href: 'demos/kit.css' });
+  link.onload = link.onerror = done;
+  document.head.append(link);
+}));
+// the scale is set on the next frame, so a resize never feeds back into the same observer pass
+const fits = new ResizeObserver((entries) => requestAnimationFrame(() => {
+  for (const e of entries) e.target.firstChild.style.setProperty('--s', e.target.clientWidth / Number(e.target.dataset.w));
+}));
+async function mount(slot) {
+  const [name, variant] = slot.dataset.demo.split(':');
+  const [w, h] = (slot.dataset.size || '960x600').split('x').map(Number);
+  let build;
+  try {
+    [{ default: build }] = await Promise.all([import(`./demos/${name}.js`), loadKit()]);
+  } catch (err) {
+    console.warn('working copy not loaded:', name, err);
+    return;
+  }
+  const fit = document.createElement('div');
+  fit.className = 'dm-fit';
+  fit.dataset.ui = '';
+  fit.dataset.w = w;
+  fit.style.aspectRatio = `${w} / ${h}`;
+  const dm = document.createElement('div');
+  dm.className = 'dm';
+  dm.style.width = w + 'px';
+  dm.style.height = h + 'px';
+  dm.setAttribute('role', 'group');
+  dm.setAttribute('aria-label', `${name}, a working copy with made up data`);
+  fit.append(dm);
+  try {
+    build(dm, { variant });
+  } catch (err) {
+    console.error('working copy failed:', name, err);
+    return;
+  }
+  const img = slot.querySelector(':scope > img');
+  if (img) img.hidden = true;
+  slot.append(fit);
+  slot.classList.add('is-demo');
+  fits.observe(fit);
+}
+const nearby = new IntersectionObserver((entries) => {
+  for (const e of entries) if (e.isIntersecting) { nearby.unobserve(e.target); mount(e.target); }
+}, { rootMargin: '900px 0px' });
+$$('[data-demo]').forEach((slot) => nearby.observe(slot));
+// a working copy can ask the page to show another app (home's pinned apps do)
+document.addEventListener('alles:open-app', (e) => $(`.apps-index a[href="#app-${e.detail}"]`)?.click());
+
 // warm the other screenshots once the page is idle, so the hero doesn't wait
 const warm = () => apps.forEach((a) => { new Image().src = shot(a.slot || a.id); });
 if ('requestIdleCallback' in window) requestIdleCallback(warm, { timeout: 3000 });

@@ -1,0 +1,33 @@
+.sv-panel { padding: 0 18px 18px; }
+.sv-panel[hidden] { display: none; }
+.sv-liverow { display: flex; justify-content: flex-end; margin: -4px 0 8px; }
+.sv-live { display: inline-flex; align-items: center; gap: 0.35em; height: 28px; padding: 0 6px; color: var(--muted); }
+.sv-live::after { content: ""; width: 6px; height: 6px; border-radius: 50%; background: var(--muted); }
+.sv-live[aria-pressed="true"]::after { background: var(--green); }
+.sv-live:hover { color: var(--soft); }
+.sv-stats { display: grid; grid-template-columns: repeat(4, 1fr); padding: 0; }
+.sv-stat { display: flex; flex-direction: column; gap: 2px; padding: 16px 18px 14px; min-width: 0; }
+.sv-stat + .sv-stat { border-left: 1px solid var(--faint); }
+.sv-val { display: flex; align-items: center; gap: 4px; margin-top: 4px; font-size: 22px; font-weight: 600; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; }
+.sv-val .ic { font-size: 16px; }
+.sv-val small { font-size: 12px; font-weight: 400; color: var(--muted); letter-spacing: 0; }
+.sv-sub { font-variant-numeric: tabular-nums; }
+.sv-stat .dm-spark, .sv-stat .sv-bar { margin-top: 14px; }
+.sv-bar { display: block; height: 5px; border-radius: 999px; background: color-mix(in srgb, var(--text) 10%, transparent); overflow: hidden; }
+.sv-bar i { display: block; height: 100%; border-radius: inherit; background: var(--soft); transition: width 600ms ease; }
+.sv-row { display: grid; grid-template-columns: 1.15fr 1fr 1fr; gap: 12px; margin-top: 12px; }
+.sv-head { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 10px; }
+.sv-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 22px; }
+.sv-core { display: grid; grid-template-columns: 16px 1fr 40px; align-items: center; gap: 8px; font-variant-numeric: tabular-nums; }
+.sv-core .dm-muted { text-align: right; }
+.sv-pct { text-align: right; color: var(--soft); }
+.sv-line { display: flex; justify-content: space-between; margin-bottom: 8px; font-variant-numeric: tabular-nums; }
+.sv-wide { margin-bottom: 12px; }
+.sv-fact { display: flex; justify-content: space-between; gap: 16px; padding: 4px 0; font-variant-numeric: tabular-nums; }
+.sv-fact strong { font-weight: 500; }
+.sv-note { padding: 2px 0; }
+.sv-cards { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; align-items: start; padding-top: 6px; }
+.sv-title { margin-bottom: 6px; }
+.sv-cards .dm-btn { margin-top: 10px; }
+.sv-cards .dm-btn:disabled { color: var(--muted); cursor: default; }
+.sv-status { min-height: calc(2 * 1.45em); padding-top: 4px; overflow-wrap: anywhere; }

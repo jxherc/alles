@@ -284,8 +284,9 @@ html.js .scene.is-live > .scene-stage { position: sticky; top: 0; height: 100svh
 .band-line { font: 450 var(--t-head)/1.02 var(--serif); letter-spacing: -0.03em; color: var(--muted); transition: color 280ms ease; }
 .band[data-on="true"] .band-line { color: var(--text); }
 .band-note { grid-column: 1; margin-top: 10px; max-width: 44rem; color: var(--soft); }
-.band-pics { grid-column: 1; display: flex; gap: 16px; margin-top: 28px; }
-.band-pics img { width: clamp(132px, 12vw, 180px); border-radius: 18px; background: var(--panel); }
+.band-pics { grid-column: 1 / -1; display: flex; gap: 16px; margin-top: 28px; }
+/* phones, big enough that the working copies inside can be used */
+.phone-pic { width: clamp(150px, 26vw, 270px); border-radius: 22px; overflow: hidden; background: var(--bg); }
 .band[data-on="false"] .band-pics { display: none; }
 .band[data-on="true"] .band-note { color: var(--text); }
 
