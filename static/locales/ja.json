@@ -7928,7 +7928,7 @@
     "vault.load_unpacked": "パッケージ化されていない拡張機能を読み込む",
     "vault.loading_attachments": "添付ファイルを読み込み中…",
     "vault.lock": "ロック",
-    "vault.lock_help": "Vault のパスワードは、alles のサインインとは別です。alles がこれをリセットして、シークレットを復旧することはできません。パスワードは大切に保管してください。必要なときは、登録済みの生体認証ロック解除か、Vault のパスワードを覚えているバックアップを使ってください。",
+    "vault.lock_help": "Vault のパスワードは alles のサインインとは別で、復旧できません。",
     "vault.lock_vault": "Vault をロック",
     "vault.locked": "ロック中",
     "vault.login": "ログイン",

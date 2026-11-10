@@ -7928,7 +7928,7 @@
     "vault.load_unpacked": "cargar descomprimida",
     "vault.loading_attachments": "cargando adjuntos…",
     "vault.lock": "bloquear",
-    "vault.lock_help": "la contraseña de tu bóveda es independiente de tu inicio de sesión en alles. alles no puede restablecerla para recuperar tus secretos. guarda bien la contraseña; si hace falta, usa un desbloqueo biométrico registrado o una copia de seguridad cuya contraseña de bóveda aún conozcas.",
+    "vault.lock_help": "la contraseña de tu bóveda es independiente de tu inicio de sesión en alles y no se puede recuperar.",
     "vault.lock_vault": "bloquear bóveda",
     "vault.locked": "bloqueada",
     "vault.login": "inicio de sesión",

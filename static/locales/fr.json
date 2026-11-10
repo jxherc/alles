@@ -7928,7 +7928,7 @@
     "vault.load_unpacked": "charger l’extension non empaquetée",
     "vault.loading_attachments": "chargement des pièces jointes…",
     "vault.lock": "verrouiller",
-    "vault.lock_help": "le mot de passe de ton coffre est distinct de ta connexion alles. alles ne peut pas le réinitialiser pour récupérer tes secrets. garde le mot de passe en lieu sûr ; utilise un déverrouillage biométrique enregistré ou une sauvegarde dont tu connais encore le mot de passe de coffre si besoin.",
+    "vault.lock_help": "le mot de passe de ton coffre est distinct de ta connexion alles et ne peut pas être récupéré.",
     "vault.lock_vault": "verrouiller le coffre",
     "vault.locked": "verrouillé",
     "vault.login": "identifiant",

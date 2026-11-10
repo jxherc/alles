@@ -7928,7 +7928,7 @@
     "vault.load_unpacked": "加载已解压的扩展程序",
     "vault.loading_attachments": "正在加载附件…",
     "vault.lock": "锁定",
-    "vault.lock_help": "你的保险库密码与 alles 登录密码是分开的。alles 无法重置它来找回你的机密。请妥善保管密码；必要时可使用已注册的生物识别解锁，或你仍记得保险库密码的备份。",
+    "vault.lock_help": "你的保险库密码与 alles 登录密码是分开的，无法找回。",
     "vault.lock_vault": "锁定保险库",
     "vault.locked": "已锁定",
     "vault.login": "登录",

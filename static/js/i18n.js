@@ -7931,7 +7931,7 @@ const BUILTIN_ENGLISH = {
     "vault.load_unpacked": "load unpacked",
     "vault.loading_attachments": "loading attachments…",
     "vault.lock": "lock",
-    "vault.lock_help": "your vault password is separate from your alles sign-in. alles cannot reset it to recover your secrets. keep the password safe; use an enrolled biometric unlock or a backup whose vault password you still know if needed.",
+    "vault.lock_help": "your vault password is separate from your alles sign-in and can't be recovered.",
     "vault.lock_vault": "lock vault",
     "vault.locked": "locked",
     "vault.login": "login",
