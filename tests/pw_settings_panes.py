@@ -3609,6 +3609,19 @@ def exercise(page, api, endpoint, destination):
 
     pane("models")
     expect(page.locator("#s-local-ollama")).to_contain_text(re.compile("installed|running|stopped"))
+    # the pull field shows once ollama runs
+    page.route(
+        "**/api/local-models/status",
+        lambda route: route.fulfill(
+            json={
+                "ollama": {"installed": True, "running": True, "base_url": "http://127.0.0.1:1"},
+                "hardware": {"ram_gb": 16, "gpus": []},
+                "presets": [],
+            }
+        ),
+    )
+    close_and_reopen("models")
+    expect(page.locator("#s-local-custom")).to_be_visible()
     pulls = []
 
     def hold_custom_pull(route):
@@ -3705,9 +3718,13 @@ def exercise(page, api, endpoint, destination):
     )
     expect(page.locator("#s3-backup-status")).to_have_text("not connected")
     expect(page.locator("#s3-backup-disconnect-btn")).to_be_hidden()
+    open_remote_forms()
     page.locator("#webdav-backup-url").fill("https://backup.example.test/owner-draft")
+    open_remote_forms()
     page.locator("#webdav-backup-username").fill("draft-user")
+    open_remote_forms()
     page.locator("#s3-backup-endpoint").fill("https://storage.example.test")
+    open_remote_forms()
     page.locator("#s3-backup-bucket").fill("draft-bucket")
     close_and_reopen("backup")
     expect(page.locator("#webdav-backup-status")).to_contain_text("unsaved connection changes")
@@ -3729,19 +3746,25 @@ def exercise(page, api, endpoint, destination):
 
     page.route("**/api/backup/webdav/backups", lambda route: route.fulfill(json={"backups": []}))
     page.route("**/api/backup/webdav", delayed_backup_save)
+    open_remote_forms()
     page.locator("#webdav-backup-password").fill("example")
+    open_remote_forms()
     page.locator("#webdav-backup-url").fill("http://backup.example.test/owner-draft")
+    open_remote_forms()
     page.locator("#webdav-backup-save-btn").click()
     expect(page.locator("#webdav-backup-status")).to_have_text("the WebDAV url must use https")
     expect(page.locator("#webdav-backup-password")).to_have_value("example")
     assert backup_save == []
+    open_remote_forms()
     page.locator("#webdav-backup-url").fill("https://backup.example.test/owner-draft")
+    open_remote_forms()
     page.locator("#webdav-backup-save-btn").click()
     expect(page.locator("#webdav-backup-save-btn")).to_be_disabled()
     expect(page.locator("#webdav-backup-password")).to_have_value("")
     page.wait_for_function("window.__settingsPaneBackupSaveReady === true")
     assert len(backup_save) == 1
     assert backup_save[0].request.post_data_json["password"] == "example"
+    open_remote_forms()
     page.locator("#webdav-backup-url").fill("https://backup.example.test/newer-owner-edit")
     backup_save[0].fulfill(
         json={
@@ -3766,11 +3789,13 @@ def exercise(page, api, endpoint, destination):
             route.continue_()
 
     page.route("**/api/backup/webdav", delayed_backup_disconnect)
+    open_remote_forms()
     page.locator("#webdav-backup-disconnect-btn").click()
     page.locator(".dialog-overlay [data-dialog-confirm]").click()
     expect(page.locator("#webdav-backup-disconnect-btn")).to_be_disabled()
     page.wait_for_function("window.__settingsPaneBackupDisconnectReady === true")
     assert len(backup_disconnect) == 1
+    open_remote_forms()
     page.locator("#webdav-backup-username").fill("typed-during-disconnect")
     backup_disconnect[0].fulfill(json={})
     expect(page.locator("#webdav-backup-disconnect-btn")).to_be_hidden()
@@ -3853,18 +3878,25 @@ def exercise(page, api, endpoint, destination):
     close_and_reopen("backup")
     for provider in remote_configs:
         expect(page.locator(f"#{provider}-backup-run-btn")).to_be_enabled()
+    open_remote_forms()
     page.locator("#s3-backup-region").fill("")
+    open_remote_forms()
     page.locator("#s3-backup-access-key-id").fill("example")
+    open_remote_forms()
     page.locator("#s3-backup-secret-access-key").fill("example")
+    open_remote_forms()
     page.locator("#s3-backup-save-btn").click()
     expect(page.locator("#s3-backup-status")).to_have_text("add the S3 region")
     expect(page.locator("#s3-backup-access-key-id")).to_have_value("example")
     expect(page.locator("#s3-backup-secret-access-key")).to_have_value("example")
     assert remote_writes["s3"] == []
+    open_remote_forms()
     page.locator("#s3-backup-region").fill("us-east-1")
+    open_remote_forms()
     page.locator("#webdav-backup-save-btn").click()
     page.wait_for_function("window.__settingsPaneRemoteWrites?.webdav === 1")
     expect(page.locator("#s3-backup-save-btn")).to_be_enabled()
+    open_remote_forms()
     page.locator("#s3-backup-save-btn").click()
     page.wait_for_function("window.__settingsPaneRemoteWrites?.s3 === 1")
     assert remote_writes["s3"][0][1].request.post_data_json["access_key_id"] == "example"
@@ -3923,7 +3955,9 @@ def exercise(page, api, endpoint, destination):
 
     for provider in remote_configs:
         assert_remote_pending(provider, 1)
+    open_remote_forms()
     page.locator("#webdav-backup-username").fill("example-newer-draft")
+    open_remote_forms()
     page.locator("#s3-backup-bucket").fill("example-newer-draft")
     close_and_reopen("backup")
     for provider in remote_configs:
@@ -3951,6 +3985,7 @@ def exercise(page, api, endpoint, destination):
             ("disconnect", "DELETE", True),
         ):
             expected_writes = len(remote_writes[provider]) + 1
+            open_remote_forms()
             page.locator(f"#{provider}-backup-{action}-btn").click()
             if action == "disconnect":
                 page.locator(".dialog-overlay [data-dialog-confirm]").click()
@@ -3978,6 +4013,7 @@ def exercise(page, api, endpoint, destination):
             assert len(remote_writes[provider]) == expected_writes
 
         # A write started while confirmation is open prevents the later delete.
+        open_remote_forms()
         page.locator(f"#{provider}-backup-disconnect-btn").click()
         expect(page.locator(".dialog-overlay")).to_be_visible()
         expected_writes = len(remote_writes[provider]) + 1
@@ -3994,6 +4030,7 @@ def exercise(page, api, endpoint, destination):
             expect(page.locator(f"#{provider}-backup-{action}-btn")).to_be_enabled()
 
         # Successful removal and a failed first save keep unconfigured actions off.
+        open_remote_forms()
         page.locator(f"#{provider}-backup-disconnect-btn").click()
         page.locator(".dialog-overlay [data-dialog-confirm]").click()
         expected_writes += 1
@@ -4003,6 +4040,7 @@ def exercise(page, api, endpoint, destination):
         )
         assert_remote_pending(provider, expected_writes, "disconnect")
         expect(draft).to_be_editable()
+        open_remote_forms()
         draft.fill("example-after-disconnect-start")
         assert remote_writes[provider][-1][0] == "DELETE"
         remote_configs[provider] = {"configured": False}
@@ -4012,10 +4050,14 @@ def exercise(page, api, endpoint, destination):
         expect(page.locator(f"#{provider}-backup-run-btn")).to_be_disabled()
         expect(draft).to_have_value("example-after-disconnect-start")
         if provider == "webdav":
+            open_remote_forms()
             page.locator("#webdav-backup-password").fill("example")
         else:
+            open_remote_forms()
             page.locator("#s3-backup-access-key-id").fill("example")
+            open_remote_forms()
             page.locator("#s3-backup-secret-access-key").fill("example")
+        open_remote_forms()
         page.locator(f"#{provider}-backup-save-btn").click()
         expected_writes += 1
         page.wait_for_function(
@@ -4072,6 +4114,7 @@ def exercise(page, api, endpoint, destination):
         save = page.locator(f"#{provider}-backup-save-btn")
         expect(restore).to_be_enabled()
         expected_writes = len(remote_writes[provider]) + 1
+        open_remote_forms()
         save.click()
         page.wait_for_function(
             "([provider, count]) => window.__settingsPaneRemoteWrites?.[provider] === count",
@@ -4144,6 +4187,7 @@ def exercise(page, api, endpoint, destination):
     for provider in remote_configs:
         for action in ("save", "run"):
             for mode in ("reopen", "active", "closed_again"):
+                open_remote_forms()
                 old_file = {"filename": "example-old.enc", "bytes": 1}
                 new_file = {
                     "filename": f"example-current-{provider}-{action}-{mode}.enc",
@@ -4161,6 +4205,7 @@ def exercise(page, api, endpoint, destination):
                 expect(page.locator(f"#{provider}-backup-refresh-btn")).to_be_enabled()
                 reads_before = remote_list_reads[provider]
                 expected_writes = len(remote_writes[provider]) + 1
+                open_remote_forms()
                 page.locator(f"#{provider}-backup-{action}-btn").click()
                 page.wait_for_function(
                     "([provider, count]) => window.__settingsPaneRemoteWrites?.[provider] === count",
@@ -4182,6 +4227,7 @@ def exercise(page, api, endpoint, destination):
                     f"#{provider}-backup-{'username' if provider == 'webdav' else 'bucket'}"
                 )
                 draft_value = f"example-list-draft-{mode}"
+                open_remote_forms()
                 draft.fill(draft_value)
                 remote_backup_files[provider] = [new_file]
                 if mode != "active":
@@ -4259,6 +4305,7 @@ def exercise(page, api, endpoint, destination):
             expect(page.locator(f"#{provider}-backup-refresh-btn")).to_be_enabled()
             reads_before = remote_list_reads[provider]
             expected_writes = len(remote_writes[provider]) + 1
+            open_remote_forms()
             page.locator(f"#{provider}-backup-{action}-btn").click()
             page.wait_for_function(
                 "([provider, count]) => window.__settingsPaneRemoteWrites?.[provider] === count",
@@ -4269,6 +4316,7 @@ def exercise(page, api, endpoint, destination):
                 f"#{provider}-backup-{'username' if provider == 'webdav' else 'bucket'}"
             )
             draft_value = f"example-{provider}-{action}-mutation-draft"
+            open_remote_forms()
             draft.fill(draft_value)
             close_and_reopen("backup")
             assert_remote_pending(provider, expected_writes, action)
@@ -4380,10 +4428,10 @@ def exercise(page, api, endpoint, destination):
     page.locator("#agent-status-refresh-btn").click()
     page.wait_for_function("window.__settingsPaneAgentReadHeld === true")
     close_and_reopen("agent")
-    expect(status_fields.first).to_have_text("20")
+    expect(page.locator("#agent-tools-summary")).to_have_text("20 tools")
     held_agent_reads[0].fulfill(json={**agent_status, "tool_count": 999})
     page.wait_for_load_state("networkidle")
-    expect(status_fields.first).to_have_text("20")
+    expect(page.locator("#agent-tools-summary")).to_have_text("20 tools")
 
     # Approved-root writes cannot overlap, and retain drafts through success/error/reopen.
     roots = page.locator("#s-agent-roots")
@@ -4447,6 +4495,7 @@ def exercise(page, api, endpoint, destination):
             indent=2,
         )
     )
+    pane("tools")
     expect(page.locator("#jarvis-discord-setup")).to_be_visible()
     page.locator("#jarvis-discord-token").fill("example")
     page.locator("#jarvis-discord-connect").click()
