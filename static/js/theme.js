@@ -163,9 +163,26 @@ let _appearanceRevision = 0;
 let _appearanceSaveState = '';
 let _appearanceSaveMessage = '';
 
+// the card the owner last touched in the appearance pane: a failed save shows right under it
+let _changedCard = null;
+function _trackChangedCard() {
+  const pane = document.querySelector('#s-pane-themes');
+  if (!pane || pane.dataset.trackChange) return;
+  pane.dataset.trackChange = '1';
+  for (const type of ['pointerdown', 'keydown', 'input', 'change']) {
+    pane.addEventListener(type, event => {
+      const card = event.target.closest?.('.s-card');
+      if (card && pane.contains(card)) _changedCard = card;
+    }, true);
+  }
+}
+
+// a save that works shows nothing (the theme itself changes); only a failure takes room, and it
+// clears when a save works. the row stays a direct child of its host so a reload finds it again
 function _showAppearanceSaveState(state, message) {
   _appearanceSaveState = state;
   _appearanceSaveMessage = message;
+  _trackChangedCard();
   for (const host of document.querySelectorAll('#s-pane-themes, #theme-editor')) {
     let row = host.querySelector(':scope > .theme-save-state');
     if (!row) {
@@ -181,14 +198,18 @@ function _showAppearanceSaveState(state, message) {
       row.append(status, retry);
       host.prepend(row);
     }
-    row.hidden = !state;
+    const failed = state === 'error';
+    if (failed && host.id === 's-pane-themes' && _changedCard?.isConnected && _changedCard.parentElement === host) {
+      if (_changedCard.nextElementSibling !== row) _changedCard.after(row);
+    }
+    row.hidden = !failed;
     row.dataset.state = state;
-    row.querySelector('[role="status"]').textContent = message;
+    row.querySelector('[role="status"]').textContent = failed ? message : '';
     const retry = row.querySelector('button');
-    if (state !== 'error' && document.activeElement === retry) {
+    if (!failed && document.activeElement === retry) {
       (host.querySelector('.theme-mode-btn.active, .te-preset.active') || host.querySelector('button:not(.theme-save-state button)'))?.focus();
     }
-    retry.hidden = state !== 'error';
+    retry.hidden = !failed;
   }
 }
 
@@ -198,7 +219,7 @@ async function _drainAppearanceSave() {
   try {
     while (_pendingAppearance) {
       const attempt = _pendingAppearance;
-      _showAppearanceSaveState('saving', t('settings.theme_saving'));
+      _showAppearanceSaveState('saving', '');
       try {
         const response = await fetch('/api/appearance', {
           method: 'PUT', headers: { 'content-type': 'application/json' }, body: JSON.stringify(attempt),
@@ -215,7 +236,7 @@ async function _drainAppearanceSave() {
         try { localStorage.removeItem(PENDING_KEY); } catch { /* storage unavailable */ }
         saveLocal(saved);
         applyAppearance(saved);
-        _showAppearanceSaveState('saved', t('settings.theme_saved'));
+        _showAppearanceSaveState('saved', '');
       } catch {
         if (_pendingAppearance !== attempt) continue;
         const message = t('settings.theme_save_failed');
@@ -235,7 +256,7 @@ function save(a) {
   _pendingAppearance = JSON.parse(JSON.stringify(a));
   try { localStorage.setItem(PENDING_KEY, JSON.stringify(_pendingAppearance)); } catch { /* storage unavailable */ }
   saveLocal(a);
-  _showAppearanceSaveState('saving', t('settings.theme_saving'));
+  _showAppearanceSaveState('saving', '');
   clearTimeout(_saveTimer);
   _saveTimer = setTimeout(_drainAppearanceSave, 350);
 }
@@ -701,7 +722,6 @@ const _optionWords = () => ({
   comfortable: t('settings.theme_density_comfortable'), compact: t('settings.theme_density_compact'), spacious: t('settings.theme_density_spacious'),
   complementary: t('settings.theme_harmony_complementary'), analogous: t('settings.theme_harmony_analogous'),
   triadic: t('settings.theme_harmony_triadic'), monochromatic: t('settings.theme_harmony_monochromatic'),
-  dark: t('settings.theme_mode_dark'), light: t('common.light'),
   none: t('settings.theme_pattern_none'), dots: t('settings.theme_pattern_dots'), grid: t('settings.theme_pattern_grid'), crosshatch: t('settings.theme_pattern_crosshatch'), scanlines: t('settings.theme_pattern_scanlines'), synapse: t('settings.theme_pattern_synapse'), rain: t('settings.theme_pattern_rain'), snow: t('settings.theme_pattern_snow'), embers: t('settings.theme_pattern_embers'), fireflies: t('settings.theme_pattern_fireflies'), bubbles: t('settings.theme_pattern_bubbles'), starfield: t('settings.theme_pattern_starfield'), constellations: t('settings.theme_pattern_constellations'), sparkles: t('settings.theme_pattern_sparkles'), petals: t('settings.theme_pattern_petals'), matrix: t('settings.theme_pattern_matrix'), aurora: t('settings.theme_pattern_aurora'), waves: t('settings.theme_pattern_waves')
 });
 const _optionWord = o => _optionWords()[o] || o;
@@ -746,8 +766,10 @@ function _renderEditor() {
     ${bodyOpen}
       <details class="te-disclosure te-sec" data-theme-section="presets"${openSections.has('presets') ? ' open' : ''}>
         <summary tabindex="0">${esc(t('settings.theme_browse', { name: isBasePreset(_draft.preset) ? t('settings.default_tag') : _draft.preset }))}</summary>
-        <label class="te-preset-filter" for="te-preset-filter">${esc(t('settings.theme_find'))}</label>
-        <input id="te-preset-filter" class="settings-input" type="search" value="${esc(filter)}" autocomplete="off">
+        <div class="s-field">
+          <label class="te-preset-filter" for="te-preset-filter">${esc(t('settings.theme_find'))}</label>
+          <input id="te-preset-filter" class="settings-input" type="search" value="${esc(filter)}" autocomplete="off">
+        </div>
         <div class="te-presets" role="radiogroup" aria-label="${esc(t('settings.theme_presets'))}">${_presetGridHtml()}</div>
         <span id="te-preset-results" role="status"></span>
       </details>
@@ -762,7 +784,6 @@ function _renderEditor() {
       <div class="te-sec"><div class="te-sec-h">${esc(t('settings.theme_harmony'))}</div><div class="te-harmony">
         <label class="te-color"><input type="color" id="te-harmony-accent" value="${esc(c.accent)}"><span>${esc(t('settings.theme_starting_color'))}</span></label>
         ${_pick('harmony-type', t('settings.theme_harmony_type'), ['complementary', 'analogous', 'triadic', 'monochromatic'], 'complementary')}
-        <div class="te-seg" data-seg="harmony-mode" role="radiogroup" aria-label="${esc(t('settings.theme_harmony_mode'))}">${['dark', 'light'].map((o, i) => `<button type="button" role="radio" aria-checked="${i === 0}" tabindex="-1" class="te-seg-opt${i === 0 ? ' active' : ''}" data-val="${o}">${esc(_optionWord(o))}</button>`).join('')}</div>
         <button class="btn" id="te-harmony-gen">${esc(t('common.generate'))}</button>
       </div></div>
 
@@ -781,8 +802,10 @@ function _renderEditor() {
       </div>
 
       <div class="te-sec"><div class="te-sec-h">${esc(t('settings.theme_custom'))}</div>
-        <label for="te-custom-name">${esc(t('settings.theme_name'))}</label>
-        <div class="te-custom-row"><input type="text" id="te-custom-name" class="settings-input" placeholder="${esc(t('settings.theme_name_example'))}" maxlength="24"><button class="btn primary" id="te-save-custom">${esc(t('settings.theme_save_current'))}</button></div>
+        <div class="s-field">
+          <label for="te-custom-name">${esc(t('settings.theme_name'))}</label>
+          <div class="te-custom-row"><input type="text" id="te-custom-name" class="settings-input" placeholder="${esc(t('settings.theme_name_example'))}" maxlength="24"><button class="btn primary" id="te-save-custom">${esc(t('settings.theme_save_current'))}</button></div>
+        </div>
         <div class="te-custom-list">${Object.keys(ct).length ? Object.keys(ct).map(n => `<span class="te-custom-chip" data-ct="${esc(n)}"><button type="button" data-apply="${esc(n)}" aria-label="${esc(t('settings.theme_apply', { name: n }))}" data-kokuen-primitive="action">${esc(n)}</button><button data-del="${esc(n)}" title="${esc(t('common.delete'))}">${window.icon ? window.icon('close') : '×'}</button></span>`).join('') : `<span class="te-empty">${esc(t('settings.theme_none_saved'))}</span>`}</div>
       </div>
       </details>
@@ -886,16 +909,12 @@ function _wireEditor(m) {
   m.querySelector('#te-harmony-gen').onclick = () => {
     const accent = m.querySelector('#te-harmony-accent').value;
     const type = m.querySelector('[data-pick="harmony-type"]')?.value || 'complementary';
-    const mode = m.querySelector('[data-seg="harmony-mode"] .active')?.dataset.val || 'dark';
+    const mode = document.documentElement.dataset.theme === 'light' ? 'light' : 'dark';
     _draft.colors = generateHarmony(accent, type, mode);
     _draft.accentCustom = true;
     _draft.preset = 'custom';
     _commit(); _renderEditor();
   };
-  m.querySelectorAll('.te-harmony [data-seg] .te-seg-opt').forEach(o => o.onclick = () => {
-    o.parentNode.querySelectorAll('.te-seg-opt').forEach(x => x.classList.remove('active'));
-    o.classList.add('active');
-  });
 
   m.querySelector('#te-save-custom').onclick = () => {
     const name = m.querySelector('#te-custom-name').value.trim();

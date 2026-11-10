@@ -9008,7 +9008,7 @@ input.cp-swatch-input { width: 44px; min-width: 44px; height: 44px; border: 1px 
 .te-slider input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; appearance: none; width: 13px; height: 13px; border-radius: 50%; background: var(--text); cursor: pointer; }
 .te-slider input[type=range]::-moz-range-thumb { width: 13px; height: 13px; border: none; border-radius: 50%; background: var(--text); cursor: pointer; }
 .te-toggle-btn { margin-top: 0.6rem; }
-.te-custom-row { display: flex; gap: 0.4rem; margin-bottom: 0.5rem; }
+.te-custom-row { display: flex; gap: var(--k-control-gap); }
 .te-custom-row .settings-input { flex: 1; }
 .te-custom-list { display: flex; flex-wrap: wrap; gap: 0.4rem; }
 .te-custom-chip { display: inline-flex; align-items: center; gap: 0.3rem; border: 1px solid var(--faint); border-radius: var(--k-radius-control); padding: 0.15rem 0.2rem 0.15rem 0.5rem; font-size: 0.8125rem; }
