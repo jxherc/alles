@@ -262,7 +262,14 @@ def run():
                 page.goto(base + "/?view=plan", wait_until="networkidle")
                 calendar()
                 begin("empty-and-search")
-                expect(page.locator("#cal-search")).to_be_visible()
+                if profile == "desktop":
+                    expect(page.locator("#cal-search")).to_be_visible()
+                else:
+                    # a phone keeps the field shut until the search button opens it
+                    expect(page.locator("#cal-search")).to_be_hidden()
+                    expect(page.locator("#cal-search-btn")).to_have_attribute("aria-label", "search events")
+                    page.locator("#cal-search-btn").tap()
+                    expect(page.locator("#cal-search")).to_be_focused()
                 shot("empty")
                 passed()
 
@@ -295,6 +302,8 @@ def run():
                 page.evaluate(
                     "document.querySelectorAll('.cal-chip').forEach(c => { c.dataset.old = '1'; })"
                 )
+                if profile != "desktop" and not page.locator("#cal-search").is_visible():
+                    page.locator("#cal-search-btn").tap()
                 page.locator("#cal-search").fill("跨日")
                 expect(page.locator(f'.cal-chip[data-id="{eid}"]:not([data-old])')).to_be_visible()
                 page.locator("#cal-search").click()

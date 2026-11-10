@@ -273,6 +273,7 @@
     "calendar.parse_error": "解析できませんでした。「金曜13時 ランチ」のように入力してください",
     "calendar.quick_add_placeholder": "クイック追加…「金曜13時 ランチ」",
     "calendar.search_events": "予定を検索…",
+    "calendar.search_open": "予定を検索",
     "calendar.settings": "カレンダー設定",
     "calendar.subscribe_ics": "ICS URL を購読",
     "calendar.subscriptions": "サブスクリプション",

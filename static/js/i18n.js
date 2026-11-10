@@ -277,6 +277,7 @@ const BUILTIN_ENGLISH = {
     "calendar.parse_error": "could not parse that - try “lunch fri 1pm”",
     "calendar.quick_add_placeholder": "quick add… ‘lunch fri 1pm’",
     "calendar.search_events": "search events…",
+    "calendar.search_open": "search events",
     "calendar.settings": "calendar settings",
     "calendar.subscribe_ics": "subscribe to an ICS URL",
     "calendar.subscriptions": "subscriptions",

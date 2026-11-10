@@ -273,6 +273,7 @@
     "calendar.parse_error": "해석할 수 없습니다. ‘금요일 오후 1시 점심’처럼 입력하세요",
     "calendar.quick_add_placeholder": "빠른 추가… ‘금요일 오후 1시 점심’",
     "calendar.search_events": "일정 검색…",
+    "calendar.search_open": "일정 검색",
     "calendar.settings": "캘린더 설정",
     "calendar.subscribe_ics": "ICS URL 구독",
     "calendar.subscriptions": "구독",

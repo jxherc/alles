@@ -509,6 +509,30 @@ function _bindNav() {
     setToolsOpen(false);
     toolsToggle.focus();
   });
+  // a phone keeps the search field shut until its button opens it as a row of its own; escape or an
+  // emptied field shuts it again. wider screens always show it in the sidebar
+  const side = document.getElementById('cal-sidebar');
+  const searchBtn = document.getElementById('cal-search-btn');
+  if (searchBtn) searchBtn.innerHTML = _si('search');
+  const phoneSearch = () => Boolean(window.matchMedia?.('(max-width: 720px)').matches);
+  const setSearchOpen = (open, focus = true) => {
+    if (side) side.dataset.searchOpen = String(open);
+    searchBtn?.setAttribute('aria-expanded', String(open));
+    if (open && focus) document.getElementById('cal-search')?.focus();
+    if (!open && focus) searchBtn?.focus();
+  };
+  searchBtn?.addEventListener('click', () => setSearchOpen(searchBtn.getAttribute('aria-expanded') !== 'true'));
+  side?.addEventListener('keydown', event => {
+    const field = event.target.closest?.('#cal-search');
+    if (event.key !== 'Escape' || !field || !phoneSearch()) return;
+    event.preventDefault();
+    event.stopPropagation();
+    if (field.value) { field.value = ''; queueSearchRender('', render); }
+    setSearchOpen(false);
+  });
+  side?.addEventListener('input', event => {
+    if (event.target.closest?.('#cal-search') && !event.target.value && phoneSearch()) setSearchOpen(false);
+  });
   // the month cap depends on the width, so a rotate or resize across it redraws the grid
   window.matchMedia?.(MONTH_NARROW).addEventListener?.('change', () => {
     if (_view === 'month' && document.querySelector('#calendar-list > .cal-grid')) render();

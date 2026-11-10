@@ -273,6 +273,7 @@
     "calendar.parse_error": "no se pudo interpretar: prueba «almuerzo vie 13:00»",
     "calendar.quick_add_placeholder": "añadir rápido… «almuerzo vie 13:00»",
     "calendar.search_events": "buscar eventos…",
+    "calendar.search_open": "buscar eventos",
     "calendar.settings": "ajustes del calendario",
     "calendar.subscribe_ics": "suscribirse a una URL ICS",
     "calendar.subscriptions": "suscripciones",

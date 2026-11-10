@@ -273,6 +273,7 @@
     "calendar.parse_error": "無法解析，請嘗試「週五下午1點午餐」",
     "calendar.quick_add_placeholder": "快速新增…「週五下午1點午餐」",
     "calendar.search_events": "搜尋活動…",
+    "calendar.search_open": "搜尋活動",
     "calendar.settings": "行事曆設定",
     "calendar.subscribe_ics": "訂閱 ICS 網址",
     "calendar.subscriptions": "訂閱",

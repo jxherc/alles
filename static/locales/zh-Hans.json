@@ -273,6 +273,7 @@
     "calendar.parse_error": "无法解析，请尝试“周五下午1点午餐”",
     "calendar.quick_add_placeholder": "快速添加…“周五下午1点午餐”",
     "calendar.search_events": "搜索日程…",
+    "calendar.search_open": "搜索日程",
     "calendar.settings": "日历设置",
     "calendar.subscribe_ics": "订阅 ICS URL",
     "calendar.subscriptions": "订阅",

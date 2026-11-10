@@ -273,6 +273,7 @@
     "calendar.parse_error": "تعذّر فهم ذلك. جرّب «غداء الجمعة 1م»",
     "calendar.quick_add_placeholder": "إضافة سريعة… «غداء الجمعة 1م»",
     "calendar.search_events": "البحث في الأحداث…",
+    "calendar.search_open": "البحث في الأحداث",
     "calendar.settings": "إعدادات التقويم",
     "calendar.subscribe_ics": "الاشتراك في رابط ICS",
     "calendar.subscriptions": "الاشتراكات",

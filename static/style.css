@@ -6674,20 +6674,30 @@ button.cal-task { width: 100%; margin: 0; padding-inline-start: 6px; border: 0; 
 #cal-tools-toggle { display: none; align-items: center; min-height: var(--k-control, 44px); }
 /* Keep focus visible until the media-query handler transfers it on resize. */
 #cal-tools-toggle:focus { display: inline-flex; }
+#cal-search-btn { display: none; }
 @media (max-width: 760px) {
   #calendar-view { overflow-y: auto; }
   /* Keep an event workspace reachable when tools and feedback fill a short viewport. */
   #calendar-view .cal-layout { flex-shrink: 0; min-height: min(400px, 70dvh); }
   #calendar-view .cal-quick-feedback { flex-shrink: 0; }
-  #calendar-view .page-view-head { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--k-space-2, 8px); }
-  .cal-date-controls { display: flex; align-items: center; justify-content: space-between; gap: var(--k-space-2, 8px); min-width: 0; }
-  .cal-date-controls .cal-month-title { min-width: 0; white-space: normal; text-align: end; }
-  .cal-primary-actions { display: flex; flex-wrap: wrap; gap: var(--k-space-2, 8px); }
-  #cal-tools-toggle { display: inline-flex; align-items: center; min-height: var(--k-control, 44px); }
-  #cal-tools { display: none; }
-  #cal-tools[data-open="true"], #cal-tools:focus-within { display: flex; flex-wrap: wrap; align-items: center; gap: var(--k-space-2, 8px); min-width: 0; }
+  /* two rows (decision 0075): previous, the month, next, today at the end; then the view dropdown,
+     tools, search and "+ event" at the end. the grid starts under them, not at y=370 */
+  #calendar-view .page-view-head { display: flex; flex-wrap: wrap; align-items: center; gap: var(--k-control-gap); padding-block: var(--k-space-2); }
+  .cal-date-controls { display: flex; flex: 1 1 100%; align-items: center; gap: var(--k-control-gap); min-width: 0; }
+  .cal-nav { display: contents; }
+  #cal-prev { order: 1; }
+  .cal-date-controls .cal-month-title { order: 2; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  #cal-next { order: 3; }
+  #cal-today { order: 4; margin-inline-start: auto; }
+  #cal-view { order: 1; flex: 1 1 6rem; min-width: 0; width: auto; margin-inline-start: 0; }
+  #cal-tools-toggle { order: 2; display: inline-flex; align-items: center; min-height: var(--k-control, 44px); }
+  #cal-search-btn { order: 3; }
+  #cal-new-btn { order: 4; margin-inline-start: auto; }
+  #cal-tools { order: 5; display: none; }
+  #cal-tools[data-open="true"], #cal-tools:focus-within { display: flex; flex: 1 1 100%; flex-wrap: wrap; align-items: center; gap: var(--k-control-gap); min-width: 0; }
   #cal-tools .cal-quick { flex: 1 1 100%; min-width: 0; width: 100%; }
 }
+#cal-search-btn svg { width: 18px; height: 18px; }
 #money-view .page-view-head { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: var(--k-space-2, 8px); }
 #money-view .page-view-head > .page-view-title { grid-column: 1 / -1; }
 #money-view .money-monthnav { margin-left: 0; justify-content: center; }
@@ -6859,6 +6869,8 @@ button.cal-agenda-ev { width: 100%; margin: 0; border: 0; background: none; font
   .cal-layout { flex-direction: column; }
   .cal-sidebar { display: block; width: 100%; padding: 0.4rem 0.7rem; overflow: visible; border-right: 0; }
   .cal-sidebar > :not(.cal-side-search) { display: none; }
+  .cal-sidebar:not([data-search-open="true"]) { display: none; }
+  #cal-search-btn { display: inline-flex; width: var(--k-control, 44px); min-height: var(--k-control, 44px); padding: 0; flex: 0 0 auto; }
   .cal-side-search { margin-bottom: 0; }
   .cal-cell { padding-inline: 0; }
   .cal-cell-num { margin-inline: 0.2rem; }

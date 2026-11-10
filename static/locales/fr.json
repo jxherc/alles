@@ -273,6 +273,7 @@
     "calendar.parse_error": "expression incomprise : essaie « déjeuner ven. 13 h »",
     "calendar.quick_add_placeholder": "ajout rapide… « déjeuner ven. 13 h »",
     "calendar.search_events": "rechercher des événements…",
+    "calendar.search_open": "rechercher des événements",
     "calendar.settings": "réglages du calendrier",
     "calendar.subscribe_ics": "s’abonner à une URL ICS",
     "calendar.subscriptions": "abonnements",
