@@ -22,3 +22,5 @@ pills that never showed which one was picked.
   is kept when the entry is saved.
 - "copy to Markdown" is an item in the journal settings gear's menu, not a button touching the gear.
   focus returns to the gear when its dialog closes.
+- the journal's daily prompt is the editor's placeholder, shown only while today's entry is empty;
+  other days keep the plain question. the line under the date is gone.

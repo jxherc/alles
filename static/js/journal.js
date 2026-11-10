@@ -24,6 +24,7 @@ let _productNavWired = false;
 let _lastHydratedAt = 0;
 let _loadGeneration = 0;
 let _reflectionGeneration = 0;
+let _prompt = '';
 let _loadedDay = '';
 let _loading = false;
 let _failedDay = '';
@@ -311,8 +312,7 @@ async function buildJournal() {
             <span id="jrnl-load-message" role="alert"></span>
             <button class="btn" id="jrnl-load-retry" type="button">${t('journal.retry_load_day')}</button>
           </div>
-          <div class="jrnl-prompt" id="jrnl-prompt"></div>
-          <textarea id="jrnl-text" class="jrnl-text" rows="7" aria-label="${t('journal.entry_label')}" aria-describedby="jrnl-prompt" placeholder="${t('journal.entry_placeholder')}"></textarea>
+          <textarea id="jrnl-text" class="jrnl-text" rows="7" aria-label="${t('journal.entry_label')}" placeholder="${t('journal.entry_placeholder')}"></textarea>
           <div class="settings-input custom-select jrnl-mood" id="jrnl-mood" aria-label="${t('journal.mood')}"></div>
           <input id="jrnl-tags" class="jrnl-tags" aria-label="${t('journal.tags_label')}" placeholder="${t('journal.tags_label')}">
           <div class="jrnl-actions">
@@ -754,6 +754,7 @@ function updateEditorAvailability() {
 function renderDay() {
   _setDayUrl();
   document.getElementById('jrnl-date').textContent = formatJournalDay(_day);
+  applyPlaceholder();
   stopAt('jrnl-next', 'jrnl-prev', _day >= todayISO());
 }
 
@@ -874,11 +875,17 @@ async function loadStats() {
   } catch {}
 }
 
+// today's prompt waits in the empty editor as its placeholder; any other day asks the plain question
+function applyPlaceholder() {
+  const text = document.getElementById('jrnl-text');
+  if (text) text.placeholder = _prompt && _day === todayISO() ? t('journal.prompt_quote', { prompt: _prompt }) : t('journal.entry_placeholder');
+}
+
 async function loadPrompt() {
   try {
     const d = await jget('/api/journal/prompt');
-    const el = document.getElementById('jrnl-prompt');
-    if (el) el.textContent = t('journal.prompt_quote', { prompt: d.prompt });
+    _prompt = d.prompt || '';
+    applyPlaceholder();
   } catch {}
 }
 

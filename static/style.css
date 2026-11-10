@@ -4959,7 +4959,6 @@ textarea.vform-input { resize: vertical; min-height: 2.4rem; line-height: 1.5; f
 @media (max-width: 560px) { .jrnl-datebar .jrnl-date { flex: 1 0 100%; order: -1; } }
 .jrnl-date { flex: 1; min-width: 0; font-size: 1rem; font-weight: 500; color: var(--text); }
 .jrnl-words { margin-left: auto; font-size: 0.8125rem; color: var(--muted); }
-.jrnl-prompt { font-size: 0.8125rem; color: var(--muted); font-style: italic; margin-bottom: 0.7rem; }
 .jrnl-mood { width: 12rem; max-width: 100%; margin-top: var(--k-space-3); }
 .jrnl-text { width: 100%; min-height: 12rem; resize: vertical; background: var(--panel); color: var(--text); border: 1px solid var(--faint); border-radius: var(--k-radius-control); padding: 0.9rem; font: inherit; line-height: 1.7; }
 .jrnl-text:focus { outline: none; }
