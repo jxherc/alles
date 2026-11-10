@@ -3199,10 +3199,8 @@ html:not(#_):not(#_) #mail-view:has(#mail-sidebar > *) #mail-main:empty::before 
   text-align: center;
 }
 
-/* with no mailbox there's nothing to pick, so it points at where one gets added */
-html:not(#_):not(#_) #mail-view[data-no-account]:has(#mail-sidebar > *) #mail-main:empty::before {
-  content: attr(data-empty-no-account);
-}
+/* with no mailbox the line and button of .mail-no-account take the pane */
+html:not(#_):not(#_) #mail-view:has(#mail-sidebar > *) .mail-no-account { grid-row: 6; grid-column: 2 / -1; }
 
 /* overview cards: a card title owns one 44px row, so titles across a row of cards line up whether
    or not a head holds an action (inbox's "open mail") */

@@ -60,13 +60,15 @@ def run() -> None:
             page.locator("#app-drawer-btn").click()
             page.locator('.app-drawer-item[data-view="inbox"]').click()
             expect(page.locator("#inbox-view")).to_be_visible()
-            expect(page.get_by_role("heading", name="cached messages")).to_be_visible()
+            expect(page.locator("#inbox-add-account")).to_be_visible()
             page.locator('#inbox-view [data-group-section="mail"]').click()
             expect(page.locator("#mail-view")).to_be_visible()
-            # no mailbox yet: folders and search wait, the account setup is what's on screen
+            # no mailbox yet: folders and search wait, one line and one button are what's on screen
             expect(page.locator("#mail-view")).to_have_attribute("data-no-account", "")
             expect(page.locator('.mail-nav-item[data-filter="unread"]')).to_be_hidden()
             expect(page.locator("#mail-search")).to_be_hidden()
+            expect(page.get_by_text("no mail account")).to_be_visible()
+            page.locator("#mail-add-account").click()
             expect(page.get_by_role("region", name="mail accounts")).to_be_visible()
             page.goto(base, wait_until="networkidle")
             expect(page.locator("#today-view")).to_be_visible()

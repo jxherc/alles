@@ -8779,8 +8779,6 @@ html[data-kokuen-version="5"] :is(.cal-tev[data-id], .cal-tstack):focus-visible 
     overflow-y: auto;
   }
   #mail-view .mail-main:empty { display: none; }
-  /* with no mailbox the list is hidden too, so the empty pane stays to say where one gets added */
-  #mail-view[data-no-account] .mail-main:empty { display: block; }
   #mail-view:has(.mail-main:empty) .mail-list { flex: 1; max-height: none; }
   #mail-view .mail-pane-warning:not([hidden]) { display: block; }
   #mail-view .mail-reader { height: auto; }
@@ -11759,7 +11757,11 @@ html[data-kokuen-version="5"] #settings-modal :is(.btn, .act-btn).danger:hover {
 .jrnl-main[data-blank="true"] :is(.jrnl-mood-label, .jrnl-moods, .jrnl-tags) { display: none; }
 
 /* mail before the first account: only the account setup and compose */
-#mail-view[data-no-account] :is(#mail-sidebar-toggle, #mail-account, #mail-search, #mail-refresh-btn, #mail-sidebar, #mail-list) { display: none; }
+#mail-view[data-no-account] :is(#mail-sidebar-toggle, #mail-account, #mail-search, #mail-refresh-btn, #mail-compose-btn, #mail-sidebar, #mail-list) { display: none; }
+/* one line and one button, until the accounts panel takes the pane */
+#mail-view .mail-no-account { flex: 1 1 100%; }
+#mail-view:has(#mail-main > *) .mail-no-account { display: none; }
+#mail-view[data-no-account] .mail-main:empty { display: none; }
 
 /* paragraphs and lists in a rendered document had no margin at all, so two paragraphs, or a list and
    the paragraph under it, read as one block */

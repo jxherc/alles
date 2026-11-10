@@ -972,7 +972,6 @@ export async function loadMail(fetcher = fetch) {
   const emptyHost = $('mail-main');
   if (emptyHost?.dataset) {
     emptyHost.dataset.emptyPick = t('mail.pick_message');
-    emptyHost.dataset.emptyNoAccount = t('mail.no_account_yet');
   }
   // Back from a reader's own entry: close it, even mid-load, and land on the row it came from
   const leftReader = _readerEntry !== null && routeHistoryPosition() < _readerEntry;
@@ -1002,7 +1001,6 @@ export async function loadMail(fetcher = fetch) {
   if (!_accounts.length) {
     $('mail-list').innerHTML = '';
     if (mailEditor()) toast(t('mail.account_unavailable_draft'), 'error');
-    else if (!mailSettings()) accountsPanel(true);
     return;
   }
   _renderSavedBar();
@@ -1012,11 +1010,26 @@ export async function loadMail(fetcher = fetch) {
   return shown;
 }
 
+// no mailbox: one line and the one button that opens the accounts panel (also in the gear)
+function paintNoAccount() {
+  const view = $('mail-view');
+  let box = $('mail-no-account');
+  if (_accounts.length) { box?.remove(); return; }
+  if (!view || box) return;
+  box = document.createElement('div');
+  box.id = 'mail-no-account';
+  box.className = 'empty-state mail-no-account';
+  box.innerHTML = `<div class="empty-state-desc" role="status">${esc(t('mail.no_account'))}</div><button type="button" class="btn primary" id="mail-add-account">${esc(t('mail.add_account'))}</button>`;
+  box.querySelector('button').addEventListener('click', () => accountsPanel(true));
+  view.querySelector('.mail-layout')?.prepend(box);
+}
+
 function syncAccountSelect() {
   const sel = $('mail-account');
   if (!sel) return;
   // no mailbox yet: folders, search and refresh have nothing to act on
   $('mail-view')?.toggleAttribute('data-no-account', !_accounts.length);
+  paintNoAccount();
   if (!_accounts.length) {
     populateDropdown(sel, [{ value: '', label: t('mail.no_accounts') }], '');
     return;
