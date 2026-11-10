@@ -74,7 +74,12 @@ def run():
                 page.on("pageerror", lambda error: problems.append(str(error)))
                 page.on("console", lambda m: problems.append(m.text) if m.type == "error" else None)
                 page.goto(f"{base}/static/signin-test.html?state={name}&freeze=1")
-                page.wait_for_selector("html[data-ready='1'] .signin-provider")
+                if name == "not-drawn":
+                    # a provider with no way to sign in on this install is left out whole
+                    page.wait_for_selector("html[data-ready='1']", state="attached")
+                    assert page.locator(".signin-provider").count() == 0
+                else:
+                    page.wait_for_selector("html[data-ready='1'] .signin-provider")
                 assert page.evaluate("document.documentElement.dataset.theme || 'dark'") == theme
                 for step in steps:
                     if step[0] == "click":
