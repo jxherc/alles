@@ -48,7 +48,7 @@ function harness() {
   }
   element('s-tts-voice-row'); element('s-tts-enabled-toggle').setAttribute('role', 'switch'); element('s-voice-save-btn');
   let devices = async () => [];
-  context = vm.createContext({ t: i18nT, tp: i18nTp,
+  context = vm.createContext({ t: i18nT, tp: i18nTp, setTimeout, clearTimeout,
     document: { getElementById: get, createElement: () => element(), activeElement: null,
       querySelector: selector => selector === '#settings-modal .s-pane.active' ? pane : null, querySelectorAll: () => [] },
     window: {}, localStorage: { getItem: key => storage.get(key) || '', setItem: (key, value) => storage.set(key, value) },

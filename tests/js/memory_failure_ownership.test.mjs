@@ -54,7 +54,7 @@ function harness() {
     return el;
   }
   const host = element('host');
-  for (const id of ['memory-list', 'mem-category-filter', 'mem-policy-desc', 's-memory-inject-toggle', 'mem-pause-btn', 'mem-extract-btn', 'mem-clear-btn', 'mem-add-btn', 'mem-add-input', 'mem-cat-cycle-btn', 'mem-search', 'mem-undo']) host.appendChild(element(id));
+  for (const id of ['memory-list', 'mem-category-filter', 's-memory-inject-toggle', 'mem-pause-btn', 'mem-extract-btn', 'mem-clear-btn', 'mem-add-btn', 'mem-add-input', 'mem-cat-cycle-btn', 'mem-search', 'mem-undo']) host.appendChild(element(id));
   const undo = element(); undo.tagName = 'button'; elements.get('mem-undo').appendChild(undo);
   document = { getElementById: id => elements.get(id), querySelectorAll: () => [], createElement: tag => Object.assign(element(), { tagName: tag }), activeElement: null, body: host };
   const fetcher = async (url, options = {}) => {

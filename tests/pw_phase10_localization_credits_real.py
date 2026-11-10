@@ -133,10 +133,8 @@ def run() -> None:
         page.keyboard.press("Escape")
         expect(language_pick).to_be_focused()
         assert pane.locator('select, input[type="checkbox"], input[type="radio"]').count() == 0
-        expect(page.locator("#s-region-trigger")).to_have_text("automatic")
-        expect(page.locator("#s-timezone-trigger")).to_have_text("automatic")
-        expect(page.locator("#s-region-detected")).to_contain_text("detected")
-        expect(page.locator("#s-timezone-detected")).to_contain_text("detected")
+        expect(page.locator("#s-region-trigger")).to_contain_text("automatic")
+        expect(page.locator("#s-timezone-trigger")).to_contain_text("automatic (")
 
         region = page.locator("#s-region-trigger")
         region.focus()
@@ -455,7 +453,7 @@ def run() -> None:
         expect(page.locator("#credits-coverage [data-credits-retry]")).to_be_visible()
         page.unroute("**/api/credits")
         page.locator("#credits-coverage [data-credits-retry]").click()
-        expect(page.locator("#credits-settings-load-state")).to_have_text("inventory complete")
+        expect(page.locator("#credits-settings-load-state")).to_have_text("")
         expect(page.locator("#credits-settings-workbench")).to_have_attribute("aria-busy", "false")
         credits_columns = page.locator(".credits-settings-workbench").evaluate(
             "el => getComputedStyle(el).gridTemplateColumns"

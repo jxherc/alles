@@ -1727,38 +1727,33 @@
       <div class="s-content">
 
         <div class="s-pane home-settings-pane" id="s-pane-home">
-          <header class="home-settings-intro">
-            <span id="home-settings-load-state" role="status" aria-live="polite" data-i18n="settings.home_loading">loading preferences…</span>
-          </header>
-
           <div class="home-settings-workbench" id="home-settings-workbench" aria-busy="true">
             <div class="home-settings-controls">
               <section class="home-settings-section" aria-labelledby="home-settings-structure-title">
                 <h3 id="home-settings-structure-title" data-i18n="shell.settings_home.sections">sections</h3>
-                <p data-i18n="shell.settings_home.choose_what_to_show_use_the">Choose what to show. Use the arrows to change the order.</p>
                 <div class="home-settings-list" id="home-settings-sections">
                   <div class="home-settings-row" data-home-section="needs_you" data-enabled="true">
-                    <div class="home-settings-copy"><strong data-i18n="shell.settings_home.needs_you">needs you</strong><small data-i18n="shell.settings_home.approvals_and_recovery_always_visible">approvals and recovery · always visible</small></div>
+                    <div class="home-settings-copy"><strong data-i18n="shell.settings_home.needs_you">needs you</strong><small data-i18n="shell.settings_home.approvals_and_recovery_always_visible">always visible</small></div>
                     <button class="home-settings-switch" type="button" role="switch" aria-label="show needs you on Home" aria-checked="true" disabled data-i18n-aria-label="shell.settings_home.show_needs_you_on_home"></button>
                     <div class="home-settings-move"><button type="button" data-home-move="up" aria-label="move needs you up" data-i18n-aria-label="shell.settings_home.move_needs_you_up">↑</button><button type="button" data-home-move="down" aria-label="move needs you down" data-i18n-aria-label="shell.settings_home.move_needs_you_down">↓</button></div>
                   </div>
                   <div class="home-settings-row" data-home-section="today" data-enabled="true">
-                    <div class="home-settings-copy"><strong data-i18n="shell.settings_home.schedule">schedule</strong><small data-i18n="shell.settings_home.events_tasks_reminders_renewals_and_habits">events, tasks, reminders, renewals, and habits</small></div>
+                    <div class="home-settings-copy"><strong data-i18n="shell.settings_home.schedule">schedule</strong></div>
                     <button class="home-settings-switch" type="button" role="switch" aria-label="show schedule on Home" aria-checked="true" data-home-section-switch data-i18n-aria-label="shell.settings_home.show_schedule_on_home"></button>
                     <div class="home-settings-move"><button type="button" data-home-move="up" aria-label="move schedule up" data-i18n-aria-label="shell.settings_home.move_schedule_up">↑</button><button type="button" data-home-move="down" aria-label="move schedule down" data-i18n-aria-label="shell.settings_home.move_schedule_down">↓</button></div>
                   </div>
                   <div class="home-settings-row" data-home-section="in_progress" data-enabled="true">
-                    <div class="home-settings-copy"><strong data-i18n="shell.settings_home.in_progress">in progress</strong><small data-i18n="shell.settings_home.active_background_aide_work">active background Aide work</small></div>
+                    <div class="home-settings-copy"><strong data-i18n="shell.settings_home.in_progress">in progress</strong></div>
                     <button class="home-settings-switch" type="button" role="switch" aria-label="show in progress on Home" aria-checked="true" data-home-section-switch data-i18n-aria-label="shell.settings_home.show_in_progress_on_home"></button>
                     <div class="home-settings-move"><button type="button" data-home-move="up" aria-label="move in progress up" data-i18n-aria-label="shell.settings_home.move_in_progress_up">↑</button><button type="button" data-home-move="down" aria-label="move in progress down" data-i18n-aria-label="shell.settings_home.move_in_progress_down">↓</button></div>
                   </div>
                   <div class="home-settings-row" data-home-section="briefs" data-enabled="true">
-                    <div class="home-settings-copy"><strong data-i18n="shell.settings_home.briefs">briefs</strong><small data-i18n="shell.settings_home.recent_finished_aide_summaries">recent finished Aide summaries</small></div>
+                    <div class="home-settings-copy"><strong data-i18n="shell.settings_home.briefs">briefs</strong></div>
                     <button class="home-settings-switch" type="button" role="switch" aria-label="show briefs on Home" aria-checked="true" data-home-section-switch data-i18n-aria-label="shell.settings_home.show_briefs_on_home"></button>
                     <div class="home-settings-move"><button type="button" data-home-move="up" aria-label="move briefs up" data-i18n-aria-label="shell.settings_home.move_briefs_up">↑</button><button type="button" data-home-move="down" aria-label="move briefs down" data-i18n-aria-label="shell.settings_home.move_briefs_down">↓</button></div>
                   </div>
                   <div class="home-settings-row" data-home-section="shortcuts" data-enabled="true">
-                    <div class="home-settings-copy"><strong data-i18n="shell.settings_home.pinned_apps">pinned apps</strong><small data-i18n="shell.settings_home.the_app_destinations_selected_below">the app destinations selected below</small></div>
+                    <div class="home-settings-copy"><strong data-i18n="shell.settings_home.pinned_apps">pinned apps</strong></div>
                     <button class="home-settings-switch" type="button" role="switch" aria-label="show pinned apps on Home" aria-checked="true" data-home-section-switch data-i18n-aria-label="shell.settings_home.show_pinned_apps_on_home"></button>
                     <div class="home-settings-move"><button type="button" data-home-move="up" aria-label="move pinned apps up" data-i18n-aria-label="shell.settings_home.move_pinned_apps_up">↑</button><button type="button" data-home-move="down" aria-label="move pinned apps down" data-i18n-aria-label="shell.settings_home.move_pinned_apps_down">↓</button></div>
                   </div>
@@ -1767,45 +1762,42 @@
 
               <section class="home-settings-section" aria-labelledby="home-settings-density-title">
                 <h3 id="home-settings-density-title" data-i18n="shell.settings_home.density">density</h3>
-                <p data-i18n="shell.settings_home.change_spacing_without_hiding_details">Change spacing without hiding details.</p>
                 <div class="home-settings-density" role="radiogroup" aria-labelledby="home-settings-density-title">
-                  <button type="button" role="radio" aria-checked="true" tabindex="0" data-home-density="comfortable"><span data-i18n="shell.settings_home.comfortable">comfortable</span><small data-i18n="shell.settings_home.more_room_between_sections">more room between sections</small></button>
-                  <button type="button" role="radio" aria-checked="false" tabindex="-1" data-home-density="compact"><span data-i18n="shell.settings_home.compact">compact</span><small data-i18n="shell.settings_home.more_of_the_day_at_once">more of the day at once</small></button>
+                  <button type="button" role="radio" aria-checked="true" tabindex="0" data-home-density="comfortable"><span data-i18n="shell.settings_home.comfortable">comfortable</span></button>
+                  <button type="button" role="radio" aria-checked="false" tabindex="-1" data-home-density="compact"><span data-i18n="shell.settings_home.compact">compact</span></button>
                 </div>
               </section>
 
               <section class="home-settings-section" aria-labelledby="home-settings-shortcuts-title">
                 <h3 id="home-settings-shortcuts-title" data-i18n="shell.settings_home.pinned_apps">pinned apps</h3>
-                <p data-i18n="shell.settings_home.choose_your_home_shortcuts">Choose your Home shortcuts.</p>
                 <div class="home-settings-list" id="home-settings-shortcuts">
-                  <div class="home-settings-row" data-home-shortcut="plan" data-enabled="true"><div class="home-settings-copy"><strong data-i18n="shell.settings_home.plan">plan</strong><small data-i18n="shell.settings_home.agenda_board_calendar_tasks_and_reminders">agenda, board, calendar, tasks, and reminders</small></div><button class="home-settings-switch" type="button" role="switch" aria-label="show Plan pinned app" aria-checked="true" data-home-shortcut-switch data-i18n-aria-label="shell.settings_home.show_plan_pinned_app"></button><div class="home-settings-move"><button type="button" data-home-move="up" aria-label="move Plan pinned app up" data-i18n-aria-label="shell.settings_home.move_plan_pinned_app_up">↑</button><button type="button" data-home-move="down" aria-label="move Plan pinned app down" data-i18n-aria-label="shell.settings_home.move_plan_pinned_app_down">↓</button></div></div>
-                  <div class="home-settings-row" data-home-shortcut="inbox" data-enabled="false"><div class="home-settings-copy"><strong data-i18n="common.inbox">inbox</strong><small data-i18n="shell.settings_home.mail_and_contacts">mail and contacts</small></div><button class="home-settings-switch" type="button" role="switch" aria-label="show Inbox pinned app" aria-checked="false" data-home-shortcut-switch data-i18n-aria-label="shell.settings_home.show_inbox_pinned_app"></button><div class="home-settings-move"><button type="button" data-home-move="up" aria-label="move Inbox pinned app up" data-i18n-aria-label="shell.settings_home.move_inbox_pinned_app_up">↑</button><button type="button" data-home-move="down" aria-label="move Inbox pinned app down" data-i18n-aria-label="shell.settings_home.move_inbox_pinned_app_down">↓</button></div></div>
-                  <div class="home-settings-row" data-home-shortcut="wiki" data-enabled="true"><div class="home-settings-copy"><strong data-i18n="common.docs">docs</strong><small data-i18n="shell.settings_home.documents_notes_and_journal">documents, notes, and journal</small></div><button class="home-settings-switch" type="button" role="switch" aria-label="show Docs pinned app" aria-checked="true" data-home-shortcut-switch data-i18n-aria-label="shell.settings_home.show_docs_pinned_app"></button><div class="home-settings-move"><button type="button" data-home-move="up" aria-label="move Docs pinned app up" data-i18n-aria-label="shell.settings_home.move_docs_pinned_app_up">↑</button><button type="button" data-home-move="down" aria-label="move Docs pinned app down" data-i18n-aria-label="shell.settings_home.move_docs_pinned_app_down">↓</button></div></div>
-                  <div class="home-settings-row" data-home-shortcut="files" data-enabled="true"><div class="home-settings-copy"><strong data-i18n="common.files">files</strong><small data-i18n="shell.settings_home.local_and_remote_storage_plus_gallery">local and remote storage plus gallery</small></div><button class="home-settings-switch" type="button" role="switch" aria-label="show Files pinned app" aria-checked="true" data-home-shortcut-switch data-i18n-aria-label="shell.settings_home.show_files_pinned_app"></button><div class="home-settings-move"><button type="button" data-home-move="up" aria-label="move Files pinned app up" data-i18n-aria-label="shell.settings_home.move_files_pinned_app_up">↑</button><button type="button" data-home-move="down" aria-label="move Files pinned app down" data-i18n-aria-label="shell.settings_home.move_files_pinned_app_down">↓</button></div></div>
-                  <div class="home-settings-row" data-home-shortcut="library" data-enabled="false"><div class="home-settings-copy"><strong data-i18n="common.library">library</strong><small data-i18n="shell.settings_home.books_saved_reading_and_news">books, saved reading, and news</small></div><button class="home-settings-switch" type="button" role="switch" aria-label="show Library pinned app" aria-checked="false" data-home-shortcut-switch data-i18n-aria-label="shell.settings_home.show_library_pinned_app"></button><div class="home-settings-move"><button type="button" data-home-move="up" aria-label="move Library pinned app up" data-i18n-aria-label="shell.settings_home.move_library_pinned_app_up">↑</button><button type="button" data-home-move="down" aria-label="move Library pinned app down" data-i18n-aria-label="shell.settings_home.move_library_pinned_app_down">↓</button></div></div>
-                  <div class="home-settings-row" data-home-shortcut="health" data-enabled="false"><div class="home-settings-copy"><strong data-i18n="common.health">health</strong><small data-i18n="shell.settings_home.measurements_and_habits">measurements and habits</small></div><button class="home-settings-switch" type="button" role="switch" aria-label="show Health pinned app" aria-checked="false" data-home-shortcut-switch data-i18n-aria-label="shell.settings_home.show_health_pinned_app"></button><div class="home-settings-move"><button type="button" data-home-move="up" aria-label="move Health pinned app up" data-i18n-aria-label="shell.settings_home.move_health_pinned_app_up">↑</button><button type="button" data-home-move="down" aria-label="move Health pinned app down" data-i18n-aria-label="shell.settings_home.move_health_pinned_app_down">↓</button></div></div>
-                  <div class="home-settings-row" data-home-shortcut="finance" data-enabled="false"><div class="home-settings-copy"><strong data-i18n="common.finance">finance</strong><small data-i18n="shell.settings_home.money_and_subscriptions">money and subscriptions</small></div><button class="home-settings-switch" type="button" role="switch" aria-label="show Finance pinned app" aria-checked="false" data-home-shortcut-switch data-i18n-aria-label="shell.settings_home.show_finance_pinned_app"></button><div class="home-settings-move"><button type="button" data-home-move="up" aria-label="move Finance pinned app up" data-i18n-aria-label="shell.settings_home.move_finance_pinned_app_up">↑</button><button type="button" data-home-move="down" aria-label="move Finance pinned app down" data-i18n-aria-label="shell.settings_home.move_finance_pinned_app_down">↓</button></div></div>
-                  <div class="home-settings-row" data-home-shortcut="vault" data-enabled="false"><div class="home-settings-copy"><strong data-i18n="common.vault">vault</strong><small data-i18n="shell.settings_home.passwords_and_protected_secrets">passwords and protected secrets</small></div><button class="home-settings-switch" type="button" role="switch" aria-label="show Vault pinned app" aria-checked="false" data-home-shortcut-switch data-i18n-aria-label="shell.settings_home.show_vault_pinned_app"></button><div class="home-settings-move"><button type="button" data-home-move="up" aria-label="move Vault pinned app up" data-i18n-aria-label="shell.settings_home.move_vault_pinned_app_up">↑</button><button type="button" data-home-move="down" aria-label="move Vault pinned app down" data-i18n-aria-label="shell.settings_home.move_vault_pinned_app_down">↓</button></div></div>
-                  <div class="home-settings-row" data-home-shortcut="system" data-enabled="false"><div class="home-settings-copy"><strong data-i18n="common.server">server</strong><small data-i18n="shell.settings_home.services_search_backups_and_activity">services, search, backups, and activity</small></div><button class="home-settings-switch" type="button" role="switch" aria-label="show Server pinned app" aria-checked="false" data-home-shortcut-switch data-i18n-aria-label="shell.settings_home.show_server_pinned_app"></button><div class="home-settings-move"><button type="button" data-home-move="up" aria-label="move Server pinned app up" data-i18n-aria-label="shell.settings_home.move_server_pinned_app_up">↑</button><button type="button" data-home-move="down" aria-label="move Server pinned app down" data-i18n-aria-label="shell.settings_home.move_server_pinned_app_down">↓</button></div></div>
+                  <div class="home-settings-row" data-home-shortcut="plan" data-enabled="true"><div class="home-settings-copy"><strong data-i18n="shell.settings_home.plan">plan</strong></div><button class="home-settings-switch" type="button" role="switch" aria-label="show Plan pinned app" aria-checked="true" data-home-shortcut-switch data-i18n-aria-label="shell.settings_home.show_plan_pinned_app"></button><div class="home-settings-move"><button type="button" data-home-move="up" aria-label="move Plan pinned app up" data-i18n-aria-label="shell.settings_home.move_plan_pinned_app_up">↑</button><button type="button" data-home-move="down" aria-label="move Plan pinned app down" data-i18n-aria-label="shell.settings_home.move_plan_pinned_app_down">↓</button></div></div>
+                  <div class="home-settings-row" data-home-shortcut="inbox" data-enabled="false"><div class="home-settings-copy"><strong data-i18n="common.inbox">inbox</strong></div><button class="home-settings-switch" type="button" role="switch" aria-label="show Inbox pinned app" aria-checked="false" data-home-shortcut-switch data-i18n-aria-label="shell.settings_home.show_inbox_pinned_app"></button><div class="home-settings-move"><button type="button" data-home-move="up" aria-label="move Inbox pinned app up" data-i18n-aria-label="shell.settings_home.move_inbox_pinned_app_up">↑</button><button type="button" data-home-move="down" aria-label="move Inbox pinned app down" data-i18n-aria-label="shell.settings_home.move_inbox_pinned_app_down">↓</button></div></div>
+                  <div class="home-settings-row" data-home-shortcut="wiki" data-enabled="true"><div class="home-settings-copy"><strong data-i18n="common.docs">docs</strong></div><button class="home-settings-switch" type="button" role="switch" aria-label="show Docs pinned app" aria-checked="true" data-home-shortcut-switch data-i18n-aria-label="shell.settings_home.show_docs_pinned_app"></button><div class="home-settings-move"><button type="button" data-home-move="up" aria-label="move Docs pinned app up" data-i18n-aria-label="shell.settings_home.move_docs_pinned_app_up">↑</button><button type="button" data-home-move="down" aria-label="move Docs pinned app down" data-i18n-aria-label="shell.settings_home.move_docs_pinned_app_down">↓</button></div></div>
+                  <div class="home-settings-row" data-home-shortcut="files" data-enabled="true"><div class="home-settings-copy"><strong data-i18n="common.files">files</strong></div><button class="home-settings-switch" type="button" role="switch" aria-label="show Files pinned app" aria-checked="true" data-home-shortcut-switch data-i18n-aria-label="shell.settings_home.show_files_pinned_app"></button><div class="home-settings-move"><button type="button" data-home-move="up" aria-label="move Files pinned app up" data-i18n-aria-label="shell.settings_home.move_files_pinned_app_up">↑</button><button type="button" data-home-move="down" aria-label="move Files pinned app down" data-i18n-aria-label="shell.settings_home.move_files_pinned_app_down">↓</button></div></div>
+                  <div class="home-settings-row" data-home-shortcut="library" data-enabled="false"><div class="home-settings-copy"><strong data-i18n="common.library">library</strong></div><button class="home-settings-switch" type="button" role="switch" aria-label="show Library pinned app" aria-checked="false" data-home-shortcut-switch data-i18n-aria-label="shell.settings_home.show_library_pinned_app"></button><div class="home-settings-move"><button type="button" data-home-move="up" aria-label="move Library pinned app up" data-i18n-aria-label="shell.settings_home.move_library_pinned_app_up">↑</button><button type="button" data-home-move="down" aria-label="move Library pinned app down" data-i18n-aria-label="shell.settings_home.move_library_pinned_app_down">↓</button></div></div>
+                  <div class="home-settings-row" data-home-shortcut="health" data-enabled="false"><div class="home-settings-copy"><strong data-i18n="common.health">health</strong></div><button class="home-settings-switch" type="button" role="switch" aria-label="show Health pinned app" aria-checked="false" data-home-shortcut-switch data-i18n-aria-label="shell.settings_home.show_health_pinned_app"></button><div class="home-settings-move"><button type="button" data-home-move="up" aria-label="move Health pinned app up" data-i18n-aria-label="shell.settings_home.move_health_pinned_app_up">↑</button><button type="button" data-home-move="down" aria-label="move Health pinned app down" data-i18n-aria-label="shell.settings_home.move_health_pinned_app_down">↓</button></div></div>
+                  <div class="home-settings-row" data-home-shortcut="finance" data-enabled="false"><div class="home-settings-copy"><strong data-i18n="common.finance">finance</strong></div><button class="home-settings-switch" type="button" role="switch" aria-label="show Finance pinned app" aria-checked="false" data-home-shortcut-switch data-i18n-aria-label="shell.settings_home.show_finance_pinned_app"></button><div class="home-settings-move"><button type="button" data-home-move="up" aria-label="move Finance pinned app up" data-i18n-aria-label="shell.settings_home.move_finance_pinned_app_up">↑</button><button type="button" data-home-move="down" aria-label="move Finance pinned app down" data-i18n-aria-label="shell.settings_home.move_finance_pinned_app_down">↓</button></div></div>
+                  <div class="home-settings-row" data-home-shortcut="vault" data-enabled="false"><div class="home-settings-copy"><strong data-i18n="common.vault">vault</strong></div><button class="home-settings-switch" type="button" role="switch" aria-label="show Vault pinned app" aria-checked="false" data-home-shortcut-switch data-i18n-aria-label="shell.settings_home.show_vault_pinned_app"></button><div class="home-settings-move"><button type="button" data-home-move="up" aria-label="move Vault pinned app up" data-i18n-aria-label="shell.settings_home.move_vault_pinned_app_up">↑</button><button type="button" data-home-move="down" aria-label="move Vault pinned app down" data-i18n-aria-label="shell.settings_home.move_vault_pinned_app_down">↓</button></div></div>
+                  <div class="home-settings-row" data-home-shortcut="system" data-enabled="false"><div class="home-settings-copy"><strong data-i18n="common.server">server</strong></div><button class="home-settings-switch" type="button" role="switch" aria-label="show Server pinned app" aria-checked="false" data-home-shortcut-switch data-i18n-aria-label="shell.settings_home.show_server_pinned_app"></button><div class="home-settings-move"><button type="button" data-home-move="up" aria-label="move Server pinned app up" data-i18n-aria-label="shell.settings_home.move_server_pinned_app_up">↑</button><button type="button" data-home-move="down" aria-label="move Server pinned app down" data-i18n-aria-label="shell.settings_home.move_server_pinned_app_down">↓</button></div></div>
                 </div>
               </section>
             </div>
 
             <details class="home-settings-preview">
               <summary><span id="home-settings-preview-title" data-i18n="shell.settings_home.home_outline">home outline</span><span id="home-settings-preview-count">5 sections</span></summary>
-              <p data-i18n="shell.settings_home.the_greeting_and_capture_bar_stay">The greeting and capture bar stay fixed. This is the order below them.</p>
               <div id="home-settings-preview-list">
-                <div data-home-preview="needs_you"><strong data-i18n="shell.settings_home.needs_you">needs you</strong><small data-i18n="shell.settings_home.approvals_and_recovery_prompts">approvals and recovery prompts</small></div>
-                <div data-home-preview="today"><strong data-i18n="shell.settings_home.schedule">schedule</strong><small data-i18n="shell.settings_home.events_and_priorities">events and priorities</small></div>
-                <div data-home-preview="in_progress"><strong data-i18n="shell.settings_home.in_progress">in progress</strong><small data-i18n="shell.settings_home.active_aide_work">active Aide work</small></div>
-                <div data-home-preview="briefs"><strong data-i18n="shell.settings_home.briefs">briefs</strong><small data-i18n="shell.settings_home.recent_summaries">recent summaries</small></div>
+                <div data-home-preview="needs_you"><strong data-i18n="shell.settings_home.needs_you">needs you</strong></div>
+                <div data-home-preview="today"><strong data-i18n="shell.settings_home.schedule">schedule</strong></div>
+                <div data-home-preview="in_progress"><strong data-i18n="shell.settings_home.in_progress">in progress</strong></div>
+                <div data-home-preview="briefs"><strong data-i18n="shell.settings_home.briefs">briefs</strong></div>
                 <div data-home-preview="shortcuts"><strong data-i18n="shell.settings_home.pinned_apps">pinned apps</strong><small id="home-settings-preview-shortcuts" data-i18n="shell.settings_home.plan_docs_files">plan · docs · files</small></div>
               </div>
             </details>
           </div>
 
           <footer class="home-settings-save">
-            <div><span id="home-settings-save-state" role="status" aria-live="polite" data-i18n="locale.no_unsaved">no unsaved changes</span><small data-i18n="shell.settings_home.applies_to_all_your_browsers">Applies to all your browsers.</small></div>
+            <div><span id="home-settings-save-state" role="status" aria-live="polite"></span><span id="home-settings-load-state" role="status" aria-live="polite"></span></div>
             <div><button class="btn" id="home-settings-reset" type="button" data-i18n="shell.settings_home.reset_defaults">reset defaults</button><button class="btn primary" id="home-settings-save" type="button" data-i18n="shell.settings_home.save_home">save home</button></div>
           </footer>
         </div>
@@ -1892,7 +1884,7 @@
                   <button class="btn primary" id="s-gemini-oauth-start" type="button" data-i18n="shell.s_gemini_oauth.open_google_authorization">open Google authorization</button>
                 </div>
               </div>
-              <p class="s-card-hint s-provider-warning" data-i18n="shell.settings_models.alles_uses_provider_api_keys_owner">Alles uses provider API keys, owner-managed compatible proxies, or the documented Gemini OAuth flow. It never imports consumer chat sessions. Requests may use provider quota or credits.</p>
+              <p class="s-card-hint s-provider-warning" data-i18n="shell.settings_models.alles_uses_provider_api_keys_owner">Alles never imports consumer chat sessions. Requests may use provider quota or credits.</p>
             </div>
           </div>
           <div class="s-card">
@@ -1936,7 +1928,6 @@
               <span data-i18n="settings.chat_context">chat display & context</span>
             </div>
             <div class="s-card-body">
-              <p class="s-card-hint" data-i18n="settings.chat_context_hint">choose how many earlier messages Aide uses and whether replies show reasoning or artifacts. auto-compact summarizes older messages.</p>
               <div class="s-field">
                 <label for="settings-context-limit" data-i18n="shell.settings_ai.context_window_messages">context window (messages)</label>
                 <input type="text" inputmode="numeric" class="settings-input" id="settings-context-limit" style="width:80px">
@@ -1951,22 +1942,19 @@
             <div class="s-card-body" style="padding-top:0.2rem;padding-bottom:0.2rem">
               <div class="s-toggle-row">
                 <div>
-                  <div class="s-toggle-label" data-i18n="shell.settings_ai.streaming_thinking">streaming thinking</div>
-                  <div class="s-toggle-desc" data-i18n="shell.settings_ai.show_model_reasoning_blocks_as_they">show model reasoning blocks as they stream</div>
+                  <div class="s-toggle-label" data-i18n="shell.settings_ai.streaming_thinking">show model reasoning</div>
                 </div>
                 <div class="s-switch" id="s-thinking-toggle"></div>
               </div>
               <div class="s-toggle-row">
                 <div>
-                  <div class="s-toggle-label" data-i18n="shell.settings_ai.artifacts">artifacts</div>
-                  <div class="s-toggle-desc" data-i18n="shell.settings_ai.render_html_svg_and_code_in">render HTML, SVG and code in a side panel</div>
+                  <div class="s-toggle-label" data-i18n="shell.settings_ai.artifacts">artifacts in a side panel</div>
                 </div>
                 <div class="s-switch" id="s-artifacts-toggle"></div>
               </div>
               <div class="s-toggle-row">
                 <div>
-                  <div class="s-toggle-label" data-i18n="shell.settings_ai.auto_compact_context">auto-compact context</div>
-                  <div class="s-toggle-desc" data-i18n="shell.settings_ai.summarize_old_messages_when_context_fills">summarize old messages when context fills up</div>
+                  <div class="s-toggle-label" data-i18n="shell.settings_ai.auto_compact_context">summarize old messages when context fills</div>
                 </div>
                 <div class="s-switch" id="s-compact-toggle"></div>
               </div>
@@ -1982,7 +1970,6 @@
           <div class="s-card" role="region" aria-labelledby="s-owner-instructions-head">
             <div class="s-card-head" id="s-owner-instructions-head" data-i18n="shell.settings_memory.owner_instructions">owner instructions</div>
             <div class="s-card-body">
-              <p class="s-card-hint" data-i18n="settings.memory_instructions_hint">set how Aide responds. instructions are separate from saved facts and cannot replace Alles safety rules. source notes and mail are configured in search personal records.</p>
               <textarea class="settings-textarea" id="settings-owner-instructions" aria-label="owner instructions" rows="5" placeholder="for example: use short answers and explain unfamiliar terms." data-i18n-aria-label="shell.settings_memory.owner_instructions" data-i18n-placeholder="shell.settings_memory.for_example_use_short_answers_and"></textarea>
               <div style="text-align:right;margin-top:0.55rem"><button class="btn primary" id="s-owner-instructions-save" type="button" data-i18n="shell.settings_memory.save_instructions">save instructions</button></div>
             </div>
@@ -1994,11 +1981,10 @@
               <button type="button" class="btn" id="mem-extract-btn" style="margin-left:auto" data-i18n="shell.settings_memory.extract_from_chat">extract from chat</button>
             </div>
             <div class="s-card-body">
-              <p class="s-card-hint" data-i18n="shell.settings_memory.incognito_chats_never_read_or_save">incognito chats never read or save memory. owner instructions stay separate from the memories below.</p>
+              <p class="s-card-hint" data-i18n="shell.settings_memory.incognito_chats_never_read_or_save">incognito chats never read or save memory.</p>
               <div class="mem-policy" aria-label="memory policy" data-i18n-aria-label="shell.settings_memory.memory_policy">
                 <div class="mem-policy-copy">
-                  <div class="s-toggle-label" data-i18n="shell.settings_memory.memory_policy">memory policy</div>
-                  <div class="s-toggle-desc" id="mem-policy-desc" data-i18n="shell.settings_memory.ask_before_saving_suggested_memories">ask before saving suggested memories</div>
+                  <div class="s-toggle-label" data-i18n="shell.settings_memory.memory_policy">save new memories</div>
                 </div>
                 <div class="mem-policy-options" role="group" aria-label="memory policy choices" data-i18n-aria-label="shell.settings_memory.memory_policy_choices">
                   <button type="button" class="mem-policy-btn" data-memory-policy="off" data-i18n="common.off">off</button>
@@ -2007,7 +1993,7 @@
                 </div>
               </div>
               <div class="s-toggle-row">
-                <div><div class="s-toggle-label" data-i18n="shell.settings_memory.use_relevant_memory_in_chats">use relevant memory in chats</div><div class="s-toggle-desc" data-i18n="shell.settings_memory.available_only_while_memory_is_set">available only while memory is set to ask or auto</div></div>
+                <div><div class="s-toggle-label" data-i18n="shell.settings_memory.use_relevant_memory_in_chats">use relevant memory in chats</div><div class="s-toggle-desc" id="mem-inject-why" data-i18n="shell.settings_memory.available_only_while_memory_is_set" hidden>available only while memory is set to ask or auto</div></div>
                 <div class="s-switch" id="s-memory-inject-toggle" role="switch" aria-checked="false"></div>
               </div>
               <input type="text" id="mem-search" aria-label="search memories" class="settings-input" placeholder="search memories…" style="width:100%;margin-bottom:0.55rem" data-i18n-aria-label="shell.settings_memory.search_memories_2" data-i18n-placeholder="shell.settings_memory.search_memories">
@@ -2149,10 +2135,6 @@
               <div class="s-field">
                 <label id="s-andromeda-band-label" data-i18n="shell.andromeda_settings.overview_strength">overview strength</label>
                 <div class="settings-input custom-select" id="s-andromeda-band" data-value="standard" data-options="light|light;standard|standard;strong|strong;auto|automatic" data-i18n-options="common.light;shell.settings_search.standard;shell.settings_search.strong;common.automatic" aria-labelledby="s-andromeda-band-label"></div>
-                <div class="s-card-hint" data-i18n="shell.andromeda_settings.light_fastest_shortest_answer_least_checking">light: fastest, shortest answer, least checking</div>
-                <div class="s-card-hint" data-i18n="shell.andromeda_settings.standard_balanced_speed_and_checking">standard: balanced speed and checking</div>
-                <div class="s-card-hint" data-i18n="shell.andromeda_settings.strong_slower_longer_answer_more_checking">strong: slower, longer answer, more checking</div>
-                <div class="s-card-hint" data-i18n="shell.andromeda_settings.automatic_chooses_from_the_query_and">automatic: chooses from the query and available model</div>
               </div>
               <div class="andromeda-band-settings">
                 <label><span data-i18n="common.light">light</span> <div class="settings-input custom-select s-andromeda-model" id="s-andromeda-model-light" data-band="light" data-value="" data-options="|not configured" data-i18n-options="andromeda.x_not_configured"></div></label>
@@ -2169,7 +2151,6 @@
           <div class="s-card" role="region" aria-labelledby="s-hidden-sites-head">
             <div class="s-card-head" id="s-hidden-sites-head" data-i18n="shell.settings_search.hidden_sites">hidden sites</div>
             <div class="s-card-body">
-              <div class="s-card-hint" data-i18n="shell.settings_search.andromeda_leaves_these_sites_and_their">andromeda leaves these sites, and their subdomains, out of every result list.</div>
               <div class="settings-list" id="s-hidden-sites-list"></div>
               <label class="s-field-label s-hidden-site-label" for="s-hidden-site" data-i18n="shell.settings_search.site_to_hide">site to hide</label>
               <form class="s-hidden-sites-form" id="s-hidden-sites-form" novalidate>
@@ -2202,7 +2183,6 @@
           <div class="s-card">
             <div class="s-card-head" data-i18n="common.setup">setup</div>
             <div class="s-card-body">
-              <p class="s-card-hint" data-i18n="shell.settings_general.finish_setup_or_review_your_saved">finish setup or review your saved choices.</p>
               <button class="btn" id="general-setup-btn" type="button" data-i18n="shell.settings_general.open_setup">open setup</button>
               <div class="s-field">
                 <label id="s-settings-layout-label" data-i18n="settings.org_layout">settings layout</label>
@@ -2217,11 +2197,11 @@
             </div>
             <div class="s-card-body">
               <div class="s-field">
-                <label for="s-user-name"><span data-i18n="shell.settings_general.greeting_name">greeting name</span><span style="color:var(--muted);font-weight:400" data-i18n="shell.settings_general.aide_uses_it_in_this_browser">: aide uses it in this browser</span></label>
+                <label for="s-user-name"><span data-i18n="shell.settings_general.greeting_name">greeting name</span></label>
                 <input type="text" class="settings-input" id="s-user-name" placeholder="e.g. eric" data-i18n-placeholder="settings.example_display_name" style="width:100%">
               </div>
               <div class="s-field">
-                <label for="s-username"><span data-i18n="common.nickname">nickname</span><span style="color:var(--muted);font-weight:400" data-i18n="shell.settings_general.synced_across_your_apps">: synced across your apps</span></label>
+                <label for="s-username"><span data-i18n="common.nickname">nickname</span></label>
                 <input type="text" class="settings-input" id="s-username" placeholder="e.g. jxh" data-i18n-placeholder="settings.example_username" style="width:100%">
               </div>
             </div>
@@ -2233,13 +2213,13 @@
               <button type="button" class="btn" id="s-vis-reset-btn" style="margin-left:auto" data-i18n="shell.settings_general.reset_all">reset all</button>
             </div>
             <div class="s-card-body" style="padding-top:0.2rem;padding-bottom:0.2rem">
-              <div class="s-toggle-row"><div><div class="s-toggle-label" data-i18n="shell.settings_general.welcome_message">welcome message</div><div class="s-toggle-desc" data-i18n="shell.settings_general.show_the_empty_chat_welcome_screen">show the empty chat welcome screen</div></div><div class="s-switch" id="s-welcome-toggle"></div></div>
-              <div class="s-toggle-row"><div><div class="s-toggle-label" data-i18n="shell.settings_general.compact_mode">compact mode</div><div class="s-toggle-desc" data-i18n="shell.settings_general.tighter_spacing_throughout_the_ui">tighter spacing throughout the UI</div></div><div class="s-switch" id="s-ui-compact-toggle"></div></div>
+              <div class="s-toggle-row"><div><div class="s-toggle-label" data-i18n="shell.settings_general.welcome_message">welcome message</div></div><div class="s-switch" id="s-welcome-toggle"></div></div>
+              <div class="s-toggle-row"><div><div class="s-toggle-label" data-i18n="shell.settings_general.compact_mode">compact mode</div></div><div class="s-switch" id="s-ui-compact-toggle"></div></div>
               <div class="s-field" style="margin-top:0.35rem">
                 <label id="s-ui-font-size-label" data-i18n="shell.settings_general.font_size">font size</label>
                 <div class="settings-input custom-select" id="s-ui-font-size" aria-labelledby="s-ui-font-size-label" style="width:120px" data-value="md" data-options="sm|small;md|medium;lg|large" data-i18n-options="settings.opt_small;aide.effort_medium;providers.fit_large"></div>
               </div>
-              <div class="s-toggle-row"><div><div class="s-toggle-label" data-i18n="common.microphone">microphone</div><div class="s-toggle-desc" data-i18n="shell.settings_general.voice_input_button">voice input button</div></div><div class="s-switch s-vis-toggle" data-vis="#mic-btn" data-vis-key="bar-mic"></div></div>
+              <div class="s-toggle-row"><div><div class="s-toggle-label" data-i18n="common.microphone">microphone</div></div><div class="s-switch s-vis-toggle" data-vis="#mic-btn" data-vis-key="bar-mic"></div></div>
             </div>
           </div>
 
@@ -2250,8 +2230,8 @@
           <div class="s-card">
             <div class="s-card-head" data-i18n="shell.settings_security.privacy">privacy</div>
             <div class="s-card-body" style="padding-top:0.2rem;padding-bottom:0.2rem">
-              <div class="s-toggle-row"><div><div class="s-toggle-label" data-i18n="shell.settings_security.sensitive_blur">sensitive blur</div><div class="s-toggle-desc" data-i18n="shell.settings_security.blur_emails_keys_and_secrets_in">blur emails, keys and secrets in aide replies</div></div><div class="s-switch" id="s-sensitive-blur-toggle"></div></div>
-              <div class="s-toggle-row"><div><div class="s-toggle-label" data-i18n="shell.settings_security.text_only_emojis">text-only emojis</div><div class="s-toggle-desc" data-i18n="shell.settings_security.strip_emoji_glyphs_from_aide_replies">strip emoji glyphs from aide replies</div></div><div class="s-switch" id="s-text-emoji-toggle"></div></div>
+              <div class="s-toggle-row"><div><div class="s-toggle-label" data-i18n="shell.settings_security.sensitive_blur">blur emails, keys and secrets</div></div><div class="s-switch" id="s-sensitive-blur-toggle"></div></div>
+              <div class="s-toggle-row"><div><div class="s-toggle-label" data-i18n="shell.settings_security.text_only_emojis">no emoji in replies</div></div><div class="s-switch" id="s-text-emoji-toggle"></div></div>
               <p class="s-card-hint" data-i18n="shell.settings_security.incognito_is_chosen_per_chat_incognito">incognito is chosen per chat. incognito chats stay only in temporary memory and are deleted when you leave them.</p>
             </div>
           </div>
@@ -2261,10 +2241,10 @@
               <span data-i18n="common.password">password</span>
             </div>
             <div class="s-card-body">
-              <div class="s-toggle-row"><div><div class="s-toggle-label" data-i18n="shell.settings_security.require_password">require password</div><div class="s-toggle-desc" data-i18n="shell.settings_security.lock_alles_behind_your_password">lock alles behind your password</div></div><div class="s-switch" id="s-auth-enable"></div></div>
+              <div class="s-toggle-row"><div><div class="s-toggle-label" data-i18n="shell.settings_security.require_password">require password</div></div><div class="s-switch" id="s-auth-enable"></div></div>
               <div class="s-field"><label for="s-pw-old" data-i18n="shell.settings_security.current_password">current password</label><input type="password" class="settings-input" id="s-pw-old" placeholder="leave blank if none set" style="width:100%" data-i18n-placeholder="shell.settings_security.leave_blank_if_none_set"></div>
               <div class="s-field"><label for="s-pw-new" data-i18n="shell.settings_security.new_password">new password</label><input type="password" class="settings-input" id="s-pw-new" minlength="8" placeholder="at least 8 characters" style="width:100%" data-i18n-placeholder="shell.settings_security.at_least_12_characters"></div>
-              <div class="s-field"><label for="s-pw-new2"><span data-i18n="shell.settings_security.verify_password">verify password</span><span style="color:var(--muted);font-weight:400" data-i18n="shell.settings_security.enter_it_again">: enter it again</span></label><input type="password" class="settings-input" id="s-pw-new2" placeholder="re-enter new password" style="width:100%" data-i18n-placeholder="shell.settings_security.re_enter_new_password"></div>
+              <div class="s-field"><label for="s-pw-new2"><span data-i18n="shell.settings_security.verify_password">verify password</span></label><input type="password" class="settings-input" id="s-pw-new2" placeholder="re-enter new password" style="width:100%" data-i18n-placeholder="shell.settings_security.re_enter_new_password"></div>
               <button type="button" class="btn primary" id="s-pw-save" style="width:100%;margin-top:0.3rem" data-i18n="shell.settings_security.change_password">change password</button>
             </div>
           </div>
@@ -2336,7 +2316,7 @@
               <span data-i18n="shell.settings_voice.text_to_speech_tts">text-to-speech (TTS)</span>
             </div>
             <div class="s-card-body">
-              <div class="s-toggle-row"><div><div class="s-toggle-label" data-i18n="shell.settings_voice.auto_play_tts">auto-play TTS</div><div class="s-toggle-desc" data-i18n="shell.settings_voice.speak_ai_replies_automatically">speak AI replies automatically</div></div><div class="s-switch" id="s-tts-enabled-toggle"></div></div>
+              <div class="s-toggle-row"><div><div class="s-toggle-label" data-i18n="shell.settings_voice.auto_play_tts">read replies aloud</div></div><div class="s-switch" id="s-tts-enabled-toggle"></div></div>
               <div class="s-field">
                 <label data-i18n="common.provider">provider</label>
                 <div class="settings-input custom-select" id="tts-select" aria-label="text-to-speech provider" style="width:100%" data-value="browser" data-options="browser|browser (free);openai|OpenAI TTS" data-i18n-options="settings.opt_tts_browser;" data-i18n-aria-label="shell.settings_voice.text_to_speech_provider"></div>
@@ -2400,7 +2380,7 @@
                 </div>
               </div>
               <div class="s-field">
-                <label><span data-i18n="shell.settings_personas.accent">accent</span> <span class="pa-hint" data-i18n="shell.settings_personas.re_themes_the_app_while_this">· re-themes the app while this persona is active</span></label>
+                <label><span data-i18n="shell.settings_personas.accent">accent</span> </label>
                 <div class="persona-accent-row" id="persona-accent"></div>
               </div>
               <div class="s-toggle-row persona-default-row">
@@ -2479,7 +2459,7 @@
               </div>
               <div id="jarvis-discord-setup" hidden>
                 <a class="btn conn-token-link" href="https://discord.com/developers/applications" target="_blank" rel="noopener noreferrer" data-i18n="shell.settings_tools.open_discord_portal">open the Discord developer portal</a>
-                <div class="s-field"><label for="jarvis-discord-token"><span data-i18n="shell.settings_tools.discord_bot_token">Discord bot token</span> <span class="s-field-note" data-i18n="shell.settings_tools.encrypted_and_never_shown_again">encrypted and never shown again</span></label><input type="password" class="settings-input" id="jarvis-discord-token" autocomplete="off" placeholder="paste the bot token" style="width:100%" data-i18n-placeholder="shell.settings_tools.paste_the_bot_token"></div>
+                <div class="s-field"><label for="jarvis-discord-token"><span data-i18n="shell.settings_tools.discord_bot_token">Discord bot token</span> </label><input type="password" class="settings-input" id="jarvis-discord-token" autocomplete="off" placeholder="paste the bot token" style="width:100%" data-i18n-placeholder="shell.settings_tools.paste_the_bot_token"></div>
                 <button class="btn primary" type="button" id="jarvis-discord-connect" style="width:100%" data-i18n="shell.settings_tools.connect_discord">connect Discord</button>
                 <div class="s-card-hint" data-i18n="shell.settings_tools.create_a_private_discord_bot_enable">in the portal: new application, then bot. turn on message content intent, press reset token and paste it here. after connecting, add the bot to a server and DM it the pairing code.</div>
               </div>
@@ -2537,7 +2517,7 @@
               <details class="photon-keys">
                 <summary data-i18n="shell.settings_tools.enter_photon_keys_yourself">enter Photon keys yourself</summary>
                 <div class="s-field"><label for="photon-project-id"><span data-i18n="shell.settings_tools.photon_project_id">Photon project id</span> <span class="s-field-note" data-i18n="shell.settings_tools.from_app_photon_codes">from app.photon.codes</span></label><input class="settings-input" id="photon-project-id" autocomplete="off" spellcheck="false" style="width:100%"></div>
-                <div class="s-field"><label for="photon-project-secret"><span data-i18n="shell.settings_tools.photon_project_secret">Photon project secret</span> <span class="s-field-note" id="photon-secret-note" data-i18n="shell.settings_tools.encrypted_and_never_shown_again">encrypted and never shown again</span></label><input type="password" class="settings-input" id="photon-project-secret" autocomplete="off" placeholder="paste the project secret" style="width:100%" data-i18n-placeholder="shell.settings_tools.paste_the_project_secret"></div>
+                <div class="s-field"><label for="photon-project-secret"><span data-i18n="shell.settings_tools.photon_project_secret">Photon project secret</span> </label><input type="password" class="settings-input" id="photon-project-secret" autocomplete="off" placeholder="paste the project secret" style="width:100%" data-i18n-placeholder="shell.settings_tools.paste_the_project_secret"></div>
               </details>
               <button class="btn" type="button" id="photon-save" style="width:100%" data-i18n="common.save">save</button>
             </div>
@@ -2558,7 +2538,7 @@
                 <li data-i18n="connections.telegram_step_paste">paste it below and send your new bot any message</li>
                 <li data-i18n="connections.telegram_step_on">turn on the switch above</li>
               </ol>
-              <div class="s-field"><label for="telegram-token"><span data-i18n="connections.telegram_token">bot token</span> <span class="s-field-note" id="telegram-token-note" data-i18n="shell.settings_tools.encrypted_and_never_shown_again">encrypted and never shown again</span></label><input type="password" class="settings-input" id="telegram-token" autocomplete="off" spellcheck="false" placeholder="paste the bot token" style="width:100%" data-i18n-placeholder="shell.settings_tools.paste_the_bot_token"></div>
+              <div class="s-field"><label for="telegram-token"><span data-i18n="connections.telegram_token">bot token</span> </label><input type="password" class="settings-input" id="telegram-token" autocomplete="off" spellcheck="false" placeholder="paste the bot token" style="width:100%" data-i18n-placeholder="shell.settings_tools.paste_the_bot_token"></div>
               <a class="btn conn-token-link" id="telegram-open-bot" target="_blank" rel="noopener noreferrer" hidden></a>
             </div>
           </div>
@@ -2612,10 +2592,10 @@
             <div class="s-card-body">
               <div id="agent-status-grid" class="agent-status-grid"></div>
               <div class="agent-caps">
-                <div class="s-toggle-row"><div><div class="s-toggle-label" data-i18n="shell.settings_tools.context_files">context files</div><div class="s-toggle-desc" data-i18n="shell.settings_tools.read_agents_md_from_the_working">read AGENTS.md from the working dir</div></div><div class="s-switch" id="s-agent-ctx-toggle"></div></div>
-                <div class="s-toggle-row"><div><div class="s-toggle-label" data-i18n="shell.settings_tools.shell_sandbox">shell sandbox</div><div class="s-toggle-desc" data-i18n="shell.settings_tools.run_shell_inside_docker_needs_docker">run shell inside docker (needs docker installed)</div></div><div class="s-switch" id="s-agent-sandbox-toggle"></div></div>
-                <div class="s-toggle-row"><div><div class="s-toggle-label" data-i18n="shell.settings_tools.computer_use">computer use</div><div class="s-toggle-desc" data-i18n="shell.settings_tools.screenshot_click_type_tools_needs_pyautogui">screenshot + click/type tools (needs pyautogui)</div></div><div class="s-switch" id="s-agent-computer-toggle"></div></div>
-                <div class="s-toggle-row"><div><div class="s-toggle-label" data-i18n="shell.settings_tools.sub_agents">sub-agents</div><div class="s-toggle-desc" data-i18n="shell.settings_tools.allow_spawn_agent_parallel_delegation">allow spawn_agent + parallel delegation</div></div><div class="s-switch" id="s-agent-subagents-toggle"></div></div>
+                <div class="s-toggle-row"><div><div class="s-toggle-label" data-i18n="shell.settings_tools.context_files">read AGENTS.md in the working folder</div></div><div class="s-switch" id="s-agent-ctx-toggle"></div></div>
+                <div class="s-toggle-row"><div><div class="s-toggle-label" data-i18n="shell.settings_tools.shell_sandbox">run shell in docker</div><div class="s-toggle-desc" data-i18n="shell.settings_tools.run_shell_inside_docker_needs_docker">needs docker</div></div><div class="s-switch" id="s-agent-sandbox-toggle"></div></div>
+                <div class="s-toggle-row"><div><div class="s-toggle-label" data-i18n="shell.settings_tools.computer_use">screenshot, click and type tools</div><div class="s-toggle-desc" data-i18n="shell.settings_tools.screenshot_click_type_tools_needs_pyautogui">needs pyautogui</div></div><div class="s-switch" id="s-agent-computer-toggle"></div></div>
+                <div class="s-toggle-row"><div><div class="s-toggle-label" data-i18n="shell.settings_tools.sub_agents">run sub-agents in parallel</div></div><div class="s-switch" id="s-agent-subagents-toggle"></div></div>
                 <div class="s-field"><label for="s-agent-roots"><span data-i18n="shell.settings_tools.extra_approved_file_roots">extra approved file roots</span> <span class="s-field-note" data-i18n="shell.settings_tools.read_only_one_existing_folder_per">read-only; one existing folder per line</span></label><textarea class="settings-textarea" id="s-agent-roots" rows="3" placeholder="/path/to/another/folder"></textarea></div>
                 <button type="button" class="btn" id="s-agent-roots-save" data-i18n="shell.settings_tools.save_approved_roots">save approved roots</button>
               </div>
@@ -2629,7 +2609,7 @@
               <span data-i18n="shell.settings_tools.permission_rules">permission rules</span>
             </div>
             <div class="s-card-body">
-              <p style="font-size:0.8125rem;color:var(--muted);margin-bottom:0.6rem" data-i18n-code="settings.tools_rules_note">fine-grained control over what the agent does without asking. layered over the mode, last matching rule wins. tool + path accept globs (<code>*</code> <code>?</code>); a plain path is a "contains" match. e.g. allow <code>git_status</code>, ask on <code>git_commit</code>, deny <code>write_file</code> on <code>.env</code>.</p>
+              <p class="s-card-hint" data-i18n-code="settings.tools_rules_note">last matching rule wins. tool and path accept globs (<code>*</code> <code>?</code>).</p>
               <div id="perm-rules-list" style="margin-bottom:0.7rem"></div>
               <div style="display:flex;gap:var(--k-control-gap);flex-wrap:wrap;margin-bottom:0.45rem">
                 <input type="text" id="perm-rule-tool" aria-label="permission rule tool" class="settings-input" placeholder="tool (git_* / shell / *)" style="flex:1;min-width:120px" data-i18n-aria-label="shell.settings_tools.permission_rule_tool" data-i18n-placeholder="shell.settings_tools.tool_git_shell">
@@ -2659,7 +2639,6 @@
                 <div class="s-field"><label for="mcp-url" data-i18n="shell.settings_tools.remote_url">remote url</label><input type="url" class="settings-input" id="mcp-url" placeholder="https://server.example/mcp" style="width:100%"></div>
                 <div class="s-field"><label for="mcp-env" data-i18n="shell.settings_tools.environment">environment</label><textarea class="settings-input" id="mcp-env" rows="3" placeholder="GITHUB_TOKEN=…&#10;one private value per line" style="width:100%"></textarea></div>
                 <div class="s-field"><label for="mcp-headers" data-i18n="shell.settings_tools.http_headers">http headers</label><textarea class="settings-input" id="mcp-headers" rows="3" placeholder="Authorization=Bearer …" style="width:100%"></textarea></div>
-                <div class="s-card-hint" data-i18n="shell.settings_tools.private_values_are_encrypted_on_disk">private values are encrypted on disk and never shown again. remote servers that use sign-in get a sign in button after you add them.</div>
               </details>
               <button type="button" class="btn primary" id="mcp-add-btn" style="width:100%" data-i18n="shell.settings_tools.add_server">add server</button>
             </div>
@@ -2770,9 +2749,8 @@
           <header class="settings-pane-intro">
             <div>
               <h2 data-i18n="locale.title">language &amp; region</h2>
-              <p data-i18n="locale.description">Choose the words Alles uses. Region, timezone, clock, week start, and currency stay independent.</p>
             </div>
-            <span id="locale-settings-load-state" role="status" aria-live="polite" data-i18n="locale.loading">loading settings…</span>
+            <span id="locale-settings-load-state" role="status" aria-live="polite"></span>
           </header>
 
           <div class="locale-settings-workbench" id="locale-settings-workbench" aria-busy="true">
@@ -2784,14 +2762,13 @@
 
               <section class="locale-settings-section" aria-labelledby="locale-formats-title">
                 <h3 id="locale-formats-title" data-i18n="locale.format_title">regional formats</h3>
-                <p data-i18n="locale.format_help">Automatic values follow this browser. An override changes formatting, not the interface language.</p>
                 <div class="locale-format-list">
                   <div class="locale-format-row">
-                    <div><strong data-i18n="locale.region">region</strong><small id="s-region-detected" data-i18n="locale.detecting_browser">detecting this browser…</small></div>
+                    <div><strong data-i18n="locale.region">region</strong></div>
                     <div class="custom-select" id="s-region-trigger" aria-label="region" data-i18n-aria-label="locale.region" data-locale-choice="region" data-value="" data-options="|automatic"></div>
                   </div>
                   <div class="locale-format-row">
-                    <div><strong data-i18n="locale.timezone">timezone</strong><small id="s-timezone-detected" data-i18n="locale.detecting_browser">detecting this browser…</small></div>
+                    <div><strong data-i18n="locale.timezone">timezone</strong></div>
                     <div class="custom-select" id="s-timezone-trigger" aria-label="timezone" data-i18n-aria-label="locale.timezone" data-locale-choice="timezone" data-value="" data-options="|automatic"></div>
                   </div>
                   <div class="locale-format-row">
@@ -2803,7 +2780,7 @@
                     </div>
                   </div>
                   <div class="locale-format-row">
-                    <div><strong data-i18n="locale.first_day">first day of week</strong><small data-i18n="locale.calendar_layout_help">Calendar layout only.</small></div>
+                    <div><strong data-i18n="locale.first_day">first day of week</strong></div>
                     <div class="locale-segmented" role="radiogroup" aria-label="first day of week" data-i18n-aria-label="locale.first_day">
                       <button type="button" role="radio" aria-checked="true" tabindex="0" data-locale-format="week_start" data-value="auto" data-i18n="common.automatic">automatic</button>
                       <button type="button" role="radio" aria-checked="false" tabindex="-1" data-locale-format="week_start" data-value="mon" data-i18n="common.monday">monday</button>
@@ -2811,14 +2788,14 @@
                     </div>
                   </div>
                   <div class="locale-format-row">
-                    <div><strong data-i18n="locale.currency">currency</strong><small data-i18n="locale.currency_help">Used for locale-sensitive money display.</small></div>
+                    <div><strong data-i18n="locale.currency">currency</strong></div>
                     <div class="custom-select" id="s-currency-trigger" aria-label="currency" data-i18n-aria-label="locale.currency" data-locale-choice="currency" data-value="" data-options="|automatic"></div>
                   </div>
                 </div>
               </section>
 
               <div class="locale-settings-save">
-                <span id="locale-settings-save-state" role="status" aria-live="polite" data-i18n="locale.no_unsaved">no unsaved changes</span>
+                <span id="locale-settings-save-state" role="status" aria-live="polite"></span>
                 <button class="btn primary" id="s-locale-save" type="button" data-i18n="locale.save">save language &amp; region</button>
               </div>
             </div>
@@ -2830,7 +2807,6 @@
                 <strong id="locale-preview-home" data-i18n="locale.preview.home">home</strong>
                 <time id="locale-preview-date"></time>
                 <div data-i18n="locale.preview.needs_attention">needs your attention</div>
-                <small data-i18n="locale.preview.settings_saved">settings saved</small>
                 <code id="locale-preview-path" dir="ltr">alles/data · 14:30</code>
               </div>
               <dl>
@@ -2848,9 +2824,8 @@
           <header class="settings-pane-intro">
             <div>
               <h2 data-i18n="credits.title">about &amp; credits</h2>
-              <p data-i18n="credits.description">See what Alles includes, connects to, and learned from.</p>
             </div>
-            <span id="credits-settings-load-state" role="status" aria-live="polite" data-i18n="credits.loading">loading credits…</span>
+            <span id="credits-settings-load-state" role="status" aria-live="polite"></span>
           </header>
 
           <div class="credits-settings-workbench" id="credits-settings-workbench" aria-busy="true">
@@ -2886,7 +2861,6 @@
               <span data-i18n="settings.automation_delivery">automation & delivery</span>
             </div>
             <div class="s-card-body">
-              <p class="s-card-hint" data-i18n="settings.automation_delivery_hint">run a chosen action when its trigger occurs. delivery channels configure where rule notifications are sent.</p>
               <div id="rules-list" style="margin-bottom:0.85rem"></div>
               <div class="rule-presets" id="rule-presets"></div>
               <div class="rules-form">
@@ -2909,7 +2883,6 @@
           <div class="s-card">
             <div class="s-card-head" data-i18n="shell.settings_rules.delivery_channels">delivery channels</div>
             <div class="s-card-body">
-              <p style="font-size:0.8125rem;color:var(--muted);margin-bottom:0.6rem" data-i18n="shell.settings_rules.the_send_to_discord_telegram_actions">the "send to discord / telegram" actions use these. paste a discord webhook url and/or a telegram bot token + chat id.</p>
               <input type="text" id="s-notify-discord" aria-label="Discord webhook URL" class="settings-input" placeholder="discord webhook url" style="width:100%;margin-bottom:0.45rem" data-i18n-aria-label="shell.settings_rules.discord_webhook_url_2" data-i18n-placeholder="shell.settings_rules.discord_webhook_url">
               <input type="text" id="s-notify-tgtoken" aria-label="Telegram bot token" class="settings-input" placeholder="telegram bot token" style="width:100%;margin-bottom:0.45rem" data-i18n-aria-label="shell.settings_rules.telegram_bot_token_2" data-i18n-placeholder="shell.settings_rules.telegram_bot_token">
               <div class="tg-chat-row"><input type="text" id="s-notify-tgchat" aria-label="Telegram chat ID" class="settings-input" placeholder="telegram chat id" data-i18n-aria-label="shell.settings_rules.telegram_chat_id_2" data-i18n-placeholder="shell.settings_rules.telegram_chat_id"><button type="button" class="btn" id="s-notify-tgfind" data-i18n="shell.settings_rules.find_chat_id">find my chat id</button></div>
@@ -3069,7 +3042,7 @@
           <div class="s-card">
             <div class="s-card-head" data-i18n="settings.personal_search">search personal records</div>
             <div class="s-card-body">
-              <p class="s-card-hint" data-i18n="settings.personal_search_hint">choose source notes, journal, mail, contacts, saved articles and books for Aide to search. source records are separate from saved memory. Vault is excluded and Journal respects its lock. matched snippets go to your chosen model.</p>
+              <p class="s-card-hint" data-i18n="settings.personal_search_hint">the vault is never searched.</p>
               <div class="s-toggle-row"><div><div class="s-toggle-label" data-i18n="shell.settings_recall.enable_recall_index">enable recall index</div></div><div class="s-switch" id="s-pidx-enabled"></div></div>
               <div class="s-toggle-row"><div><div class="s-toggle-label" data-i18n="common.mail">mail</div></div><div class="s-switch" id="s-pidx-mail"></div></div>
               <div class="s-toggle-row"><div><div class="s-toggle-label" data-i18n="common.notes">notes</div></div><div class="s-switch" id="s-pidx-note"></div></div>
@@ -3087,11 +3060,6 @@
           <div class="s-card">
             <div class="s-card-head" data-i18n="common.background_checks">background checks</div>
             <div class="s-card-body">
-              <p style="font-size:0.8125rem;color:var(--muted);margin-bottom:0.6rem" data-i18n="shell.settings_proactive.aide_checks_your_day_on_a">
-                aide checks your day on a schedule and drops short advisory cards into the home today strip -
-                overdue tasks, renewals, habits and the like. it never acts on its own; you click through.
-                off by default since it runs the model on a timer (it spends tokens). hit "run now" to try it.
-              </p>
               <div class="s-toggle-row"><div><div class="s-toggle-label" data-i18n="shell.settings_proactive.enable_background_checks">enable background checks</div></div><div class="s-switch" id="s-prox-enabled"></div></div>
               <div class="s-toggle-row"><div><div class="s-toggle-label" data-i18n="shell.settings_proactive.tasks_reminders">tasks &amp; reminders</div></div><div class="s-switch" id="s-prox-cat-task"></div></div>
               <div class="s-toggle-row"><div><div class="s-toggle-label" data-i18n="common.subscriptions">subscriptions</div></div><div class="s-switch" id="s-prox-cat-sub"></div></div>
@@ -3113,7 +3081,7 @@
                 <span data-i18n="common.to">to</span>
                 <input type="number" class="settings-input s-num-input" min="0" max="23" id="s-prox-qend" aria-label="quiet hours end" data-i18n-aria-label="shell.settings_proactive.quiet_hours_end">
               </div>
-              <div class="s-toggle-row" style="margin-top:0.5rem"><div><div class="s-toggle-label" data-i18n="shell.settings_proactive.send_push_for_urgent">send push for urgent</div><div class="s-toggle-desc" data-i18n="shell.settings_proactive.web_push_high_priority_cards_needs">web-push high-priority cards (needs notifications on)</div></div><div class="s-switch" id="s-prox-push"></div></div>
+              <div class="s-toggle-row" style="margin-top:0.5rem"><div><div class="s-toggle-label" data-i18n="shell.settings_proactive.send_push_for_urgent">send push for urgent</div><div class="s-toggle-desc" data-i18n="shell.settings_proactive.web_push_high_priority_cards_needs">needs notifications on</div></div><div class="s-switch" id="s-prox-push"></div></div>
               <div id="s-prox-status" style="font-size:0.8125rem;color:var(--muted);margin:0.6rem 0"></div>
               <div id="s-prox-learning" class="s-prox-learning"></div>
               <button type="button" class="btn" id="s-prox-run" data-i18n="shell.settings_proactive.run_now">run now</button>
@@ -3125,13 +3093,12 @@
           <div class="s-card">
             <div class="s-card-head" data-i18n="settings.patterns">patterns & suggestions</div>
             <div class="s-card-body">
-              <p class="s-card-hint" data-i18n="settings.patterns_hint">choose whether Aide finds patterns across your data or learns facts from activity. these model runs use tokens. choose whether to use their results in replies, and review results in brain.</p>
-              <div class="s-toggle-row"><div><div class="s-toggle-label" data-i18n="settings.find_patterns">find patterns across apps</div><div class="s-toggle-desc" data-i18n="shell.settings_intelligence.a_periodic_pass_that_finds_patterns">a periodic pass that finds patterns across your data (spends tokens)</div></div><div class="s-switch" id="s-intel-insights"></div></div>
+              <div class="s-toggle-row"><div><div class="s-toggle-label" data-i18n="settings.find_patterns">find patterns across apps</div><div class="s-toggle-desc" data-i18n="shell.settings_intelligence.a_periodic_pass_that_finds_patterns">spends tokens</div></div><div class="s-switch" id="s-intel-insights"></div></div>
               <div class="s-toggle-row"><div><div class="s-toggle-label" data-i18n="settings.use_patterns">use patterns in replies</div></div><div class="s-switch" id="s-intel-insights-inject"></div></div>
-              <div class="s-toggle-row"><div><div class="s-toggle-label" data-i18n="settings.learn_facts">learn facts from activity</div><div class="s-toggle-desc" data-i18n="shell.settings_intelligence.distill_durable_facts_from_your_behavior">distill durable facts from your behavior (spends tokens)</div></div><div class="s-switch" id="s-intel-distill"></div></div>
+              <div class="s-toggle-row"><div><div class="s-toggle-label" data-i18n="settings.learn_facts">learn facts from activity</div><div class="s-toggle-desc" data-i18n="shell.settings_intelligence.distill_durable_facts_from_your_behavior">spends tokens</div></div><div class="s-switch" id="s-intel-distill"></div></div>
               <div class="s-toggle-row"><div><div class="s-toggle-label" data-i18n="settings.use_facts">use learned facts in replies</div></div><div class="s-switch" id="s-intel-distill-inject"></div></div>
-              <div class="s-toggle-row"><div><div class="s-toggle-label" data-i18n="settings.next_steps">suggest next steps</div><div class="s-toggle-desc" data-i18n="shell.settings_intelligence.predicted_next_step_chips_above_the">predicted next-step chips above the message box</div></div><div class="s-switch" id="s-intel-suggest"></div></div>
-              <div class="s-toggle-row"><div><div class="s-toggle-label" data-i18n="settings.conversation_topic">keep the conversation topic</div><div class="s-toggle-desc" data-i18n="shell.settings_intelligence.keep_aide_aware_of_the_current">keep aide aware of the current topic across turns</div></div><div class="s-switch" id="s-intel-session"></div></div>
+              <div class="s-toggle-row"><div><div class="s-toggle-label" data-i18n="settings.next_steps">suggest next steps</div></div><div class="s-switch" id="s-intel-suggest"></div></div>
+              <div class="s-toggle-row"><div><div class="s-toggle-label" data-i18n="settings.conversation_topic">keep the conversation topic</div></div><div class="s-switch" id="s-intel-session"></div></div>
               <div id="s-intel-status" style="font-size:0.8125rem;color:var(--muted);margin:0.6rem 0"></div>
               <div style="display:flex;gap:var(--k-control-gap)">
                 <button type="button" class="btn" id="s-intel-insights-run" data-i18n="settings.find_patterns">find patterns across apps</button>

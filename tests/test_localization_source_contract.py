@@ -73,7 +73,6 @@ class LocalizationSourceContractTests(unittest.TestCase):
         html = (ROOT / "static" / "index.html").read_text("utf-8")
         required_keys = {
             "locale.title",
-            "locale.description",
             "locale.interface_language",
             "locale.format_title",
             "locale.region",

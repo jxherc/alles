@@ -151,7 +151,6 @@ async function loadCreditsPane(isCurrent = () => true) {
   if (!loadState || _creditsBusy) return;
   const generation = ++_creditsLoadGeneration;
   _setCreditsBusy(true);
-  loadState.textContent = t('credits.loading');
   try {
     const response = await fetch('/api/credits');
     if (!response.ok) throw new Error(t('credits.load_error'));
@@ -161,9 +160,7 @@ async function loadCreditsPane(isCurrent = () => true) {
     _creditDetails.clear();
     _creditDetailLoads.clear();
     _renderCredits();
-    loadState.textContent = _creditsManifest.coverage?.complete
-      ? t('credits.inventory.complete')
-      : t('credits.inventory.in_progress');
+    loadState.textContent = '';
   } catch (error) {
     if (generation !== _creditsLoadGeneration || !isCurrent()) return;
     loadState.textContent = t('credits.unavailable');

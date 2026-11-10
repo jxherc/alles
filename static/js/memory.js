@@ -310,13 +310,9 @@ function _renderPolicy() {
     btn.classList.toggle('active', btn.dataset.memoryPolicy === _memoryPolicy);
     btn.setAttribute('aria-pressed', String(btn.dataset.memoryPolicy === _memoryPolicy));
   });
-  const desc = document.getElementById('mem-policy-desc');
-  if (desc) desc.textContent = {
-    off: t('aide.mem_policy_off'),
-    ask: t('aide.mem_policy_ask'),
-    auto: t('aide.mem_policy_auto'),
-  }[_memoryPolicy] || '';
   const off = _memoryPolicy === 'off';
+  const why = document.getElementById('mem-inject-why');
+  if (why) why.hidden = !off;
   const inject = document.getElementById('s-memory-inject-toggle');
   if (inject) {
     inject.classList.toggle('on', !off && _memoryAutoInject);

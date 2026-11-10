@@ -70,11 +70,11 @@ test('answer controls use accessible switches, kokuen dropdowns and no native ch
   }
 });
 
-test('overview strength explains both speed and answer quality', () => {
-  assert.match(paneHtml, /light[^<]*fastest[^<]*least checking/i);
-  assert.match(paneHtml, /standard[^<]*balanced/i);
-  assert.match(paneHtml, /strong[^<]*slower[^<]*more checking/i);
-  assert.match(paneHtml, /automatic[^<]*query[^<]*available model/i);
+test('overview strength has no helper lines under it', () => {
+  assert.doesNotMatch(paneHtml, /light[^<]*fastest[^<]*least checking/i);
+  assert.doesNotMatch(paneHtml, /standard[^<]*balanced/i);
+  assert.doesNotMatch(paneHtml, /strong[^<]*slower[^<]*more checking/i);
+  assert.doesNotMatch(paneHtml, /automatic[^<]*query[^<]*available model/i);
 });
 
 test('stored search credentials have an explicit accessible clear action', () => {

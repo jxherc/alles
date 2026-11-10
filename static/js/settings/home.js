@@ -1,6 +1,7 @@
 import { createSettingsPane } from './pane.js';
 import { toast } from '../util.js';
 import { t, tp } from '../i18n.js';
+import { setStatusLine } from './shared.js';
 
 // ── Home customization ───────────────────────────────────────────────────────
 const HOME_SECTION_KEYS = ['needs_you', 'today', 'in_progress', 'briefs', 'shortcuts'];
@@ -65,9 +66,8 @@ function _setHomeSettingsSwitch(button, on) {
   if (row) row.dataset.enabled = String(!!on);
 }
 
-function _setHomeSettingsStatus(message) {
-  const status = document.getElementById('home-settings-save-state');
-  if (status) status.textContent = message;
+function _setHomeSettingsStatus(message, ms = 0) {
+  setStatusLine(document.getElementById('home-settings-save-state'), message, ms);
 }
 
 function _setHomeSettingsBusy(busy) {
@@ -168,7 +168,7 @@ function _renderHomeSettingsPreferences(value) {
   };
   _chooseHomeDensity(document.querySelector(`[data-home-density="${normalized.density}"]`), false);
   _homeSettingsChanges = 0;
-  _setHomeSettingsStatus(t('locale.no_unsaved'));
+  _setHomeSettingsStatus('');
   _updateHomeSettingsPreview();
 }
 
@@ -201,14 +201,13 @@ async function loadHomeSettingsPane(isCurrent) {
   }
   const generation = ++_homeSettingsLoadGeneration;
   _setHomeSettingsBusy(true);
-  loadState.textContent = t('settings.home_loading');
   try {
     const response = await fetch('/api/today/preferences');
     if (!response.ok) throw new Error('preferences unavailable');
     const value = await response.json();
     if (generation !== _homeSettingsLoadGeneration || !isCurrent()) return;
     _renderHomeSettingsPreferences(value);
-    loadState.textContent = t('locale.saved_server');
+    loadState.textContent = '';
   } catch {
     if (generation !== _homeSettingsLoadGeneration || !isCurrent()) return;
     loadState.textContent = t('settings.home_load_failed');
@@ -235,8 +234,8 @@ async function _saveHomeSettings() {
     const value = await response.json().catch(() => ({}));
     if (!response.ok) throw new Error(value.detail || t('settings.home_save_failed'));
     _renderHomeSettingsPreferences(value);
-    _setHomeSettingsStatus(t('locale.saved_now'));
-    if (loadState) loadState.textContent = t('locale.saved_server');
+    _setHomeSettingsStatus(t('locale.saved_now'), 3000);
+    if (loadState) loadState.textContent = '';
     window.dispatchEvent(new CustomEvent('alles:home-preferences-changed', { detail: value }));
   } catch (error) {
     _setHomeSettingsStatus(error.message || t('settings.home_save_failed'));

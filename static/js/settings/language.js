@@ -1,6 +1,7 @@
 import { createSettingsPane } from './pane.js';
 import { toast } from '../util.js';
 import { closeCustomDropdowns, populateDropdown } from '../dropdown.js?v=217';
+import { setStatusLine } from './shared.js';
 import { formatDateForLocale, formatTimeForLocale, prepareLocalization, regionName, t } from '../i18n.js';
 
 // ── Phase 10 locale Settings ─────────────────────────────────────────────────
@@ -66,8 +67,14 @@ function _optionText(name, item) {
   return name === 'region' && item.value ? regionName(item.value, item.label) : item.label;
 }
 
+// "automatic (CA)": the dropdown says what automatic picks on this browser
+function _automaticLabel(name) {
+  const detected = name === 'region' ? _browserRegion() : name === 'timezone' ? _browserTimezone() : '';
+  return detected ? `${t('common.automatic')} (${detected})` : t('common.automatic');
+}
+
 function _localeChoiceLabel(name, value) {
-  if (!value) return t('common.automatic');
+  if (!value) return _automaticLabel(name);
   const item = _localeChoiceOptions(name).find(option => option.value === value);
   return item ? _optionText(name, item) : value;
 }
@@ -79,7 +86,7 @@ function _renderLocaleChoiceMenu(name) {
   if (!trigger) return;
   const options = _localeChoiceOptions(name).map(item => ({
     value: item.value,
-    label: item.value ? _optionText(name, item) : t('common.automatic'),
+    label: item.value ? _optionText(name, item) : _automaticLabel(name),
   }));
   populateDropdown(trigger, options, trigger.dataset.value || '');
 }
@@ -192,9 +199,8 @@ function _setLocaleSettingsBusy(busy) {
   if (save) save.disabled = busy;
 }
 
-function _setLocaleSettingsStatus(message) {
-  const status = document.getElementById('locale-settings-save-state');
-  if (status) status.textContent = message;
+function _setLocaleSettingsStatus(message, ms = 0) {
+  setStatusLine(document.getElementById('locale-settings-save-state'), message, ms);
 }
 
 function _markLocaleSettingsChanged() {
@@ -210,16 +216,8 @@ function _applyLocaleSettings(settings) {
   _setLocaleChoiceValue('currency', settings.currency || '');
   _setLocaleRadioValue('clock_format', settings.clock_format || 'auto');
   _setLocaleRadioValue('week_start', settings.week_start || 'auto');
-  const detectedRegion = document.getElementById('s-region-detected');
-  const detectedTimezone = document.getElementById('s-timezone-detected');
-  if (detectedRegion) detectedRegion.textContent = t('locale.detected_region', {
-    region: _browserRegion() || t('common.unknown'),
-  });
-  if (detectedTimezone) detectedTimezone.textContent = t('locale.detected_timezone', {
-    timezone: _browserTimezone(),
-  });
   _localeSettingsDirty = false;
-  _setLocaleSettingsStatus(t('locale.no_unsaved'));
+  _setLocaleSettingsStatus('');
   _updateLocalePreview();
 }
 
@@ -232,7 +230,6 @@ async function loadLocaleSettingsPane(isCurrent) {
   }
   const generation = ++_localeLoadGeneration;
   _setLocaleSettingsBusy(true);
-  loadState.textContent = t('locale.loading');
   try {
     const [settingsResponse, optionsResponse] = await Promise.all([
       fetch('/api/settings'),
@@ -243,7 +240,7 @@ async function loadLocaleSettingsPane(isCurrent) {
     if (generation !== _localeLoadGeneration || !isCurrent()) return;
     _applyLocaleOptions(options);
     _applyLocaleSettings(settings);
-    loadState.textContent = t('locale.saved_server');
+    loadState.textContent = '';
   } catch (error) {
     if (generation !== _localeLoadGeneration || !isCurrent()) return;
     loadState.textContent = t('locale.load_failed');
@@ -281,8 +278,8 @@ async function _saveLocaleSettings() {
       .some(key => typeof settings[key] !== 'string')) throw new Error(t('locale.save_error'));
     await prepareLocalization(settings);
     _applyLocaleSettings(settings);
-    _setLocaleSettingsStatus(t('locale.saved_now'));
-    if (loadState) loadState.textContent = t('locale.saved_server');
+    _setLocaleSettingsStatus(t('locale.saved_now'), 3000);
+    if (loadState) loadState.textContent = '';
     toast(t('locale.saved'), 'success');
   } catch (error) {
     _setLocaleSettingsStatus(error.message || t('locale.save_error'));

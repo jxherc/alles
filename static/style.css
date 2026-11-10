@@ -1403,7 +1403,7 @@ button.effort-custom-row:focus-visible { color: var(--text); background: var(--b
   padding-top: 0.3rem;
 }
 .s-card-hint {
-  margin-top: 0.5rem;
+  margin-top: var(--k-space-1);
   font-size: 0.8125rem; color: var(--muted); line-height: 1.5;
 }
 /* the one line under a key field that says why it's a key (oauth first) */
@@ -2362,7 +2362,7 @@ html .date-panel input:is(.dp-tv, .dp-year):is(:focus, :focus-visible) { outline
 .s-action-row > .btn { flex-shrink: 0; }
 .s-action-row .s-toggle-desc { overflow-wrap: anywhere; }
 .s-toggle-label { font-size: 0.8125rem; color: var(--text); }
-.s-toggle-desc { font-size: 0.8125rem; color: var(--muted); margin-top: 0.1rem; }
+.s-toggle-desc { font-size: 0.8125rem; color: var(--muted); margin-top: var(--k-space-1); }
 
 /* The 44px target surrounds the same 42px track used by Home settings. */
 :is(.s-switch, .andromeda-switch, .home-settings-switch, .news-switch)::before { box-sizing: border-box; }
