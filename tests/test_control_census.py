@@ -78,6 +78,38 @@ class ControlCensusTraversalTest(unittest.TestCase):
         start = shown.index("createElement") + len("createElement('a')")
         self.assertIsNone(control_census.DOWNLOAD_LINK_RE.search(shown, start, start + 300))
 
+    def test_a_tag_named_in_a_comment_is_not_a_control(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            directory = root / "static/js"
+            directory.mkdir(parents=True)
+            (directory / "controls.js").write_text(
+                "// custom select: replaces native <select> everywhere\n"
+                '/* wraps <input type="color"> without changing it\n'
+                " * and never adds a <button> of its own */\n"
+                "fill(list);   // no native <select> here\n"
+                "const link = 'https://example.test/' + `<a href=\"/docs\">docs</a>`;\n"
+                'function render() { return `<button id="real">real</button>`; }\n',
+                encoding="utf-8",
+            )
+            overrides = {
+                "controls": {},
+                "module_feature_hints": {"static/js/controls.js": "cross-feature.settings"},
+            }
+            with (
+                patch.multiple(control_census, ROOT=root, JS_DIR=directory),
+                patch.object(control_census, "load_overrides", return_value=overrides),
+                patch.object(control_census, "_test_references", return_value=()),
+            ):
+                document = control_census.resolved_control_census()
+            lines = sorted(
+                row["surface"]["source"]["line"]
+                for row in document["controls"]
+                if row["surface"]["render_mode"] == "dynamic-template"
+            )
+            # the link after a url and the real button stay; the four mentions in comments go
+            self.assertEqual(lines, [5, 6])
+
     def test_nested_modules_keep_controls_listener_provenance_and_event_counts(self):
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)

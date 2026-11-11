@@ -66,6 +66,8 @@ INLINE_ACTION_TAG_RE = re.compile(
 )
 CREATE_RE = re.compile(r"createElement\(\s*['\"](?P<tag>button|a|input|textarea|select)['\"]\s*\)")
 DOWNLOAD_LINK_RE = re.compile(r"\.download\s*=[^;\n]*;[\s\S]{0,200}?\.click\(\)")
+# a tag named in a comment ("replaces native <select>") is a note for the reader, not a control
+COMMENT_PREFIX_RE = re.compile(r"(?:^|\s)//|^\s*/?\*", re.MULTILINE)
 EVENT_RE = re.compile(r"addEventListener\(\s*['\"](?P<event>[A-Za-z]+)['\"]")
 FUNCTION_RE = re.compile(
     r"(?m)^(?:export\s+)?(?:async\s+)?function\s+(?P<name>[A-Za-z_$][\w$]*)\s*\(|^(?:export\s+)?(?:const|let|var)\s+(?P<assigned>[A-Za-z_$][\w$]*)\s*=\s*(?:async\s+)?(?:\([^\n]*?\)|[A-Za-z_$][\w$]*)\s*=>"
@@ -672,6 +674,11 @@ def _dynamic_templates(overrides: dict[str, Any]) -> list[dict[str, Any]]:
                         label = _english().get(match.group("key"), match.group("key"))
                     attrs = {"_factory_label": label}
                 matches.append((match.start(), actual_tag, attrs, "declared-factory-call"))
+        matches = [
+            match
+            for match in matches
+            if not COMMENT_PREFIX_RE.search(text, text.rfind("\n", 0, match[0]) + 1, match[0])
+        ]
         seen: set[tuple[int, str]] = set()
         anchor_occurrences: Counter[str] = Counter()
         for ordinal, (offset, tag, attrs, construction) in enumerate(sorted(matches), start=1):
