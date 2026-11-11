@@ -4778,9 +4778,9 @@ textarea.vform-input { resize: vertical; min-height: 2.4rem; line-height: 1.5; f
 .vform-secretarea .vform-input.is-revealed { -webkit-text-security: none; }
 .vform-secret-actions { display: flex; flex-direction: column; gap: 0.25rem; flex-shrink: 0; }
 .vault-form-actions { flex-wrap: wrap; padding: 0.75rem 1.1rem; border-top: 1px solid var(--faint); }
-.vf-more-wrap { position: relative; margin-inline-end: auto; }
-.vf-more-menu { position: absolute; bottom: calc(100% + 4px); left: 0; z-index: 10; min-width: 180px; max-width: calc(100vw - 24px); }
-.vf-more-menu .ctx-item { display: flex; align-items: center; white-space: nowrap; }
+.vf-more-wrap, .files-more-wrap { position: relative; margin-inline-end: auto; }
+.vf-more-menu, .files-more-menu { position: absolute; bottom: calc(100% + 4px); left: 0; z-index: 10; min-width: 180px; max-width: calc(100vw - 24px); }
+.vf-more-menu .ctx-item, .files-more-menu .ctx-item { display: flex; align-items: center; white-space: nowrap; }
 #vf-upload-status { font-size: 0.8125rem; overflow-wrap: anywhere; }
 .vault-form-error { margin: 0; padding: 0.5rem 1.1rem; color: var(--error); overflow-wrap: anywhere; }
 #vf-open-saved { margin: 0.5rem 1.1rem; min-height: 44px; align-self: flex-start; }

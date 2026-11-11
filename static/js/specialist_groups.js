@@ -6,6 +6,7 @@ import { initDatePicker } from './datepick.js';
 import { iconEl } from './icons.js';
 import { calendarDateKey, chosenTimeZone, formatCalendarDate, formatClock, formatDateParts, formatDateTime, formatNumber, t, tp } from './i18n.js';
 import { balanceOn, balanceSeries, lastThirtyDays, monthBefore, signedFigure, sparkSvg, weekChange, weekChangeText } from './numbers.js';
+import { getDropdownValue, populateDropdown } from './dropdown.js?v=217';
 import { disposePlanBoard, renderPlanBoard } from './plan_board.js';
 import { requestWithRecentOwner } from './recent_owner.js';
 import { recordTarget } from './recordlinks.js';
@@ -1448,91 +1449,16 @@ async function _renderServer(target, request, section) {
   return module.renderServerSection(target, request, section);
 }
 
+let _choiceFieldId = 0;
 function _choiceField(label, options, selected, onSelect) {
-  const field = _el('fieldset', 'finance-import-choice');
-  field.append(_el('legend', '', label));
-  const value = _el('span', 'finance-import-selected', options.find(option => option.value === selected)?.label || '');
-  const change = _el('button', '', t('finance.change_choice', { label }));
-  change.type = 'button';
-  change.setAttribute('aria-expanded', 'false');
-  const picker = _el('div', 'finance-import-picker');
-  picker.hidden = true;
-  const search = _el('input', 'settings-input');
-  search.type = 'search';
-  search.setAttribute('aria-label', t('finance.search_choices', { label }));
-  const empty = _el('p', 'specialist-group-note', t('finance.no_matching_choices'));
-  empty.setAttribute('role', 'status');
-  empty.hidden = true;
-  const list = _el('div', 'finance-import-choice-list');
-  list.setAttribute('role', 'listbox');
-  list.setAttribute('aria-label', label);
-  const close = () => {
-    picker.hidden = true;
-    change.setAttribute('aria-expanded', 'false');
-    change.focus();
-  };
-  const buttons = options.map(option => {
-    const button = _el('button', '', option.label);
-    button.type = 'button';
-    button.setAttribute('role', 'option');
-    button.dataset.value = option.value;
-    button.setAttribute('aria-selected', String(option.value === selected));
-    button.tabIndex = option.value === selected ? 0 : -1;
-    button.addEventListener('click', () => {
-      selected = option.value;
-      value.textContent = option.label;
-      buttons.forEach(item => {
-        const chosen = item === button;
-        item.setAttribute('aria-selected', String(chosen));
-        item.tabIndex = chosen ? 0 : -1;
-      });
-      onSelect(option.value);
-      close();
-    });
-    button.addEventListener('keydown', event => {
-      if (!['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Home', 'End'].includes(event.key)) return;
-      event.preventDefault();
-      const visible = buttons.filter(item => !item.hidden);
-      const current = visible.indexOf(button);
-      const backwards = ['ArrowLeft', 'ArrowUp'].includes(event.key);
-      const next = event.key === 'Home' ? 0 : event.key === 'End' ? visible.length - 1
-        : (current + (backwards ? -1 : 1) + visible.length) % visible.length;
-      visible.forEach((item, index) => { item.tabIndex = index === next ? 0 : -1; });
-      visible[next]?.focus();
-    });
-    list.append(button);
-    return button;
-  });
-  const filter = () => {
-    const query = search.value.trim().toLowerCase();
-    buttons.forEach(button => { button.hidden = !button.textContent.toLowerCase().includes(query); });
-    const visible = buttons.filter(button => !button.hidden);
-    const active = visible.find(button => button.dataset.value === selected) || visible[0];
-    buttons.forEach(button => { button.tabIndex = button === active ? 0 : -1; });
-    empty.hidden = visible.length > 0;
-  };
-  search.addEventListener('input', filter);
-  search.addEventListener('keydown', event => {
-    if (event.key !== 'ArrowDown') return;
-    event.preventDefault();
-    buttons.find(button => !button.hidden && button.tabIndex === 0)?.focus();
-  });
-  picker.addEventListener('keydown', event => {
-    if (event.key !== 'Escape') return;
-    event.preventDefault();
-    event.stopPropagation();
-    close();
-  });
-  change.addEventListener('click', () => {
-    if (!picker.hidden) return close();
-    search.value = '';
-    filter();
-    picker.hidden = false;
-    change.setAttribute('aria-expanded', 'true');
-    search.focus();
-  });
-  picker.append(search, list, empty);
-  field.append(value, change, picker);
+  const field = _el('div', 'finance-import-choice');
+  const name = _el('label', '', label);
+  name.id = `finance-import-choice-${++_choiceFieldId}`;
+  const menu = _el('div', 'settings-input custom-select');
+  menu.setAttribute('aria-labelledby', name.id);
+  populateDropdown(menu, options, selected);
+  menu.addEventListener('change', () => onSelect(getDropdownValue(menu)));
+  field.append(name, menu);
   return field;
 }
 
@@ -1572,10 +1498,8 @@ const _importMetaKey = key => ({
 
 function _renderImportReceipt(target, receipt, request, refresh) {
   target.replaceChildren();
-  if (!receipt) {
-    target.append(_el('p', 'specialist-group-empty', t('finance.receipt_empty')));
-    return;
-  }
+  target.hidden = !receipt;
+  if (!receipt) return;
   const heading = _el('div', 'finance-import-receipt-head');
   const message = _el('p', 'finance-import-message');
   message.setAttribute('role', 'status');
@@ -1961,12 +1885,15 @@ async function _renderImports(target, request) {
   });
   const receiptTarget = _el('section', 'finance-import-receipt');
   let historyTarget;
+  let historySection;
   const showReceipt = async receipt => {
     _renderImportReceipt(receiptTarget, receipt, request, showReceipt);
     try {
       const history = await _json(request, '/api/finance/imports');
       historyTarget.replaceChildren(..._receiptHistory(history, showReceipt));
+      historySection.hidden = !historyTarget.childElementCount;
     } catch {
+      historySection.hidden = false;
       historyTarget.replaceChildren(_el(
         'p',
         'specialist-group-empty',
@@ -1980,7 +1907,7 @@ async function _renderImports(target, request) {
     activePreviewGeneration = generation;
     const capturedAccountId = accountId;
     const capturedProfileId = profileId;
-    const choiceButtons = [...choices.querySelectorAll('button')];
+    const choiceButtons = [...choices.querySelectorAll('[role="combobox"]')];
     _setAsyncControlBusy(trigger, true);
     _setAsyncControlBusy(choose, true);
     if (trigger !== fromMail) _setAsyncControlBusy(fromMail, true);
@@ -2034,7 +1961,7 @@ async function _renderImports(target, request) {
     { source_name: t('finance.mail_source'), content: '', from_mail: true }
   )));
   fileRow.append(fileInput, choose, fromMail, fileName, preview, previewMessage);
-  const historySection = _el('section', 'finance-import-history');
+  historySection = _el('section', 'finance-import-history');
   historySection.append(_el('h2', '', t('finance.recent_receipts')));
   historyTarget = _el('div', 'finance-import-history-list');
   historySection.append(historyTarget);
@@ -2046,6 +1973,7 @@ async function _renderImports(target, request) {
     historyTarget.replaceChildren(_el('p', 'specialist-group-empty', t('finance.history_unavailable')));
   } else {
     historyTarget.replaceChildren(..._receiptHistory(receipts, showReceipt));
+    historySection.hidden = !historyTarget.childElementCount;
   }
 }
 

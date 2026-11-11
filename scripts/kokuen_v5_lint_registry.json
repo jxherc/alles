@@ -91,21 +91,12 @@
   },
   {
     "rule": "nested-boundary",
-    "message": "descendant draws a boundary in :where(#finance-view) .finance-import-choice; check for nested bezels",
-    "css_block_sha256": "1003d4ffda7ab9bc2a364a293f43b2bed37992d412cf36cb08c49f3a9312d710",
+    "message": "descendant draws a boundary in :where(#finance-view) .finance-import-file-row button, :where(#finance-view) .finance-import-actions button, :where(#fin; check for nested bezels",
+    "css_block_sha256": "c4138a6715b2ed72b8ee9ca32ca1b8e004582f5408121fca792a4b8a15935cd4",
     "path": "static/kokuen.css",
-    "selector": ":where(#finance-view) .finance-import-choice",
-    "job": "distinct-region",
-    "reason": "fieldset grouping related statement-import choices. account and parser fieldsets"
-  },
-  {
-    "rule": "nested-boundary",
-    "message": "descendant draws a boundary in :where(#finance-view) .finance-import-choice button, :where(#finance-view) .finance-import-file-row button, :where(#fina; check for nested bezels",
-    "css_block_sha256": "9e2de2008ddac339ea438376a272654211f688a5958c8b62c994f944714be7ec",
-    "path": "static/kokuen.css",
-    "selector": ":where(#finance-view) .finance-import-choice button, :where(#finance-view) .finance-import-file-row button, :where(#finance-view) .finance-import-actions button, :where(#finance-view) .finance-import-history-list button",
+    "selector": ":where(#finance-view) .finance-import-file-row button, :where(#finance-view) .finance-import-actions button, :where(#finance-view) .finance-import-history-list button",
     "job": "control-bezel",
-    "reason": "Import account/profile choice button perimeter. Import file/account-change action perimeter. Ready-preview action perimeter, never activated. Prior receipt selection button perimeter."
+    "reason": "Import file action perimeter. Ready-preview action perimeter, never activated. Prior receipt selection button perimeter."
   },
   {
     "rule": "nested-boundary",

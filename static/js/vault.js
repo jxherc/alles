@@ -449,8 +449,7 @@ async function _manageVaults() {
   ov.className = 'modal-overlay vault-modal';
   ov.innerHTML = `
     <div class="modal-card vault-modal-card" role="dialog" aria-modal="true" aria-labelledby="mv-title">
-      <div class="modal-head"><span class="modal-title" id="mv-title">${_esc(t('vault.vaults'))}</span>
-        <button type="button" class="modal-close" id="mv-x" aria-label="${_esc(t('common.close'))}">✕</button></div>
+      <div class="modal-head"><span class="modal-title" id="mv-title">${_esc(t('vault.vaults'))}</span></div>
       <div class="mv-scroll">
         <div class="vault-form" id="mv-list"></div>
         <div class="vform-divider"></div>
@@ -462,14 +461,13 @@ async function _manageVaults() {
     </div>`;
   document.body.appendChild(ov);
   _modalEl = ov;
-  ov.querySelector('#mv-x').onclick = _closeModal;
   ov.querySelector('#mv-close').onclick = _closeModal;
   ov.addEventListener('mousedown', e => { if (e.target === ov) _closeModal(); });
   _renderManage();
   await _renderManageExtra();
   await _loadCustomTypes();
   _renderTypeEditor();
-  _activateManagedModal(ov, returnFocus, ov.querySelector('#mv-x'));
+  _activateManagedModal(ov, returnFocus, ov.querySelector('#mv-close'));
 }
 
 // 8e — visual editor for user-defined entry types
