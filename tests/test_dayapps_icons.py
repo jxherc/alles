@@ -42,8 +42,8 @@ class DayAppsIcons(unittest.TestCase):
         self.assertIn("_si('refresh')", CAL)
         self.assertIn("_si('video')", CAL)
         self.assertIn("_si('check')", CAL)
-        # back buttons use chevrons
-        self.assertIn("_si('chevron-left')} back", CAL)
+        # back buttons use chevrons, with the word from the catalog
+        self.assertIn("_si('chevron-left')} ${esc(tr('common.back'))}", CAL)
 
     def test_calendar_rsvp_labels_de_iconed(self):
         self.assertNotIn("✓ yes", CAL)

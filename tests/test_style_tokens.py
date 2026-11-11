@@ -30,7 +30,8 @@ class StyleTokenTests(unittest.TestCase):
 
     def test_legacy_add_endpoint_form_css_is_gone(self):
         self.assertNotIn(".add-ep-form", CSS)
-        self.assertIn(".mm-add-form", CSS)
+        # the model picker is a popover with no add form of its own; settings keeps the one form
+        self.assertNotIn(".mm-add-form", CSS)
         self.assertIn(".s-ep-form", CSS)
 
     def test_disclosure_lines_keep_a_44px_target(self):
