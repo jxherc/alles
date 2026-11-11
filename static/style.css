@@ -4882,10 +4882,13 @@ textarea.vform-input { resize: vertical; min-height: 2.4rem; line-height: 1.5; f
 .jrnl-lock-err { font-size: 0.8125rem; color: var(--error); min-height: 1em; }
 .jrnl-reflection { margin-top: 0.9rem; padding: 0.8rem 1rem; border: 1px solid var(--faint); border-left: 2px solid var(--ai); border-radius: var(--k-radius-control); font-size: 0.875rem; line-height: 1.7; color: var(--text); background: var(--panel); }
 .jrnl-side-title { font-size: 0.8125rem; font-weight: 600; color: var(--text); margin: var(--k-space-3) 0 var(--k-space-2); }
-.jrnl-moodtrend { display: flex; flex-direction: column; gap: 0.25rem; margin-bottom: 0.3rem; }
-.jrnl-mt-row { display: flex; align-items: center; gap: 0.45rem; }
-.jrnl-mt-emoji { width: 1.2rem; text-align: center; font-size: 0.875rem; }
-.jrnl-mt-bar { flex: 1; height: 8px; background: var(--faint); border-radius: var(--k-radius-small); overflow: hidden; }
+/* one grid for the whole list: the label column is as wide as its widest mood, so a mood saved
+   as a word ("great") no longer runs under its bar, and every bar still starts at the same x */
+.jrnl-moodtrend { display: grid; grid-template-columns: max-content minmax(0, 1fr) max-content; align-items: center; gap: 0.25rem 0.45rem; margin-bottom: 0.3rem; }
+.jrnl-moodtrend > .jrnl-empty { grid-column: 1 / -1; }
+.jrnl-mt-row { display: contents; }
+.jrnl-mt-emoji { min-width: 1.2rem; max-width: 8rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 0.875rem; }
+.jrnl-mt-bar { height: 8px; background: var(--faint); border-radius: var(--k-radius-small); overflow: hidden; }
 .jrnl-mt-fill { display: block; height: 100%; background: var(--cat-blue); }
 .jrnl-mt-n { font-size: 0.8125rem; color: var(--muted); min-width: 1.2rem; text-align: right; font-variant-numeric: tabular-nums; }
 .jrnl-moodcorr { display: flex; flex-direction: column; gap: 0.3rem; margin-bottom: 0.3rem; }
@@ -4940,7 +4943,8 @@ textarea.vform-input { resize: vertical; min-height: 2.4rem; line-height: 1.5; f
 .jrnl-otd-row:hover, .jrnl-recent-row:hover { background: var(--panel); color: var(--text); }
 .jrnl-recent-row { display: flex; gap: 0.45rem; align-items: baseline; }
 .jrnl-recent-row.active { border-color: var(--faint); background: var(--panel); color: var(--text); }
-.jrnl-recent-mood { width: 1.1em; text-align: center; flex-shrink: 0; }
+/* a mood is free text on the server: a word ("great") gets its own width, not an emoji's */
+.jrnl-recent-mood { min-width: 1.1em; max-width: 6em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: center; flex-shrink: 0; }
 .jrnl-recent-date { color: var(--muted); flex-shrink: 0; min-width: 5.9em; font-variant-numeric: tabular-nums; }
 .jrnl-recent-snip { overflow: hidden; font-size: 0.875rem; text-overflow: ellipsis; white-space: nowrap; }
 /* text starts on its heading's edge (usage, journal sections) */
