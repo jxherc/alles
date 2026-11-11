@@ -3207,7 +3207,7 @@ html[data-kokuen-version="5"] .custom-dropdown-panel .custom-dropdown-option {
   }
 
   #persona-accent .pa-swatch.active,
-  #persona-mode .seg-opt.active {
+  #persona-mode [role="radio"][aria-checked="true"] {
     forced-color-adjust: none;
     background: Highlight !important;
     color: HighlightText;
@@ -3761,13 +3761,6 @@ textarea[data-kokuen-entry="autogrow"] {
   border-color: var(--k-line-strong);
   background: var(--k-raised);
   font-weight: 600;
-}
-
-#settings-modal[data-kokuen-surface="settings"] .theme-mode-btn.active {
-  border-color: var(--k-line-strong);
-  background: var(--k-raised);
-  color: var(--k-text);
-  -webkit-text-stroke: 0.35px currentColor;
 }
 
 #settings-modal[data-kokuen-surface="settings"] .s-switch.on::before {
@@ -7098,8 +7091,7 @@ html:not(#_):not(#_)[data-kokuen-version="5"] :is(
   .seg-opt,
   .specialist-choice-group button,
   .tasks-tab,
-  .te-seg button,
-  .theme-mode-btn
+  .te-seg button
 ):not(.active, [aria-selected="true"], [aria-pressed="true"]):hover {
   color: var(--k-text);
   background: transparent;

@@ -307,8 +307,10 @@ function escHtml(s) {
 
 function _renderPolicy() {
   document.querySelectorAll('[data-memory-policy]').forEach(btn => {
-    btn.classList.toggle('active', btn.dataset.memoryPolicy === _memoryPolicy);
-    btn.setAttribute('aria-pressed', String(btn.dataset.memoryPolicy === _memoryPolicy));
+    const picked = btn.dataset.memoryPolicy === _memoryPolicy;
+    btn.classList.toggle('active', picked);
+    btn.setAttribute('aria-checked', String(picked));
+    btn.tabIndex = picked ? 0 : -1;
   });
   const off = _memoryPolicy === 'off';
   const why = document.getElementById('mem-inject-why');

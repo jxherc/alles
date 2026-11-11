@@ -203,7 +203,7 @@ html:not(#_) :is(.cal-weekday, .photos-nav-group, .photos-faces-h, .today-sectio
 /* ── picked chips, segments, tabs ──────────────────────────────────────────── */
 
 /* chips take the accent tint when picked; tabs and segments get the sliding pill below */
-html:not(#_)[data-kokuen-version="5"] :is(.health-chip, .read-chip, .mem-policy-btn, .btn.active, .act-chip):is(.active, [aria-pressed="true"]):not(.off) {
+html:not(#_)[data-kokuen-version="5"] :is(.health-chip, .read-chip, .btn.active, .act-chip):is(.active, [aria-pressed="true"]):not(.off) {
   border-color: transparent;
   background: var(--k-pill);
   color: var(--k-text);
@@ -212,7 +212,7 @@ html:not(#_)[data-kokuen-version="5"] :is(.health-chip, .read-chip, .mem-policy-
   -webkit-text-stroke: 0.35px currentColor;
 }
 
-html:not(#_)[data-kokuen-version="5"] :is(.seg-opt, .tasks-tab, .te-seg button, .theme-mode-btn, .s-nav-item).active {
+html:not(#_)[data-kokuen-version="5"] :is(.seg-opt, .tasks-tab, .te-seg button, .s-nav-item).active {
   border-color: transparent;
   background: var(--k-pill);
   color: var(--k-text);

@@ -2182,16 +2182,7 @@ body.is-aide.is-incognito .incognito-bar {
   font-size: 0.8125rem; color: var(--muted); font-weight: 500;
 }
 
-/* theme mode + accent color picker (appearance pane) */
-/* bare until picked; the picked one is a box, so the row stays on the column edge (0043) */
-.theme-mode-row { display: flex; flex-wrap: wrap; }
-.theme-mode-btn {
-  flex: 0 0 auto; min-height: 44px; background: none; border: 1px solid transparent; border-radius: var(--k-radius-control);
-  color: var(--muted); font: inherit; font-size: 0.8125rem; padding: 0 12px; cursor: pointer;
-  transition: color 0.15s ease, background-color 0.15s ease;
-}
-.theme-mode-btn:hover { color: var(--text); background: var(--k-hover, var(--panel)); }
-.theme-mode-btn.active { border-color: var(--line-strong); color: var(--text); background: var(--raised); }
+/* accent color picker (appearance pane); the mode choice is the kit pill switch */
 .accent-swatches { display: flex; flex-wrap: wrap; gap: 0.45rem; }
 .accent-swatch {
   width: 24px; height: 24px; border-radius: 50%; padding: 0; cursor: pointer;
@@ -6246,14 +6237,6 @@ body.afterlife-aide-projects[data-space="aide"] .aide-scheduled-view {
   display: flex; align-items: center; justify-content: space-between; gap: var(--k-space-3);
   padding-bottom: var(--k-space-3); margin-bottom: var(--k-space-2); border-bottom: 1px solid var(--faint);
 }
-/* bare until picked (decision 0031). right-aligned on desktop, so the box keeps its place there */
-.mem-policy-options { display: flex; flex-wrap: wrap; }
-.mem-policy-btn {
-  min-height: 44px; background: none; border: 1px solid transparent; border-radius: var(--k-radius-control);
-  color: var(--muted); font: inherit; font-size: 0.8125rem; padding: 0 12px; cursor: pointer;
-}
-.mem-policy-btn:hover, .mem-policy-btn:focus-visible { color: var(--text); background: var(--k-hover, var(--panel)); }
-.mem-policy-btn.active { color: var(--text); border-color: var(--line-strong); background: var(--raised); }
 .mem-foot-actions { display: flex; justify-content: flex-end; gap: var(--k-control-gap); margin-top: 0.65rem; }
 .mem-undo {
   display: flex; align-items: center; justify-content: flex-end; gap: 0.35rem;
@@ -11506,11 +11489,9 @@ html[data-kokuen-version="5"] .btn.photos-restore { background: color-mix(in srg
 /* the rest of the ordinary "on" states, same neutral recipe. purple stays for real meaning only
    (status dots, links, data colors, the switch track tint). menus and lists highlight with raised */
 :where(#settings-modal) .s-behavior-options button.active,
-.theme-mode-btn.active,
 .tasks-tab.active,
 .ie-tool.active,
 .setup-provider[aria-pressed="true"],
-.mem-policy-btn.active,
 .docs-sec-btn.active,
 .wiki-docs-settings-pop .wds-model.on,
 #wiki-outline-btn.active, #wiki-props-btn.active, #wiki-query-btn.active, #wiki-base-btn.active,

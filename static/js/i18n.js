@@ -7409,7 +7409,6 @@ const BUILTIN_ENGLISH = {
     "shell.settings_themes.mode": "mode",
     "shell.settings_themes.presets_customization": "presets & customization",
     "shell.settings_themes.reset": "reset",
-    "shell.settings_themes.theme_mode": "theme mode",
     "shell.settings_themes.type_a_hex_color": "type a #hex color",
     "shell.settings_tools.add_bot_to_server": "add Aide to a server",
     "shell.settings_tools.add_server": "add server",

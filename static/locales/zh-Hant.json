@@ -7406,7 +7406,6 @@
     "shell.settings_themes.mode": "模式",
     "shell.settings_themes.presets_customization": "預設與自訂",
     "shell.settings_themes.reset": "重設",
-    "shell.settings_themes.theme_mode": "主題模式",
     "shell.settings_themes.type_a_hex_color": "輸入 #十六進位色碼",
     "shell.settings_tools.add_bot_to_server": "把 Aide 加入伺服器",
     "shell.settings_tools.add_server": "新增伺服器",

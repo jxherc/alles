@@ -40,7 +40,7 @@ function release() {
 // ── the sliding pill ─────────────────────────────────────────────────────────
 // a group is the parent of two or more of these items with exactly one picked. the pill is the
 // group's ::before (revamp.css), moved through --pill-* so no element or class is added to items
-const ITEM = '[role="tab"], .seg-opt, .tasks-tab, .te-seg > button, .theme-mode-btn, .s-nav-item, .health-chip, .read-chip, .mem-policy-btn, .andromeda-tab, .k-pill-switch > [role="radio"], .locale-segmented > button';
+const ITEM = '[role="tab"], .seg-opt, .tasks-tab, .te-seg > button, .s-nav-item, .health-chip, .read-chip, .andromeda-tab, .k-pill-switch > [role="radio"], .locale-segmented > button';
 const PICKED = '[aria-selected="true"], [aria-pressed="true"], [aria-checked="true"], [aria-current="page"], [aria-current="true"], .active';
 const TINT = /chip|policy/;
 const skipped = new WeakSet();
