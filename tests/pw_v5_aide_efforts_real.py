@@ -234,7 +234,7 @@ def run() -> None:
             page.goto(URL, wait_until="networkidle")
             page.wait_for_selector("#composer-ta:visible")
 
-            # Add and probe the local endpoint through the shipped dialog.
+            # The picker opens on its button, takes the keyboard and gives it back on Escape.
             model_button = page.locator("#aide-model-choice")
             model_button.click()
             dialog = page.locator("#model-modal")
@@ -246,25 +246,25 @@ def run() -> None:
             expect(dialog).to_be_hidden()
             assert model_button.evaluate("el => el === document.activeElement")
 
+            # the picker only lists models; the endpoint comes in through the connections api
+            # (settings > models draws the same call) and the page reads it on reload
+            created = api(
+                "POST",
+                "/api/models/endpoint",
+                {
+                    "name": ENDPOINT_NAME,
+                    "base_url": f"http://127.0.0.1:{provider.server_port}/v1",
+                    "api_key": "",
+                    "provider_adapter": "auto",
+                    "provider_id": "",
+                    "auth_type": "api_key",
+                },
+            )
+            api("POST", f"/api/models/endpoint/{created['id']}/probe")
+            page.reload(wait_until="networkidle")
+            page.wait_for_selector("#composer-ta:visible")
             model_button.click()
-            models_tab = page.locator('.mm-tab[data-tab="models"]')
-            models_tab.focus()
-            page.keyboard.press("ArrowRight")
-            endpoints_tab = page.locator('.mm-tab[data-tab="endpoints"]')
-            assert endpoints_tab.get_attribute("aria-selected") == "true"
-            assert endpoints_tab.evaluate("el => el === document.activeElement")
-            page.locator("#ep-name").fill(ENDPOINT_NAME)
-            page.locator("#ep-url").fill(f"http://127.0.0.1:{provider.server_port}/v1")
-            page.locator("#ep-add-btn").click()
-            expect(page.locator("#toast-container .toast").last).to_contain_text("endpoint added")
-            card = page.locator(".mm-ep-card", has_text=ENDPOINT_NAME)
-            expect(card).to_be_visible()
-            card.locator(".mm-test-btn").click()
-            expect(page.locator("#toast-container .toast").last).to_contain_text("success")
-
-            endpoints_tab.focus()
-            page.keyboard.press("ArrowLeft")
-            expect(page.locator("#mm-panel-models")).to_be_visible()
+            expect(dialog).to_be_visible()
             model_row = page.locator(f'.model-row[data-model="{MODEL_NAME}"]')
             expect(model_row).to_be_visible()
             assert model_row.get_attribute("role") == "option"

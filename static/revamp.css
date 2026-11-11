@@ -462,7 +462,7 @@ html:not(#_) :is(.custom-dropdown-panel, [data-kokuen-surface] [role="menu"]) {
 html:not(#_):not(#_) :is(
   .ctx-menu, .aide-central-menu, .msg-actions-menu, .aide-sidebar-menu, .aide-project-context-menu,
   .aide-schedule-project-menu, .docs-action-menu, .plan-board-menu, .perm-menu, .photos-albmenu,
-  .jrnl-lockmenu, .mention-menu, .slash-popup, .custom-dropdown-panel
+  .jrnl-lockmenu, .mention-menu, .slash-popup, .custom-dropdown-panel, .model-popover-card
 ) {
   gap: 0;
   border: 1px solid transparent;
@@ -475,7 +475,7 @@ html:not(#_):not(#_) :is(
   .ctx-menu, .aide-central-menu, .msg-actions-menu, .aide-sidebar-menu,
   .aide-project-context-menu:not(.folder-mode), .aide-schedule-project-menu, .docs-action-menu,
   .plan-board-menu, .perm-menu, .photos-albmenu, .jrnl-lockmenu, .mention-menu, .slash-popup,
-  .custom-dropdown-panel
+  .custom-dropdown-panel, .model-popover-card
 ) {
   padding: var(--k-space-1);
 }
@@ -2356,7 +2356,7 @@ html:not(#_):not(#_) .specialist-workbench-empty + .btn {
 html:not(#_):not(#_) :is(
   .settings-input, .settings-textarea, .date-input, .cal-quick, .act-search, .cal-side-search,
   [data-specialist-app] input[type="search"],
-  .modal-search input, .mm-add-form input, .andromeda-tool-field :is(input, textarea),
+  .modal-search input, .andromeda-tool-field :is(input, textarea),
   :is(.andromeda-translate-input, .andromeda-tool-text) textarea,
   .docs-nav-search, .docs-notes-actions input, .docs-dialog-field input, .docs-ask-panel input,
   .jrnl-tags, .jrnl-migration-confirm input, .plan-board-search, .shell-input,
@@ -2423,7 +2423,7 @@ html:not(#_):not(#_) :is(.settings-textarea, textarea:is(.settings-input, .shell
 html:not(#_):not(#_) :is(
   .settings-input, .settings-textarea, .date-input, .cal-quick, .act-search, .cal-side-search,
   [data-specialist-app] input[type="search"],
-  .modal-search input, .mm-add-form input, .andromeda-tool-field :is(input, textarea),
+  .modal-search input, .andromeda-tool-field :is(input, textarea),
   :is(.andromeda-translate-input, .andromeda-tool-text) textarea,
   .docs-nav-search, .docs-notes-actions input, .docs-dialog-field input, .docs-ask-panel input,
   .jrnl-tags, .jrnl-migration-confirm input, .plan-board-search, .shell-input,

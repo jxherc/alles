@@ -1,7 +1,7 @@
 import { createSettingsPane } from './pane.js';
 import { toast, plainError } from '../util.js';
 import { confirm as _dlgConfirm } from '../dialog.js';
-import { loadModels, addEndpoint, renderModelList } from '../models.js?v=217';
+import { loadModels, addEndpoint, renderModelList, wireNewestSwitches } from '../models.js?v=217';
 import { initCustomDropdowns, getDropdownValue, populateDropdown } from '../dropdown.js?v=217';
 import { _esc, _escAttr, _fetchWithRecentOwner } from './shared.js';
 import { API_TYPES, authFor, mountProviderPicker } from '../model_providers.js';
@@ -693,6 +693,8 @@ async function loadEpList() {
     // nothing to refresh before the first connection; the sign in comes up a row instead
     const refreshAll = document.getElementById('s-ep-refresh-all');
     if (refreshAll) refreshAll.hidden = !eps.length;
+    const newestOnly = document.getElementById('s-newest-only');
+    if (newestOnly) newestOnly.hidden = !eps.length;
     if (!eps.length) {
       el.innerHTML = `<div class="s-role-empty">${_esc(t('providers.no_endpoints'))}</div>`;
       return;
@@ -906,6 +908,7 @@ function _wireProvidersPane() {
   document.getElementById('s-gemini-oauth-start')?.addEventListener('click', startGeminiOAuth);
   document.getElementById('s-role-save-btn')?.addEventListener('click', saveModelRoles);
   document.getElementById('s-ep-refresh-all')?.addEventListener('click', refreshAllModelEndpoints);
+  wireNewestSwitches();
   document.getElementById('s-ep-add-btn')?.addEventListener('click', async () => {
     if (_endpointAddPending) return;
     const p = _pickedProvider;

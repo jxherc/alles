@@ -119,7 +119,8 @@ class ChoiceTests(unittest.TestCase):
     def test_former_chip_walls_are_dropdowns(self):
         models = (STATIC / "js/models.js").read_text(encoding="utf-8")
         self.assertNotIn("mm-preset-btn", models)
-        self.assertIn("populateDropdown(pick, PRESETS", models)
+        # 0079: the picker only lists models; providers are added in settings
+        self.assertNotIn("PRESETS", models)
         settings = (STATIC / "js/settings.js").read_text(encoding="utf-8")
         self.assertNotIn('class="rule-preset"', settings)
         server = (STATIC / "js/server_workbench.js").read_text(encoding="utf-8")

@@ -31,3 +31,18 @@ shell's "loading plan..." wrapped to two lines in an 80px corner.
 webkit at ipad landscape and phone, dark and light: each of the nine screens with a failing and a
 slow request shows one card and one retry (44px) or one loading box, retry loads the screen again, no
 second surface, nothing off the edge.
+
+## the model picker is a list on its button
+
+the picker opened as a modal at the top left of the page while its button sat at the bottom right,
+and carried a "newest only" switch, a refresh button and an endpoints tab next to the list.
+
+- it is a popover on the button that opened it (`#model-modal`, no backdrop): above the button
+  when the button is in the lower half of the window, below it otherwise, on the side the button is
+  on, 21rem wide like the other composer menus, the shared menu look (0055). the same button shuts
+  it. Escape closes it and focus goes back to the button.
+- it holds a search field and the list of models, nothing else. with no models it says so and has
+  one "settings" button.
+- "show only the newest model of each family" and refresh live in settings > models (a labeled
+  switch at the top of model connections; "refresh all" was already there). endpoints are added,
+  tested and removed in settings only.

@@ -1815,7 +1815,6 @@ body.is-aide.is-incognito .incognito-bar {
   display: flex; flex-direction: column;
   animation: rise 0.2s cubic-bezier(0.2,0.7,0.2,1) forwards;
 }
-.model-modal-card { width: min(34rem, 94vw); max-height: 70vh; }
 .modal-head {
   padding: 0.55rem 1rem;
   border-bottom: 1px solid var(--faint);
@@ -1829,25 +1828,12 @@ body.is-aide.is-incognito .incognito-bar {
 }
 .modal-close:hover { color: var(--text); }
 
-/* model modal tabs */
-.mm-tabs { display: flex; gap: 0; }
-.mm-tab {
-  background: none; border: 0; border-radius: var(--k-radius-control);
-  color: var(--muted); font: inherit; font-size: 0.8125rem;
-  padding: 0 12px; cursor: pointer; transition: color 0.15s;
-}
-.mm-tab.active { color: var(--text); -webkit-text-stroke: 0.35px currentColor; }
-.mm-tab:hover { color: var(--text); }
-
-/* model picker panels */
-.mm-panel { display: flex; flex-direction: column; flex: 1; overflow: hidden; }
 .modal-search {
   padding: 0.5rem 1rem;
   border-bottom: 1px solid var(--faint);
   flex-shrink: 0;
   display: flex; align-items: center; gap: 0.6rem;
 }
-.modal-search .mm-refresh-all { flex-shrink: 0; font-size: 0.8125rem; padding: 0.28rem 0.6rem; }
 .modal-search input {
   width: 100%; background: none; border: none; border-bottom: 1px solid var(--faint);
   color: var(--text); font-family: inherit; font-size: 0.8125rem;
@@ -1857,50 +1843,12 @@ body.is-aide.is-incognito .incognito-bar {
 .modal-search input::placeholder { color: var(--muted); }
 .modal-body { flex: 1; overflow-y: auto; padding: 0.5rem 0; }
 
-/* endpoint tab */
-.mm-ep-list { flex: 1; overflow-y: auto; padding: 0.35rem 0; }
-.mm-ep-card {
-  border-bottom: 1px solid var(--faint);
-  padding: 0.4rem 0.75rem;
-}
-.mm-ep-card-head { display: flex; align-items: center; gap: 0.5rem; font-size: 0.8125rem; }
-.mm-ep-info { display: flex; align-items: center; gap: 0.4rem; margin-top: 0.15rem; }
-.mm-ep-edit {
-  display: flex; align-items: center; gap: 0.35rem;
-  margin: 0.35rem 0; flex-wrap: wrap;
-}
-.mm-ep-edit input { height: 28px; font-size: 0.8125rem; }
-.mm-add-section { border-top: 1px solid var(--faint); padding: 0.5rem 0.75rem; flex-shrink: 0; }
-.mm-presets { display: flex; margin-bottom: var(--k-control-gap); }
-.mm-presets > .mm-preset-pick { flex: 1 1 auto; min-width: 0; }
-.mm-add-form { display: flex; gap: var(--k-control-gap); align-items: center; flex-wrap: wrap; }
-.mm-add-form input {
-  height: 28px; font-size: 0.8125rem;
-  background: none; border: 1px solid var(--faint); border-radius: var(--k-radius-control);
-  color: var(--text); font-family: inherit; padding: 0 0.5rem; outline: none;
-  transition: border-color 0.2s ease;
-}
-.mm-add-form input::placeholder { color: var(--muted); }
-/* the larger type (0044) outgrew the px-sized rows: counts keep one line, long names wrap beside
-   them, the actions drop under on a phone, and the add form is a grid instead of loose fields */
-#model-modal .modal-search input { min-width: 8rem; }
-#model-modal .mm-ep-card-head { flex-wrap: wrap; row-gap: var(--k-space-1, 4px); }
-#model-modal .mm-ep-name { flex: 1 1 8rem; min-width: 0; overflow-wrap: anywhere; }
-#model-modal .mm-ep-count { white-space: nowrap; }
-#model-modal .mm-ep-actions { flex: 0 0 auto; margin-left: auto; display: flex; gap: var(--k-control-gap); }
-/* the list and the add form scroll as one, so a second endpoint is never hidden under the form */
-#model-modal #mm-panel-endpoints { overflow-y: auto; }
-#model-modal .mm-ep-list { flex: none; overflow: visible; padding-bottom: 0; }
-#model-modal .mm-ep-card:last-child { border-bottom: 0; }
-#model-modal .mm-add-form { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.6fr); gap: var(--k-space-2, 8px); }
-#model-modal .mm-add-form > input { width: 100%; min-width: 0; box-sizing: border-box; }
-#model-modal .mm-add-form > button { justify-self: start; }
-@media (max-width: 620px) {
-  #model-modal .modal-search { flex-wrap: wrap; row-gap: var(--k-space-1, 4px); }
-  #model-modal .modal-search input { flex: 1 1 100%; }
-  #model-modal .modal-search .mm-refresh-all { margin-left: auto; }
-  #model-modal .mm-add-form { grid-template-columns: minmax(0, 1fr); }
-}
+/* the model picker: a list on the button that opened it, nothing else (decision 0079) */
+.model-popover { position: fixed; z-index: 300; width: min(21rem, calc(100vw - 24px)); }
+.model-popover-card { display: flex; flex-direction: column; min-height: 0; overflow: hidden; }
+.model-popover .modal-search { padding: var(--k-space-2) var(--k-space-3); }
+.model-popover .modal-search input { min-width: 0; }
+.model-empty { display: flex; flex-direction: column; align-items: flex-start; gap: var(--k-control-gap); padding: var(--k-space-3); font-size: 0.8125rem; color: var(--muted); }
 
 .provider-label {
   font-size: 0.8125rem; color: var(--muted); letter-spacing: 0.04em; font-weight: 500;
@@ -3944,7 +3892,7 @@ body.afterlife-aide-projects[data-space="aide"] .aide-terminal .xterm-viewport {
   .nav-item { min-height: 40px; }
   .icon-btn { min-width: 38px; min-height: 38px; }
   /* modals must never spill past the screen edge */
-  .modal-card, .model-modal-card, .vault-modal-card, .dialog-card {
+  .modal-card, .vault-modal-card, .dialog-card {
     width: auto; max-width: 94vw;
   }
 }
