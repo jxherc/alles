@@ -159,6 +159,9 @@ with sync_playwright() as pw:
                 assert len(held) == 1
 
             def capture(suffix):
+                # a save reloads the list and every reload redraws each card. a card picked while
+                # that runs is gone before it can be scrolled to: wait for the reload to end
+                expect(page.locator('#books-body [data-kokuen-state="loading"]')).to_have_count(0)
                 card.scroll_into_view_if_needed()
                 cdp = context.new_cdp_session(page)
                 shot = cdp.send(

@@ -30,6 +30,9 @@ def main():
     with sync_playwright() as p:
         b = p.chromium.launch()
         pg = b.new_context(timezone_id=ZONE, service_workers="block").new_page()
+        # the server's day too: without it the runner's utc clock is a day ahead every evening,
+        # and a task moved to "tomorrow" in the browser is "today" for the upcoming list
+        assert pg.request.patch(f"http://127.0.0.1:{PORT}/api/settings", data={"timezone": ZONE}).ok
         pg.on(
             "console",
             lambda m: (

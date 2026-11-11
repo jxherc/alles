@@ -207,7 +207,15 @@ def run():
         expect(edit).to_have_count(0)
         expect(more).to_be_focused()
         more.tap()
-        row.locator("[data-clear-txn]").tap()
+        # the stored value is read once the page's own save has been answered, not before
+        with page.expect_response(
+            lambda reply: (
+                reply.url.endswith(f"/api/money/transactions/{tx}")
+                and reply.request.method == "PATCH"
+            )
+        ) as saved:
+            row.locator("[data-clear-txn]").tap()
+        assert saved.value.ok
         expect(page.locator(f'.txn[data-id="{tx}"] .row-more')).to_be_visible()
         stored = next(t for t in api.get(base + "/api/money/transactions").json() if t["id"] == tx)
         assert stored["cleared"], stored
