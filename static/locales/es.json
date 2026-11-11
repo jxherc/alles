@@ -8584,7 +8584,6 @@
     "settings.example_display_name": "p. ej. eric",
     "settings.example_username": "p. ej. jxh",
     "settings.example_stt_language": "p. ej. en-US, zh-CN, fr-FR",
-    "plan.reminders_chat_tip": "consejo: en el chat usa `/remind in 2h check deployment` o `/send at 3pm summarize my day`",
     "settings.tools_rules_note": "gana la última regla que coincide. herramienta y ruta aceptan globs (`*` `?`).",
     "files.location_this_server": "en este servidor",
     "journal.mood_need_days": "hacen falta al menos {min} días con ánimo registrado (hay {have})",

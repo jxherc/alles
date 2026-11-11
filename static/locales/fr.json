@@ -8584,7 +8584,6 @@
     "settings.example_display_name": "p. ex. eric",
     "settings.example_username": "ex. jxh",
     "settings.example_stt_language": "ex. en-US, zh-CN, fr-FR",
-    "plan.reminders_chat_tip": "astuce : dans le chat, utilise `/remind in 2h check deployment` ou `/send at 3pm summarize my day`",
     "settings.tools_rules_note": "la dernière règle qui correspond l'emporte. l'outil et le chemin acceptent des globs (`*` `?`).",
     "files.location_this_server": "sur ce serveur",
     "journal.mood_need_days": "il faut au moins {min} jours avec une humeur notée (actuellement {have})",

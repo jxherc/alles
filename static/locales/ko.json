@@ -8584,7 +8584,6 @@
     "settings.example_display_name": "예: eric",
     "settings.example_username": "예: jxh",
     "settings.example_stt_language": "예: en-US, zh-CN, fr-FR",
-    "plan.reminders_chat_tip": "팁: 채팅에서 `/remind in 2h check deployment` 또는 `/send at 3pm summarize my day`를 사용하세요",
     "settings.tools_rules_note": "마지막으로 일치하는 규칙이 적용됩니다. 도구와 경로에는 글롭(`*` `?`)을 쓸 수 있습니다.",
     "files.location_this_server": "이 서버",
     "journal.mood_need_days": "기분을 기록한 날이 {min}일 이상 필요합니다 (현재 {have}일)",

@@ -8584,7 +8584,6 @@
     "settings.example_display_name": "例如 eric",
     "settings.example_username": "例如 jxh",
     "settings.example_stt_language": "例如 en-US、zh-CN、fr-FR",
-    "plan.reminders_chat_tip": "提示：在聊天中使用 `/remind in 2h check deployment` 或 `/send at 3pm summarize my day`",
     "settings.tools_rules_note": "最後一條符合的規則生效。工具和路徑支援萬用字元 (`*` `?`)。",
     "files.location_this_server": "在此伺服器上",
     "journal.mood_need_days": "需要至少 {min} 天記錄了心情（目前 {have} 天）",

@@ -8584,7 +8584,6 @@
     "settings.example_display_name": "e.g. eric",
     "settings.example_username": "e.g. jxh",
     "settings.example_stt_language": "e.g. en-US, zh-CN, fr-FR",
-    "plan.reminders_chat_tip": "tip: use `/remind in 2h check deployment` or `/send at 3pm summarize my day` from chat",
     "settings.tools_rules_note": "last matching rule wins. tool and path accept globs (`*` `?`).",
     "files.location_this_server": "on this server",
     "journal.mood_need_days": "need {min}+ days with a mood logged (have {have})",

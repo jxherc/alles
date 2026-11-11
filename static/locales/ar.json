@@ -8583,7 +8583,6 @@
     "settings.example_display_name": "مثال: eric",
     "settings.example_username": "مثال: jxh",
     "settings.example_stt_language": "مثال: en-US، zh-CN، fr-FR",
-    "plan.reminders_chat_tip": "نصيحة: في المحادثة استخدم `/remind in 2h check deployment` أو `/send at 3pm summarize my day`",
     "settings.tools_rules_note": "تفوز آخر قاعدة مطابقة. تقبل الأداة والمسار أنماط glob (`*` `?`).",
     "files.location_this_server": "على هذا الخادم",
     "journal.mood_need_days": "تحتاج إلى {min} أيام على الأقل مسجَّل فيها المزاج (لديك {have})",

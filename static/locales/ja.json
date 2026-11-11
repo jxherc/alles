@@ -8584,7 +8584,6 @@
     "settings.example_display_name": "例: eric",
     "settings.example_username": "例: jxh",
     "settings.example_stt_language": "例: en-US, zh-CN, fr-FR",
-    "plan.reminders_chat_tip": "ヒント: チャットで `/remind in 2h check deployment` や `/send at 3pm summarize my day` を使えます",
     "settings.tools_rules_note": "最後に一致したルールが優先されます。ツールとパスにはグロブ (`*` `?`) が使えます。",
     "files.location_this_server": "このサーバー上",
     "journal.mood_need_days": "気分を記録した日が {min} 日以上必要です（現在 {have} 日）",

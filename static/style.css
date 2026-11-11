@@ -11674,7 +11674,7 @@ html[data-kokuen-version="5"] #settings-modal :is(.btn, .act-btn).danger:hover {
 .jrnl-main[data-blank="true"] :is(.jrnl-mood, .jrnl-tags) { display: none; }
 
 /* mail before the first account: only the account setup and compose */
-#mail-view[data-no-account] :is(#mail-account, #mail-folder, #mail-search, #mail-refresh-btn, #mail-compose-btn, #mail-list) { display: none; }
+#mail-view[data-no-account] :is(#mail-account, #mail-folder, #mail-search, #mail-refresh-btn, #mail-compose-btn, #mail-more-wrap, #mail-list) { display: none; }
 /* one line and one button, until the accounts panel takes the pane */
 #mail-view .mail-no-account { flex: 1 1 100%; }
 #mail-view:has(#mail-main > *) .mail-no-account { display: none; }
