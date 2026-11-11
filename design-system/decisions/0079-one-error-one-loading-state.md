@@ -52,3 +52,15 @@ and carried a "newest only" switch, a refresh button and an endpoints tab next t
 it keeps one short line under each mode (they prevent a real mistake) and is 21rem wide like the
 effort menu. the full access line is "no approval; the shell is unrestricted" so it fits on one
 line at that width in every language.
+
+## composer and header buttons keep a gap
+
+jobs, call and more in the aide header, and model, mic and send in the composer, were separate
+buttons laid out with a gap of 0 by `aidecentral.css` (the winning rule); the composer's own tools
+sat 4px apart. every group now uses `--k-control-gap`. on a 360px phone the model name gives way
+(ellipsis) so the send button stays on the row.
+
+## the background work drawer
+
+an empty drawer is one line, "no background work yet". the "scheduled work" action only appears
+under real work; scheduled work is always in the more menu.
