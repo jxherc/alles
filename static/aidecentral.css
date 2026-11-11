@@ -152,7 +152,6 @@ body.aide-central[data-space="aide"] .aide-background-details { font-size: 0.812
   body.aide-central[data-space="aide"] .composer-outer { padding: var(--k-space-2, 8px) var(--aide-gutter) max(var(--k-space-3, 12px), env(safe-area-inset-bottom)); }
   body.aide-central[data-space="aide"] .messages { padding: var(--k-space-4, 16px) var(--aide-gutter); }
   body.aide-central[data-space="aide"] .composer-bar { flex-wrap: wrap; gap: var(--k-control-gap); }
-  body.aide-central[data-space="aide"] .c-left { flex: 0 0 auto; }
   body.aide-central[data-space="aide"] .c-right { flex: 1; justify-content: flex-end; }
   body.aide-central[data-space="aide"] .aide-model-choice { max-width: 108px; flex: 0 1 auto; min-width: 0; }
   /* a 360px phone has no room for the 8px gaps: the model name gives way, the send button stays on the row */
