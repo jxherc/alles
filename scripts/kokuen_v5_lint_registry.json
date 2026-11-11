@@ -163,15 +163,6 @@
   },
   {
     "rule": "nested-boundary",
-    "message": "descendant draws a boundary in #settings-modal[data-kokuen-surface=\"settings\"] .locale-segmented button; check for nested bezels",
-    "css_block_sha256": "52a588ccd486e53389bc203c63fbceda48c07957a3de5ba3827752a1f6f01a7b",
-    "path": "static/kokuen.css",
-    "selector": "#settings-modal[data-kokuen-surface=\"settings\"] .locale-segmented button",
-    "job": "control-bezel",
-    "reason": "The format choice's line is transparent at rest; only the picked choice shows the strong line (decision 0031)."
-  },
-  {
-    "rule": "nested-boundary",
     "message": "descendant draws a boundary in #settings-modal[data-kokuen-surface=\"settings\"] .credits-row; check for nested bezels",
     "css_block_sha256": "f7ed9e3ea0f095ee7754dac546b1866e788d1af49c821950df589efd3de3cac1",
     "path": "static/kokuen.css",

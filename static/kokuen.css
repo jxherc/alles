@@ -3969,41 +3969,13 @@ textarea[data-kokuen-entry="autogrow"] {
   line-height: 1.35;
 }
 
-/* bare until picked (decision 0031). it ends on the row's right edge like the pickers above it;
-   stacked on a phone it starts on the column instead */
+/* clock and first day of week are the kit pill switch (0050), like every other two or three way
+   choice in settings. it ends on the row's right edge like the pickers above it; stacked on a
+   phone it starts on the column instead */
 #settings-modal[data-kokuen-surface="settings"] .locale-segmented {
-  min-width: 0;
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: flex-end;
-}
-
-#settings-modal[data-kokuen-surface="settings"] .locale-segmented button {
-  min-width: 0;
-  min-height: var(--k-control);
-  flex: 0 1 auto;
-  padding: 0 var(--k-space-3);
-  border: 1px solid transparent;
-  border-radius: var(--k-radius-control);
-  background: transparent;
-  color: var(--k-muted);
-  font-size: 0.8125rem;
-  white-space: normal;
-  overflow-wrap: anywhere;
-  padding-block: var(--k-space-2);
-  cursor: pointer;
-}
-
-#settings-modal[data-kokuen-surface="settings"] .locale-segmented button:hover {
-  background: var(--k-hover);
-  color: var(--k-text);
-}
-
-#settings-modal[data-kokuen-surface="settings"] .locale-segmented button[aria-checked="true"] {
-  border-color: var(--k-line-strong);
-  background: var(--k-raised);
-  color: var(--k-text);
-  -webkit-text-stroke: 0.35px currentColor;
+  max-width: 100%;
+  justify-self: end;
+  margin-inline-start: auto;
 }
 
 #settings-modal[data-kokuen-surface="settings"] .locale-settings-save {
@@ -4272,10 +4244,10 @@ html[dir="rtl"] :where(
   }
 
   #settings-modal[data-kokuen-surface="settings"] .locale-segmented {
-    justify-content: flex-start;
+    justify-self: start;
+    margin-inline-start: 0;
   }
 
-  #settings-modal[data-kokuen-surface="settings"] .locale-segmented button,
   #settings-modal[data-kokuen-surface="settings"] .credits-tabs button {
     min-height: var(--k-control);
   }
@@ -7102,7 +7074,8 @@ html[data-kokuen-version="5"] .k-pill-switch > [role="radio"] {
   background: transparent;
   color: var(--k-muted);
   font: inherit;
-  font-size: 0.9375rem;
+  /* role 14, the size of the dropdown or button beside it (0074) */
+  font-size: 0.875rem;
   cursor: pointer;
 }
 
