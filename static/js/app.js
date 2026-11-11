@@ -378,7 +378,7 @@ async function _boot({ reachable = true } = {}) {
         _syncLocalViewUrl(initialRoute, groupedIdentifier);
         _consumeParams(['_auth', '_sso']);
       } else {
-        _syncLocalViewUrl(initialRoute, bootParams.get('app') || bootParams.get('view') || initialRoute.view);
+        _syncLocalViewUrl(initialRoute, initialRoute.unknownView ? initialRoute.view : (bootParams.get('app') || bootParams.get('view') || initialRoute.view));
         _consumeParams(['_auth', '_sso']);
       }
     } else if (initialRoute.host === currentSub()) {
@@ -1241,11 +1241,16 @@ const showSpecialistGroup = (group, section = 'overview') => showView(
 function _addressRoute({ app, view, pathFront = true } = {}) {
   const sub = routeSub();
   const pathApp = singleHost() && Object.hasOwn(CANONICAL_SUBDOMAIN_VIEWS, sub);
-  if (pathApp && sub && pathFront && !app && !view) {
+  const front = () => {
     const primary = appForSub(sub).primary;
     return { host: sub, view: primary, hashOwner: primary === 'chat' ? 'session' : primary };
-  }
-  return resolveCompatibilityRoute({ sub: pathApp ? '' : sub, app, view, flags: _afterlifeFlags });
+  };
+  if (pathApp && sub && pathFront && !app && !view) return front();
+  const route = resolveCompatibilityRoute({ sub: pathApp ? '' : sub, app, view, flags: _afterlifeFlags });
+  // /finance?view=<a view that is gone or mistyped> is still finance: without this the page
+  // showed home under finance's address and top bar
+  if (!route && pathApp && sub && pathFront) return { ...front(), unknownView: true };
+  return route;
 }
 
 // the app the address belongs to (a legacy name counts as the app it moved into)
@@ -1480,6 +1485,8 @@ function renderLocalView(v, route = {}) {
   else if (v === 'photos')    showPhotosView();
   // /?view=settings#s-ledger opens the pane that holds that card
   else if (v === 'settings')  { if (!openSettingsAt(decodeURIComponent(location.hash.slice(1)))) openSettings(); }
+  // a name no view answers to (an old link, a typo) is home, with home's own top bar
+  else return renderLocalView('today', route);
 }
 
 // ── launcher tiles ──────────────────────────────────────────────────────────

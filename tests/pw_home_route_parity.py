@@ -108,6 +108,18 @@ def run() -> None:
                     page.locator('#plan-view [data-plan-kind] > button[data-value="days"]')
                 ).to_have_attribute("aria-checked", "true")
                 expect(page.locator("#days-view")).to_be_visible()
+
+        # a view the app doesn't have (an old link, a typo) opens the app it was asked on. it
+        # used to show home under that app's address and top bar
+        for address, shown, hidden in (
+            ("/finance?view=finance-money", "#finance-view", "#today-view"),
+            ("/plan?view=no-such-view", "#plan-view", "#today-view"),
+            ("/?view=no-such-view", "#today-view", "#app-crumb"),
+        ):
+            page.goto(base + address, wait_until="networkidle")
+            expect(page.locator(shown)).to_be_visible()
+            expect(page.locator(hidden)).to_be_hidden()
+            assert "view=" not in urlparse(page.url).query, page.url
         context.close()
         browser.close()
 
