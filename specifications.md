@@ -450,7 +450,7 @@ The composer’s **help** button shows the current keyboard shortcuts and slash 
 
 the app-name menu also opens **help & manual**, with local search, provider requirements and recovery instructions. Finance has a **finance guide** link to the same manual. navigation from the manual uses the existing unsaved-draft checks.
 
-**the model picker**: every endpoint you add shows up here, with provider labels and logos. image-generation models carry a palette icon, so you can run a **chat model and an image model together** (talk to sonnet, draw with gpt-image). a **newest-only** toggle collapses each family to its latest release. model ids come from each endpoint's live catalog or its editable manual list; alles does not ship a guessed model lineup. a failed refresh keeps the last good list and marks it stale, while models removed by a provider leave new pickers and remain marked unavailable for old runs.
+**the model picker**: every endpoint you add shows up here, with provider labels and logos. image-generation models carry a palette icon, so you can run a **chat model and an image model together** (talk to sonnet, draw with gpt-image). it opens as a popover on the button you pressed. a **newest only** switch in settings > models collapses each family to its latest release. model ids come from each endpoint's live catalog or its editable manual list; alles does not ship a guessed model lineup. a failed refresh keeps the last good list and marks it stale, while models removed by a provider leave new pickers and remain marked unavailable for old runs.
 
 <p align="center"><img src="docs/screenshots/models.png" width="760" alt="the model picker: every provider in its brand colour, image models flagged with a palette icon, a newest-only toggle"></p>
 
