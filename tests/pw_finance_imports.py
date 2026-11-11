@@ -224,6 +224,7 @@ def run():
                     page.screenshot(path=str(output / f"{profile}-{state}.png"), full_page=True)
 
             def choose_option(label, name):
+                name = name.replace(";", ",")  # the dropdown's option string can't hold ";"
                 trigger = page.get_by_role("combobox", name=label, exact=True)
                 trigger.press("Enter")
                 panel = page.locator("#" + trigger.get_attribute("aria-controls"))

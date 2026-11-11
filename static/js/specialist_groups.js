@@ -1456,7 +1456,8 @@ function _choiceField(label, options, selected, onSelect) {
   name.id = `finance-import-choice-${++_choiceFieldId}`;
   const menu = _el('div', 'settings-input custom-select');
   menu.setAttribute('aria-labelledby', name.id);
-  populateDropdown(menu, options, selected);
+  // the dropdown's option string is split on ';', and a name can hold one
+  populateDropdown(menu, options.map(option => ({ ...option, label: option.label.replaceAll(';', ',') })), selected);
   menu.addEventListener('change', () => onSelect(getDropdownValue(menu)));
   field.append(name, menu);
   return field;
