@@ -10,6 +10,7 @@ import { detectSetup } from './setup_detect.js';
 import { wireGridNav, WEEK_ROWS } from './grid_nav.js';
 import { whenDay } from './when.js';
 import { chosenTimeZone, formatDate, formatDateParts, formatTime, localizationState, resolvedTimeZone, t as tr, tp as trp } from './i18n.js';
+import { esc } from './escape.js';
 const _si = n => (window.icon ? window.icon(n) : '');   // central icon set, load-order safe
 
 const _browserTimeZone = () => {
@@ -2362,4 +2363,3 @@ async function openCaldavPanel() {
 
 export function newEvent() { openEditor(null); }
 
-function esc(s) { return String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }

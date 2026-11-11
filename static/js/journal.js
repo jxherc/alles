@@ -6,6 +6,7 @@ import { createFocusBoundary } from './kokuen.js?v=5';
 import { getDropdownValue, populateDropdown } from './dropdown.js?v=217';
 import { replaceRouteUrl } from './route_history.js';
 import { fetchWithRecentOwner } from './recent_owner.js';
+import { esc } from './escape.js';
 
 const _si = n => (window.icon ? window.icon(n) : '');   // central icon set, load-order safe
 // labels resolve at render so a language switch shows on the next build
@@ -39,7 +40,6 @@ export function localISODate(date = new Date()) {
 }
 function todayISO() { return localISODate(); }
 function _setDayUrl() { try { const u = new URL(location.href); u.searchParams.set('d', _day); replaceRouteUrl(u); } catch {} }
-function esc(s = '') { return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;'); }
 function _setToken(token) { _token = token || ''; if (_token) sessionStorage.setItem('journal_token', _token); else sessionStorage.removeItem('journal_token'); }
 function _authHeaders(extra = {}) { return _token ? { ...extra, 'X-Journal-Token': _token } : extra; }
 export function shiftLocalISO(iso, n) {

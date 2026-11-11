@@ -3,10 +3,10 @@
 // up. tasks.js and days.js did this first; the apps after them share this file.
 import { wireActionMenu } from './kokuen.js?v=5';
 import { t } from './i18n.js';
+import { esc } from './escape.js';
 
 export const UNDO_MS = 6000;
 
-const esc = s => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 const icon = name => (globalThis.window?.icon ? globalThis.window.icon(name) : '');   // central icon set, load-order safe
 const part = id => String(id).replace(/[^\w-]/g, '_');
 

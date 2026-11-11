@@ -1,8 +1,5 @@
 import { t } from './i18n.js';
-
-function _esc(s = '') {
-  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
-}
+import { esc as _esc } from './escape.js';
 
 function _overlay() {
   const el = document.createElement('div');

@@ -8,6 +8,7 @@ import { readingPlace } from './reading_place.js';
 import { loadReadingNoteRecovery, takeReadingNote } from './reading_note.js';
 import { clearLinkedRecord } from './recordlinks.js';
 import { formatList, t, tp } from './i18n.js';
+import { esc } from './escape.js';
 const _si = n => (window.icon ? window.icon(n) : '');
 
 const $ = id => document.getElementById(id);
@@ -260,8 +261,6 @@ export async function loadRead(fetcher = _fetcher) {
   _loadState = failures.length ? _loadFailure(failures, successes) : { state: 'resting', message: '' };
   _render();
 }
-
-function esc(s) { return String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
 
 // labels are catalog keys, translated at render
 const FILTERS = [['all', 'common.all'], ['unread', 'read.filter_unread'], ['fav', 'read.filter_starred'], ['archived', 'read.filter_archive']];

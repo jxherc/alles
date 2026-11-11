@@ -6,6 +6,7 @@ import { createFocusBoundary, setControlState, wireActionMenu } from './kokuen.j
 import { toast } from './util.js';
 import { whenDay, whenHtml } from './when.js';
 import { openTaskDetails, wireSwipe } from './act_row.js';
+import { esc } from './escape.js';
 const _si = n => (window.icon ? window.icon(n) : '');   // central icon set, load-order safe
 
 let _tasks = [];
@@ -823,6 +824,3 @@ export async function addTask(title, due = '') {
   return true;
 }
 
-function esc(s) {
-  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
-}

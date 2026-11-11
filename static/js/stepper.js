@@ -4,10 +4,10 @@
 // their own model and only borrow the markup.
 import { formatDecimal } from './liveformat.js';
 import { t } from './i18n.js';
+import { esc } from './escape.js';
 
 const MINUS = '<svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="M3.5 8h9"/></svg>';
 const PLUS = '<svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="M3.5 8h9M8 3.5v9"/></svg>';
-const esc = s => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 
 // name is what the field is ("weight, left"); attrs are extra data-* the owner reads back
 // unit ("min", "g", "ml") sits right after the value inside the field, so the number never reads

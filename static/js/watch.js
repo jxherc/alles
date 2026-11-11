@@ -6,6 +6,7 @@ import { toast } from './util.js';
 import { initCustomDropdown } from './dropdown.js?v=217';
 import { confirm as dlgConfirm } from './dialog.js';
 import { formatNumber, t, tp } from './i18n.js';
+import { esc } from './escape.js';
 const _si = n => (window.icon ? window.icon(n) : '');
 
 const $ = id => document.getElementById(id);
@@ -69,9 +70,6 @@ async function _refreshQuiet() {
 }
 
 // ── helpers ───────────────────────────────────────────────────────────────────
-function esc(s) {
-  return String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-}
 
 function _statusDot(s) {
   return `<span class="watch-dot ${s}" title="${esc(['up', 'down'].includes(s) ? t(`server.watch_status_${s}`) : t('common.unknown'))}"></span>`;

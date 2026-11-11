@@ -4,6 +4,7 @@ import test from 'node:test';
 import vm from 'node:vm';
 import { t as i18nT, tp as i18nTp } from '../../static/js/i18n.js';
 import { appLabel } from '../../static/js/util.js';
+import { esc } from '../../static/js/escape.js';
 
 const vault = readFileSync(new URL('../../static/js/vault.js', import.meta.url), 'utf8');
 const settings = readFileSync(new URL('../../static/js/settings.js', import.meta.url), 'utf8');
@@ -25,7 +26,7 @@ function lockScreen({ state = 'setup', biometric = 'failed', supported = true, s
     if (biometric === 'enrolled') payload.credentials.push('example');
     return { ok: biometric !== 'failed', json: async () => payload };
   };
-  const context = vm.createContext({ t: i18nT, tp: i18nTp,
+  const context = vm.createContext({ _esc: esc, t: i18nT, tp: i18nTp,
     window: supported ? { PublicKeyCredential: class {} } : {},
     document: { getElementById: get }, fetch: request,
   });
@@ -80,7 +81,7 @@ test('specialist partial status uses the module detail and retry label without c
   });
   const root = node(); root.dataset.specialistApp = 'vault';
   root.querySelector = () => root.children[0]; root.prepend = child => root.children.unshift(child);
-  const context = vm.createContext({ t: i18nT, tp: i18nTp, appLabel, document: { createElement: node } });
+  const context = vm.createContext({ _esc: esc, t: i18nT, tp: i18nTp, appLabel, document: { createElement: node } });
   vm.runInContext(app.match(/function _paintSpecialistState\([^]*?\n}/)[0], context);
   let retries = 0;
   const details = { partialMessage: 'biometric unlock could not be checked', retryLabel: 'retry vault checks' };

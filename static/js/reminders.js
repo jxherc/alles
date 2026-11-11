@@ -4,6 +4,7 @@ import { initCustomDropdown } from './dropdown.js?v=217';
 import { initDatePicker, dateTimeParts } from './datepick.js';
 import { dayKey, when } from './when.js';
 import { calendarDateKey, formatDateParts, resolvedTimeZone, t } from './i18n.js';
+import { esc as _esc } from './escape.js';
 
 let _reminders = [];
 let _pollTimer = null;
@@ -447,6 +448,3 @@ export function parseReminderTime(str) {
   } catch { return null; }
 }
 
-function _esc(s = '') {
-  return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
-}

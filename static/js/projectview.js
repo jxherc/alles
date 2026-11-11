@@ -7,8 +7,7 @@ import { projectFolderMessage } from './projectenv.js';
 import { selectSession, loadSessions } from './sessions.js';
 import { t } from './i18n.js';
 import { categoryHue } from './color.js';
-
-const esc = s => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+import { esc } from './escape.js';
 
 function _patch(pid, body) {
   return _fetchWithRecentOwner(`/api/projects/${pid}`, {

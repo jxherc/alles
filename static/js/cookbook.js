@@ -2,6 +2,7 @@
 // (the hwfit/llmfit engine). discover what fits, at what quant, how fast.
 import { getDropdownValue, populateDropdown } from './dropdown.js?v=217';
 import { t } from './i18n.js';
+import { esc } from './escape.js';
 let _built = false;
 let _searchTimer = null;
 let _loadSequence = 0;
@@ -18,7 +19,6 @@ const sortLabel = value => ({
 })[value];
 const fitLabel = level => ({ perfect: t('cookbook.fit_perfect'), good: t('cookbook.fit_good'), marginal: t('cookbook.fit_tight'), too_tight: t('cookbook.fit_wont') })[level];
 
-function esc(s = '') { return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;'); }
 async function cget(url) { const r = await fetch(url); if (!r.ok) throw new Error(r.status); return r.json(); }
 
 export function initCookbook() {

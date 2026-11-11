@@ -6,6 +6,7 @@ import { formatDateTime, formatNumber, t, tp } from './i18n.js';
 import { createFocusBoundary, wireActionMenu } from './kokuen.js?v=5';
 import { requestWithRecentOwner } from './recent_owner.js';
 import { deleteItemHtml, moreMenuHtml, wireMoreMenus } from './undo_delete.js';
+import { esc as _esc } from './escape.js';
 
 const _si = n => (window.icon ? window.icon(n) : '');   // central icon set, load-order safe
 
@@ -2130,10 +2131,6 @@ window._vaultDel = async id => {
     toast(t('vault.could_not_confirm_deletion_retry'), 'error');
   }
 };
-
-function _esc(s = '') {
-  return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
-}
 
 // ── activity, export, import ────────────────────────────────────────────────
 const _ACTIVITY_LABELS = {

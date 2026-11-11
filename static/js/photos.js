@@ -6,6 +6,7 @@ import { formatDateTime, t, tp } from './i18n.js';
 import { whenDay } from './when.js';
 import { wireActionMenu } from './kokuen.js?v=5';
 import { openAppSettings } from './appsettings.js';
+import { esc } from './escape.js';
 
 let _view = '';      // current view: '' | __fav__ | __archive__ | __hidden__ | __map__ | __memories__ | __trash__ | <albumId>
 let _photos = [];    // flat list (for the lightbox)
@@ -57,7 +58,6 @@ const _macPhotosReason = status => (status.available && _MAC_REASON_KEYS[status.
 const _PAGE = 120;
 
 const $ = id => document.getElementById(id);
-const esc = s => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 const _si = n => (window.icon ? window.icon(n) : '');   // central icon set, load-order safe
 const _setFavBtn = fav => {
   const b = $('photos-fav-btn');

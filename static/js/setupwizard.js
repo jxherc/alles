@@ -11,6 +11,7 @@ import { mountDependencies } from './dependencies.js';
 import { wireChoiceGroup } from './kokuen.js?v=5';
 import { API_TYPES, authFor, mountProviderPicker } from './model_providers.js';
 import { mountSignin } from './signin.js';
+import { esc } from './escape.js';
 const STEPS = ['basics', 'access', 'files', 'ai_search', 'protection'];
 const _titles = () => ({ basics: t('setup.step_basics'), access: t('setup.step_access'), files: t('common.files'), ai_search: t('setup.step_ai_search'), protection: t('setup.step_protection') });
 let _state = null;
@@ -26,7 +27,6 @@ let _loadSequence = 0;
 let _dismissedThisSession = false;
 
 const $ = id => document.getElementById(id);
-const esc = value => String(value ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 
 async function _api(path, options = {}, { recentOwner = false } = {}) {
   const response = recentOwner

@@ -12,13 +12,13 @@
 import { requestWithRecentOwner } from './recent_owner.js';
 import { formatDate, serverText, t } from './i18n.js';
 import { icon } from './icons.js';
+import { esc } from './escape.js';
 
 // the connections screens read the catalog through the component, so one import brings both
 export { CATALOG, catalogByGroup } from './connection_catalog.js';
 
 const API = '/api/signin';
 const TERMINAL = new Set(['done', 'expired', 'denied', 'cancelled', 'error']);
-const esc = value => String(value ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
 export function timeLeft(ms) {
   const seconds = Math.max(0, Math.ceil(ms / 1000));

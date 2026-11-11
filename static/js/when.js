@@ -4,6 +4,7 @@
 // i18n.js, so every interface language gets its own words; times follow the owner's 12/24 hour
 // setting. lowercase like the rest of the app.
 import { calendarDateKey, formatCalendarDate, formatClock, formatDateParts, formatRelativeTime, localeTag } from './i18n.js';
+import { esc } from './escape.js';
 
 const DAY = 86400000;
 const low = text => String(text).toLocaleLowerCase(localeTag());
@@ -95,7 +96,6 @@ export function whenElement(value, options = {}) {
 }
 
 export function whenHtml(value, options = {}) {
-  const esc = text => String(text).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
   return `<time datetime="${esc(dayKey(value))}" data-when title="${esc(whenFull(value, options))}">${esc(when(value, options))}</time>`;
 }
 

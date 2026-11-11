@@ -10,6 +10,7 @@ import { categoryHue } from './color.js';
 import { closeEmojiPicker, emojiFieldHtml, wireEmojiPicker } from './emoji_picker.js';
 import { catalogEntry, catalogName, catalogOptions } from './habit_catalog.js';
 import { hasDayLog, logSummary, renderDayLog, renderGym } from './habit_loggers.js';
+import { esc } from './escape.js';
 const _si = n => (window.icon ? window.icon(n) : '');
 
 const $ = id => document.getElementById(id);
@@ -137,8 +138,6 @@ function formPayload(card) {
   // the type is chosen once, when the habit is made
   return card.dataset.add ? { ...payload, kind: values.kind, unit: values.unit } : payload;
 }
-
-function esc(s) { return String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
 
 function upsertHabit(saved) {
   _habits = _habits.filter(h => h.id !== saved.id);

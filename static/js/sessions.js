@@ -18,6 +18,7 @@ import { loadAnswerTaskRecovery } from './answer_task.js';
 import { createMenuController } from './kokuen.js?v=5';
 import { pushRouteUrl, replaceRouteUrl, routeHistoryPosition } from './route_history.js';
 import { compactResponseActions } from './response_actions.js?v=6';
+import { esc as escHtml } from './escape.js';
 const _si = n => (globalThis.window?.icon ? globalThis.window.icon(n) : '');   // the shared svg icon set
 
 let _sessions = { today: [], yesterday: [], earlier: [] };
@@ -387,10 +388,6 @@ function renderItem(s) {
   <button type="button" class="session-more" aria-haspopup="menu" aria-label="${escHtml(t('aide.session_actions', { name: s.name }))}">${_si('more')}</button>
   <button type="button" class="star" title="${s.starred ? t('aide.unstar') : t('aide.star')}" aria-label="${s.starred ? t('aide.unstar_session') : t('aide.star_session')}"></button>
 </div>`;
-}
-
-function escHtml(s) {
-  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
 }
 
 function _loadSessionOrder() {
@@ -1265,7 +1262,6 @@ export function scrollDown(options = {}) {
 
 
 // claude-style greeting: time-of-day, your name, and a little variety per refresh
-function _escName(s) { return String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;'); }
 function greetingHtml() {
   const h = new Date().getHours();
   const name = (localStorage.getItem('alles-name') || '').trim();
@@ -1289,10 +1285,10 @@ function incognitoTitle() {
 
 // drop the name in before any trailing ? . ! so "one more thing?" → "one more thing, eric?"
 function _withName(g, name) {
-  if (!name) return _escName(g);
+  if (!name) return escHtml(g);
   const punct = /[?.!]$/.test(g) ? g.slice(-1) : '';
   const base = punct ? g.slice(0, -1) : g;
-  return `${_escName(base)}, <span class="accent">${_escName(name)}</span>${punct}`;
+  return `${escHtml(base)}, <span class="accent">${escHtml(name)}</span>${punct}`;
 }
 
 // a few real starts under the greeting, so an empty chat says what Aide can do
@@ -1354,7 +1350,7 @@ async function loadDayStarts() {
 
 function startButtons(list) {
   return (list.length ? list : STARTS()).map(([label, text], n) =>
-    `<button type="button" class="welcome-start" role="listitem" style="--n:${n}" data-start="${_escName(text)}">${_escName(label)}</button>`).join('');
+    `<button type="button" class="welcome-start" role="listitem" style="--n:${n}" data-start="${escHtml(text)}">${escHtml(label)}</button>`).join('');
 }
 
 function welcomeStarts() {

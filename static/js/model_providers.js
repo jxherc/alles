@@ -2,6 +2,7 @@
 // recommended or pre-selected. "custom endpoint" covers anything OpenAI-compatible,
 // Anthropic, Gemini or Ollama style that is not listed.
 import { t } from './i18n.js';
+import { esc as escHtml } from './escape.js';
 
 export const MODEL_PROVIDERS = Object.freeze([
   { id: 'anthropic', label: 'Anthropic', url: 'https://api.anthropic.com', provider: 'anthropic', adapter: 'anthropic' },
@@ -35,8 +36,6 @@ export function authFor(provider, key) {
   if (key) return 'api_key';
   return provider.keyless || provider.custom ? 'none' : 'api_key';
 }
-
-const escHtml = value => String(value ?? '').replace(/[&<>"']/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]));
 
 // Filterable listbox: type to narrow, arrows move, Enter or click picks.
 export function mountProviderPicker(list, { filter = null, selected = '', onPick } = {}) {

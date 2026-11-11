@@ -3,6 +3,7 @@ import { readFileSync } from 'node:fs';
 import test from 'node:test';
 import vm from 'node:vm';
 import { t } from '../../static/js/i18n.js';
+import { esc } from '../../static/js/escape.js';
 
 const source = readFileSync(new URL('../../static/js/sessions.js', import.meta.url), 'utf8')
   .replace(/import\s+[\s\S]*?from\s+['"][^'"]+['"];\r?\n/g, '')
@@ -29,7 +30,7 @@ function harness() {
   }
   const messages = element();
   const compacted = [];
-  const context = vm.createContext({
+  const context = vm.createContext({ escHtml: esc, 
     t, drawQueued() {},
     window: { addEventListener() {}, _mdToHtml: text => text },
     document: { getElementById: () => messages, createElement: element },

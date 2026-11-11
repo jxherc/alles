@@ -1,13 +1,12 @@
 import { leave } from './motion.js';
 import { serverText, t } from './i18n.js';
+import { esc as escapeHtml } from './escape.js';
 // shared helpers
 
 // browser window when present, a throwaway object under node (so this module imports in tests)
 const _g = typeof window !== 'undefined' ? window : {};
 
-export function escapeHtml(s) {
-  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
-}
+export { escapeHtml };
 
 // allow only safe url schemes in rendered markdown: relative paths, anchors, http(s), mailto and
 // tel. the scheme is read the way the browser reads it, with control characters and spaces taken

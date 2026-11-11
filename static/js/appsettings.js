@@ -3,8 +3,7 @@
 import { t } from './i18n.js';
 import { initCustomDropdowns } from './dropdown.js?v=217';
 import { writeClipboard } from './util.js';
-
-const esc = s => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+import { esc } from './escape.js';
 
 const appSpecs = () => ({
   notes: { title: t('settings.app_notes_docs'), apply: () => window._reloadNotes?.(), fields: [

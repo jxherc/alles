@@ -6,9 +6,9 @@ import { replaceRouteUrl } from './route_history.js';
 import { toast } from './util.js';
 import { icon } from './icons.js';
 import { populateDropdown, populateMultiDropdown } from './dropdown.js?v=217';
+import { esc } from './escape.js';
 
 const $ = id => document.getElementById(id);
-const esc = s => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 
 const TYPES = [
   { key: 'journal', label: 'server.activity_journal' }, { key: 'task', label: 'server.activity_task' },

@@ -4,6 +4,7 @@ import { readFileSync } from 'node:fs';
 import test from 'node:test';
 import vm from 'node:vm';
 import { t, tp } from '../../static/js/i18n.js';
+import { esc } from '../../static/js/escape.js';
 
 const source = readFileSync(new URL('../../static/js/docs.js', import.meta.url), 'utf8')
   .replace(/^import .*;\n/gm, '')
@@ -69,7 +70,7 @@ function harness() {
     } else throw new Error(`unexpected request ${url}`);
     return { ok: true, json: async () => structuredClone(body) };
   };
-  const context = vm.createContext({ t, tp,
+  const context = vm.createContext({ esc, t, tp,
     fetch: fetcher, URL, URLSearchParams, TextEncoder, console,
     setTimeout: () => 1, clearTimeout() {},
     document: { getElementById: get, querySelectorAll: () => [], createElement: () => element() },

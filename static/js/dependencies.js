@@ -3,11 +3,11 @@
 import { t } from './i18n.js';
 import { requestWithRecentOwner } from './recent_owner.js';
 import { toast, plainError } from './util.js';
+import { esc } from './escape.js';
 
 const POLL_MS = 2000;
 // these states have nothing to install: the owner fixes something else, then checks again
 const CHECK_AGAIN = new Set(['needs_node', 'needs_docker', 'docker_off']);
-const esc = value => String(value ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 
 function statusLine(row) {
   const name = t(`dependencies.name_${row.id}`);

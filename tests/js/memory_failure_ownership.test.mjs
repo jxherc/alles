@@ -5,6 +5,7 @@ import vm from 'node:vm';
 
 import { categoryHue } from '../../static/js/color.js';
 import { t, tp } from '../../static/js/i18n.js';
+import { esc } from '../../static/js/escape.js';
 
 // Synthetic DOM and fetch only: this suite never starts Alles or reads owner data.
 const source = readFileSync(new URL('../../static/js/memory.js', import.meta.url), 'utf8')
@@ -95,7 +96,7 @@ function harness() {
       document.activeElement = element('dialog-input');
     });
   }
-  const context = vm.createContext({ t, tp, tr: t, trp: tp,
+  const context = vm.createContext({ escHtml: esc, t, tp, tr: t, trp: tp,
     document, window: { _currentSession: { id: 'synthetic-session', project_id: 'synthetic-project' } },
     fetch: fetcher, fetchWithRecentOwner: fetcher, toast: (message, kind) => toasts.push({ message, kind }),
     promptDialog: (_title, initial, options) => openDialog('prompt', initial, options),

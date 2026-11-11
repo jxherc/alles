@@ -7,6 +7,7 @@ import test from 'node:test';
 import vm from 'node:vm';
 import { whenDay, whenFull, whenHtml } from '../../static/js/when.js';
 import { undoGlobals } from './helpers/undo_globals.mjs';
+import { esc } from '../../static/js/escape.js';
 
 const source = readFileSync(new URL('../../static/js/money.js', import.meta.url), 'utf8')
   .replace(/^import .*;\r?\n/gm, '').replace(/^export /gm, '');
@@ -25,7 +26,7 @@ function harness() {
     return elements.get(id);
   };
   const requests = [];
-  const context = vm.createContext({ ...undoGlobals, whenDay, whenFull, whenHtml,
+  const context = vm.createContext({ esc, ...undoGlobals, whenDay, whenFull, whenHtml,
     t, tp,
     calendarDateKey,
     document: { getElementById: get }, location: { search: '' }, URLSearchParams,
@@ -186,7 +187,7 @@ test('a foreign account no longer turns analytics off: totals stay in the base c
   const strip = html => html.replace(/<[a-z/][^>]*>/gi, ' ').replace(/\s+/g, ' ');
   const html = h.summaryCards();
   assert.match(strip(html), /totals in CAD/);
-  assert.match(strip(html), /1 account in USD isn't in these totals · USD 90\.00, spent USD 10\.00 this month add USD rate/);
+  assert.match(strip(html), /1 account in USD isn&#39;t in these totals · USD 90\.00, spent USD 10\.00 this month add USD rate/);
   assert.match(strip(html), /net worth CAD 90\.00/);
   assert.doesNotMatch(strip(html), /CAD 180\.00|mixed currencies|no conversion has been applied/);
   for (const renderer of [h.catChart, h.envelopeCard, h.goalsCard, h.holdingsCard, h.reportsCard]) {
@@ -195,7 +196,7 @@ test('a foreign account no longer turns analytics off: totals stay in the base c
   assert.match(h.catChart(), /food/);
   h.setTask('budgets');
   h.render();
-  assert.match(strip(h.get('money-body').innerHTML), /spending caps USD 10\.00 of spending isn't counted here yet add USD rate/);
+  assert.match(strip(h.get('money-body').innerHTML), /spending caps USD 10\.00 of spending isn&#39;t counted here yet add USD rate/);
 });
 
 test('a ledger with no currency set anywhere keeps its totals separate', () => {
@@ -322,7 +323,7 @@ test('caps saved in CAD show converted in USD totals, or stay in CAD with a note
   h.setTask('budgets');
   h.render();
   const html = h.get('money-body').innerHTML;
-  assert.match(strip(html), /spending caps are saved in CAD, so they're shown in CAD add CAD rate/);
+  assert.match(strip(html), /spending caps are saved in CAD, so they&#39;re shown in CAD add CAD rate/);
   assert.match(html, /data-totals-rate="CAD:USD"/);
   assert.match(strip(html), /monthly cap \(CAD\)/);
   h.setGoals([{ id: 'g', name: 'trip', kind: 'savings', target: 800, current: 200, progress: 0.25, eta_months: null }], 'USD');
@@ -343,7 +344,7 @@ test('the envelope edits the saved number and names income it left out', () => {
   assert.match(html, /data-expected="200"/);
   assert.match(strip(html), /assigned \(CAD\)/);
   assert.match(strip(html), /USD 128\.00/);
-  assert.match(strip(html), /EUR 1,000\.00 income isn't counted yet add EUR rate/);
+  assert.match(strip(html), /EUR 1,000\.00 income isn&#39;t counted yet add EUR rate/);
   assert.match(html, /data-totals-rate="EUR:CAD"/);
 });
 
@@ -357,7 +358,7 @@ test('an account with no currency is asked which one it is; Actual says its base
   // the account that has no currency is asked about, with the dropdown right there, instead of listed as left out
   assert.match(strip(html), /which currency is old\?/);
   assert.match(html, /data-ask-currency="old"/);
-  assert.doesNotMatch(strip(html), /has no currency set and isn't in these totals/);
+  assert.doesNotMatch(strip(html), /has no currency set and isn&#39;t in these totals/);
   h.setCurrency([], { currency: 'CAD', ledger: 'actual' }, true);
   assert.match(strip(h.summaryCards()), /totals follow your Actual ledger in CAD/);
 });

@@ -14,6 +14,7 @@ import { assignHues, categoryHue } from './color.js';
 import { tickNumbers } from './motion.js';
 import { formatDecimal } from './liveformat.js';
 import { amountIn, bareSign, excludedNotes, totalsCurrency, wireCurrency } from './money_currency.js';
+import { esc } from './escape.js';
 const _si = n => (globalThis.window?.icon ? globalThis.window.icon(n) : '');   // the shared svg icon set
 
 // one hue per category for everything on screen: the chart's categories pick first so its bars
@@ -33,7 +34,6 @@ function hueOf(name) {
 const catDot = name => `<i class="cat-dot" style="--cat:var(--cat-${hueOf(name)})" aria-hidden="true"></i>`;
 
 const $ = id => document.getElementById(id);
-const esc = s => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 
 // Require the whole entry: parseFloat("1,234.56") would silently save 1.
 function _decimal(value, empty = NaN) {

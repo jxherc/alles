@@ -7,6 +7,7 @@ import { replaceRouteUrl } from './route_history.js';
 import { clearLinkedRecord, readRecordTarget, replaceLinkedRecord } from './recordlinks.js';
 import { t, tp } from './i18n.js';
 import { when } from './when.js';
+import { esc } from './escape.js';
 
 let _section = 'docs';
 let _cur = null;
@@ -122,9 +123,6 @@ function draftWriteBody() {
 }
 
 const $ = id => document.getElementById(id);
-const esc = value => String(value ?? '')
-  .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
-  .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
 const stem = path => (path || '').split('/').pop().replace(/\.(md|markdown)$/i, '');
 const setHidden = (el, hidden) => { if (el) el.hidden = !!hidden; };
 

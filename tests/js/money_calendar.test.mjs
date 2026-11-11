@@ -3,6 +3,7 @@ import { readFileSync } from 'node:fs';
 import test from 'node:test';
 import vm from 'node:vm';
 import { undoGlobals } from './helpers/undo_globals.mjs';
+import { esc } from '../../static/js/escape.js';
 
 const money = readFileSync(new URL('../../static/js/money.js', import.meta.url), 'utf8')
   .replace(/^import .*;\r?\n/gm, '').replace(/^export /gm, '');
@@ -17,7 +18,7 @@ function calendarHarness(instant, zone, language, query = '') {
   class FixedDate extends RealDate {
     constructor(...args) { super(...(args.length ? args : [instant])); }
   }
-  const context = vm.createContext({ ...undoGlobals, Date: FixedDate, Intl, location: { search: query }, URLSearchParams });
+  const context = vm.createContext({ esc, ...undoGlobals, Date: FixedDate, Intl, location: { search: query }, URLSearchParams });
   vm.runInContext(i18n, context);
   for (const catalog of catalogs) context.installCatalog(catalog);
   context.configureLocalization({ language, timezone: zone });

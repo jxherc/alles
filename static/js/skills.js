@@ -6,6 +6,7 @@ import { t, tp } from './i18n.js';
 import { createFocusBoundary } from './kokuen.js?v=5';
 import { confirm as dlgConfirm, prompt as dlgPrompt } from './dialog.js';
 import { createUndoDelete, deleteItemHtml, goneTextHtml, moreMenuHtml, undoButtonHtml, wireMoreMenus } from './undo_delete.js';
+import { esc } from './escape.js';
 const _si = n => (globalThis.window?.icon ? globalThis.window.icon(n) : '');   // the shared svg icon set
 
 let _built = false;
@@ -19,7 +20,6 @@ const _pinning = new Set();
 const _savingDrawers = new WeakSet();
 let _saveRead = 0;
 
-const esc = s => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
 const $ = id => document.getElementById(id);
 
 async function _api(url, opts, fetcher = fetch) {

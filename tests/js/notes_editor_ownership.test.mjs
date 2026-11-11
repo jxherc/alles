@@ -3,6 +3,7 @@ import { readFileSync } from 'node:fs';
 import test from 'node:test';
 import vm from 'node:vm';
 import { t, tp } from '../../static/js/i18n.js';
+import { esc } from '../../static/js/escape.js';
 
 const source = readFileSync(new URL('../../static/js/notes.js', import.meta.url), 'utf8')
   .replace(/^import .*;\n/gm, '').replace(/^export /gm, '');
@@ -57,7 +58,7 @@ function harness() {
     const updated = { ...previous, ...body, id: body.title === previous.title ? id : body.title, hash: `saved-${writes.length}` };
     disk.delete(id); disk.set(updated.id, updated); return response(updated);
   };
-  const context = vm.createContext({ t, tp,
+  const context = vm.createContext({ esc, t, tp,
     document: { getElementById: id => elements.get(id), querySelectorAll: () => [] },
     fetch: fetcher, URLSearchParams, location: { hash: '' }, setTimeout, clearTimeout,
     toast: (message, kind) => toasts.push({ message, kind }),

@@ -4,6 +4,7 @@ import { appLabel, toast } from './util.js';
 import { appGlyph } from './icons.js';
 import { addDays, whenDay, whenFull, whenTime } from './when.js';
 import { checkHabit, openTaskDetails, wireSwipe } from './act_row.js';
+import { esc } from './escape.js';
 
 const SECTION_LABELS = {
   needs_you: 'needs you',
@@ -14,10 +15,6 @@ const SECTION_LABELS = {
 };
 const SHORTCUT_ALIASES = { calendar: 'plan', tasks: 'plan', days: 'plan', reminders: 'plan', mail: 'inbox', contacts: 'inbox', notes: 'wiki', journal: 'wiki', photos: 'files', gallery: 'files', books: 'library', read: 'library', habits: 'health', money: 'finance', subs: 'finance', secrets: 'vault', server: 'system', watch: 'system', activity: 'system' };
 const SUGGESTION_LINKS = new Set(['tasks', 'calendar', 'reminders', 'subs', 'days', 'habits', 'read', 'books', 'health', 'money', 'mail', 'journal', 'contacts', 'home']);
-
-const esc = value => String(value ?? '').replace(/[&<>"']/g, char => ({
-  '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
-}[char]));
 
 let navigate = () => {};
 let openRecord = null;

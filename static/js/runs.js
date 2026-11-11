@@ -3,10 +3,10 @@
 // them so an autonomous agent is inspectable instead of a black box.
 import { toast } from './util.js';
 import { t as tr, tp as trp } from './i18n.js';
+import { esc } from './escape.js';
 const _si = n => (globalThis.window?.icon ? globalThis.window.icon(n) : '');   // the shared svg icon set
 
 const $ = id => document.getElementById(id);
-const esc = s => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 
 const ago = iso => {
   if (!iso) return '';

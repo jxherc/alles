@@ -7,6 +7,7 @@ import { initCustomDropdown } from './dropdown.js?v=217';
 import { initDatePicker } from './datepick.js';
 import { choose as dlgChoose, confirm as dlgConfirm } from './dialog.js';
 import { amountIn, totalsCurrency, wireCurrency } from './money_currency.js';
+import { esc } from './escape.js';
 const _si = n => (globalThis.window?.icon ? globalThis.window.icon(n) : '');   // the shared svg icon set
 
 // "CAD 1,202.43", not "CAD1202.43": a space after the code and the reader's own separators
@@ -620,6 +621,3 @@ function renderHistory() {
   setBusy();
 }
 
-function esc(s) {
-  return String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-}

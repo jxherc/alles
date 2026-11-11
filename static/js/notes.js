@@ -2,6 +2,7 @@ import { toast } from './util.js';
 import { initDatePicker } from './datepick.js';
 import { t } from './i18n.js';
 import { localDay, whenDay } from './when.js';
+import { esc } from './escape.js';
 const _si = n => (globalThis.window?.icon ? globalThis.window.icon(n) : '');   // the shared svg icon set
 
 let _notes = [];
@@ -331,10 +332,6 @@ export async function newNote() {
   }
 }
 
-
-function esc(s) {
-  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
-}
 
 // let settings "apply" + the vault file-watcher refresh the list
 if (typeof window !== 'undefined') window._reloadNotes = loadNotes;

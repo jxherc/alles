@@ -3416,14 +3416,6 @@ html:not(#_):not(#_) #settings-modal #token-list .row-name + .row-meta {
   html:not(#_):not(#_) #settings-modal #token-list .row-name + .row-meta { flex-basis: 100%; }
 }
 
-/* agent stack tiles: wide enough for their own label, and the value wraps instead of ending in
-   "github, ..." */
-html:not(#_):not(#_) #settings-modal .agent-status-grid { grid-template-columns: repeat(auto-fit, minmax(8.5rem, 1fr)); margin-top: var(--k-space-2); }
-
-html:not(#_):not(#_) #settings-modal .agent-status-grid span { overflow-wrap: anywhere; }
-
-html:not(#_):not(#_) #settings-modal .agent-status-grid strong { white-space: normal; overflow-wrap: anywhere; }
-
 /* webhook rows: the name, its events and the key wrap onto lines, the buttons keep their own width */
 html:not(#_):not(#_) #settings-modal #webhook-list .settings-list-row { flex-wrap: wrap; row-gap: var(--k-space-1); }
 

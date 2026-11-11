@@ -4,6 +4,7 @@ import { initCustomDropdown, getDropdownValue, populateDropdown, setDropdownValu
 import { formatCalendarDate, formatDate, formatTime, t, tp } from './i18n.js';
 import { pushRouteUrl, routeHistoryPosition } from './route_history.js';
 import { createUndoDelete, deleteItemHtml, goneTextHtml, moreMenuHtml, undoButtonHtml, wireMoreMenus } from './undo_delete.js';
+import { esc as _esc } from './escape.js';
 
 // 4a - typed relationship kinds (mirrors services/contacts_graph _INVERSE)
 const REL_KINDS = ['friend', 'colleague', 'spouse', 'partner', 'sibling', 'parent', 'child', 'manager', 'report', 'mentor', 'mentee'];
@@ -518,6 +519,3 @@ function _birthdayText(raw) {
   return formatCalendarDate(`2000-${month}-${day}`, { month: 'long', day: 'numeric' }).toLowerCase();
 }
 
-function _esc(s = '') {
-  return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
-}

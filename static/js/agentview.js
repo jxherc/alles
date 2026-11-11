@@ -4,6 +4,7 @@
 // with a +N −N count badge.
 
 import { t, tp } from './i18n.js';
+import { esc } from './escape.js';
 
 const DESTRUCTIVE = new Set(['shell', 'bash', 'write_file', 'edit_file', 'apply_patch',
   'git_commit', 'git_push', 'revert_file', 'delete_file', 'mail_send',
@@ -62,10 +63,6 @@ if (typeof document !== 'undefined' && typeof document.addEventListener === 'fun
 
 export function canRevertTool(name) {
   return ['write_file', 'edit_file', 'apply_patch'].includes(name);
-}
-
-function esc(s = '') {
-  return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
 }
 
 function summary(name, a = {}) {
