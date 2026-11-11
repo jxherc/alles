@@ -1192,6 +1192,10 @@ html:not(#_) #today-view .today-head {
   max-width: none;
 }
 
+#today-view .today-main {
+  display: contents;
+}
+
 @media (min-width: 1024px) {
   /* the schedule is the main column and every other section stacks in a narrower side column,
      each in the order chosen in settings. the sections stay direct children, so a phone keeps
@@ -1199,7 +1203,7 @@ html:not(#_) #today-view .today-head {
      left, so a tall schedule never stretches the side sections apart. with no schedule the
      sections take the full width. the gap is padding, not margin: nothing sits above the first
      heading of either column */
-  html:not(#_) #today-view .today-sections:has(> [data-home-section="today"], > [data-home-section="tomorrow"]) {
+  html:not(#_) #today-view .today-sections:has(> [data-home-section="today"], > .today-main) {
     display: grid;
     grid-template-columns: minmax(0, 2fr) minmax(18rem, 1fr);
     grid-template-rows: repeat(6, max-content) 1fr;
@@ -1208,15 +1212,22 @@ html:not(#_) #today-view .today-head {
     row-gap: 0;
   }
 
-  html:not(#_) #today-view .today-sections:has(> [data-home-section="today"], > [data-home-section="tomorrow"]) > * {
+  html:not(#_) #today-view .today-sections:has(> [data-home-section="today"], > .today-main) > *,
+  html:not(#_) #today-view .today-main > * {
     grid-column: 2;
     margin: 0;
     padding-bottom: var(--k-space-5);
   }
 
-  html:not(#_) #today-view .today-sections > :is([data-home-section="today"], [data-home-section="tomorrow"]) {
+  /* from 8 pm tomorrow sits above today (today.js wraps the two): one cell, stacked */
+  html:not(#_) #today-view .today-sections > :is([data-home-section="today"], .today-main) {
     grid-column: 1;
     grid-row: 1 / span 7;
+  }
+
+  html:not(#_) #today-view .today-sections > .today-main {
+    display: block;
+    padding-bottom: 0;
   }
 }
 

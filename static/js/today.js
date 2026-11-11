@@ -429,9 +429,17 @@ function render() {
   root.classList.toggle('compact', preferences?.density === 'compact');
   const order = orderedVisibleHomeSections(preferences);
   if (tomorrowDay && order.includes('today')) order.splice(order.indexOf('today'), 0, 'tomorrow');
-  root.innerHTML = order
+  const shown = order
     .filter(key => (key !== 'in_progress' || running.length) && (key !== 'briefs' || briefs.length))
-    .map(key => blocks[key]).filter(Boolean).join('') + suggestionSection();
+    .filter(key => blocks[key]);
+  // tomorrow and today are one main column on a wide screen, and two sections can't share a
+  // grid cell. the wrapper is display: contents below that width, so a phone sees no change
+  const both = shown.includes('tomorrow') && shown.includes('today');
+  root.innerHTML = shown.map(key => {
+    if (!both) return blocks[key];
+    if (key === 'tomorrow') return `<div class="today-main">${blocks.tomorrow}${blocks.today}</div>`;
+    return key === 'today' ? '' : blocks[key];
+  }).join('') + suggestionSection();
   root.querySelectorAll('[data-check]').forEach(button => button.addEventListener('click', () => checkTask(button)));
   root.querySelectorAll('[data-habit-check]').forEach(button => button.addEventListener('click', () => checkHabitRow(button)));
   // swipe on touch: right is done, left is tomorrow (the details panel has it too); tomorrow's own rows stay

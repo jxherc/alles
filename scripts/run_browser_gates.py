@@ -263,6 +263,7 @@ COMMANDS = {
     "home-record-links": ("tests/pw_home_record_links.py",),
     "home-record-recovery": ("tests/pw_home_record_recovery.py",),
     "home-preferences": ("tests/pw_home_preferences.py",),
+    "home-evening-columns": ("tests/pw_home_evening_columns.py",),
     "today-capture-confirm": ("tests/pw_today_capture_confirm.py",),
     "home-route-parity": ("tests/pw_home_route_parity.py",),
     "home-route-parity-off": ("tests/pw_home_route_parity.py",),

@@ -35,6 +35,11 @@ row) and its two columns were a css column split that left one column empty.
   `#today-sections`, so a phone and ipad portrait keep one column in that order. a section turned
   off leaves no hole, and with no schedule the sections take the full width. replaces the css
   columns, which left the right column holding one card.
+- from 8 pm home shows tomorrow above today, and both belong to the main column. two sections
+  can't share one grid cell (they were drawn on each other every evening), so today.js wraps the
+  two in `.today-main` when both show. the wrapper is `display: contents` below 1024px, so a
+  phone and ipad portrait lay out exactly as before. the gate home-evening-columns pins the
+  clock to 9 pm and to noon.
 - the "all open tasks" link is plain text like "ask aide about today"; hover underlines it.
 - plan's tasks tab (amends 0064's last line, "a phone puts them on their own line"): the row of
   switches under the tabs carries the page gutter, so on every size the boxes under the header
