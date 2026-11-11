@@ -149,7 +149,12 @@ async def run_profile(browser, base, output, profile, record):
             {
                 "url": request.url,
                 "failure": request.failure,
-                "expected": request in transport.expected_aborts
+                # a suggestion asked for while typing is dropped when the next key or the search
+                # itself replaces it: that abort is the page's own doing
+                "expected": (
+                    request in transport.expected_aborts
+                    or urlsplit(request.url).path == "/api/andromeda/suggest"
+                )
                 and request.failure == "net::ERR_ABORTED",
             }
         ),
