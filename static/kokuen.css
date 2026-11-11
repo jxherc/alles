@@ -7051,14 +7051,18 @@ html:not(#_):not(#_)[data-kokuen-version="5"] :is(
 /* ── choice controls (decision 0050, the owner's card a) ─────────────────────────
    pill switch: 2 or 3 options flipped often (lb or kg, side, am or pm). every option shows; one
    round track; motion.js slides the round pill to the pick. each option is a full 44px target;
-   the pill sits 4px inside it, so it shows 4px from the track's edge all round */
+   the pill sits 4px inside it, so it shows 4px from the track's edge all round. where the
+   options don't fit their container (a phone at 200% zoom) they wrap onto rows and keep their
+   words whole; the track's corner is half a row, so one row is still a full pill */
 html[data-kokuen-version="5"] .k-pill-switch {
   position: relative;
   display: inline-flex;
+  flex-wrap: wrap;
   width: fit-content;
+  max-width: 100%;
   gap: 0;
   padding: 0 var(--k-space-1);
-  border-radius: var(--k-radius-pill);
+  border-radius: calc(var(--k-control) / 2);
   background: var(--k-field);
   outline: 1px solid var(--k-field-ring);
   outline-offset: -1px;

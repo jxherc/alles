@@ -668,7 +668,7 @@
   {
     "rule": "nested-boundary",
     "message": "descendant draws a boundary in html[data-kokuen-version=\"5\"] .k-pill-switch; check for nested bezels",
-    "css_block_sha256": "71c4196580d83e66b3c4c4775a718d0b28d85e458f7eb474c16a466c824a50e9",
+    "css_block_sha256": "2abad53479a22d4ad9452a578b97e03af5e51c1d6b9496b39a532d12c933a130",
     "path": "static/kokuen.css",
     "selector": "html[data-kokuen-version=\"5\"] .k-pill-switch",
     "job": "one shared choice track",
