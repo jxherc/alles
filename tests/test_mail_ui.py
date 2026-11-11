@@ -26,13 +26,15 @@ class ToolbarCleanup4a(unittest.TestCase):
     def test_enter_still_works(self):
         self.assertRegex(MAIL, r"mail-search'\)\?\.addEventListener\('keydown'")
 
-    def test_compose_is_rightmost(self):
-        # compose is the last text button in the action group (before the cog), after refresh
-        head = INDEX[INDEX.index("mail-head-actions") :]
-        self.assertLess(head.index("mail-refresh-btn"), head.index("mail-compose-btn"))
-        # nothing but the settings cog comes after compose
-        after = head[head.index("mail-compose-btn") :]
-        self.assertNotIn('class="btn"', after.split("app-cog")[0].replace("btn primary", ""))
+    def test_compose_follows_search_and_more_ends_the_toolbar(self):
+        # decision 0076: account, folder, search, compose, and one more button (refresh, settings)
+        head = INDEX[INDEX.index('class="page-view-head mail-head"') :]
+        head = head[: head.index('id="mail-saved"')]
+        order = ["mail-account", "mail-folder", "mail-search", "mail-compose-btn", "mail-more-wrap"]
+        self.assertEqual(sorted(order, key=head.index), order)
+        self.assertNotIn("app-cog", head)
+        self.assertIn('id="mail-refresh-btn"', MAIL)
+        self.assertIn("openAppSettings('mail'", MAIL)
 
     def test_grouping_moved_to_settings(self):
         # the threads toggle now lives in mail settings + is read from the setting
@@ -48,9 +50,11 @@ class ToolbarCleanup4a(unittest.TestCase):
 CSS = (ROOT / "static" / "style.css").read_text(encoding="utf-8")
 
 
-class Sidebar4b(unittest.TestCase):
-    def test_sidebar_replaces_horizontal_tabs(self):
-        self.assertIn('id="mail-sidebar"', INDEX)
+class Folders4b(unittest.TestCase):
+    def test_folders_are_one_dropdown_not_a_sidebar(self):
+        self.assertIn('id="mail-folder"', INDEX)
+        self.assertNotIn('id="mail-sidebar"', INDEX)
+        self.assertNotIn("mail-sidebar-toggle", INDEX)
         self.assertIn("mail-layout", INDEX)
         # the old horizontal tab strip markup is gone from the head
         self.assertNotIn('class="mail-tabs"', INDEX)
@@ -72,24 +76,19 @@ class Sidebar4b(unittest.TestCase):
         ):
             self.assertIn(f"'{f}'", MAIL)
 
-    def test_toggle_persists(self):
-        self.assertIn("mail-sidebar-toggle", INDEX)
-        self.assertIn("mail-sidebar-collapsed", MAIL)
-        self.assertRegex(CSS, r"#mail-view\.sidebar-collapsed\s+\.mail-sidebar")
-
-    def test_setfilter_targets_nav_items(self):
-        self.assertIn(".mail-nav-item", MAIL)
-        self.assertRegex(CSS, r"\.mail-nav-item\.active")
+    def test_folder_change_runs_setfilter(self):
+        self.assertIn("folder?.addEventListener('change', e => setFilter(e.target.value))", MAIL)
+        self.assertIn("setDropdownValue($('mail-folder'), f)", MAIL)
 
 
 class SearchAndAccounts4c(unittest.TestCase):
-    def test_search_centered_with_cap(self):
-        self.assertRegex(CSS, r"\.mail-head\s+\.mail-search\s*\{[^}]*max-width:\s*560px")
-        self.assertRegex(CSS, r"\.mail-head\s+\.mail-search\s*\{[^}]*margin:\s*0 auto")
+    def test_search_grows_with_a_cap(self):
+        self.assertRegex(CSS, r"\.mail-head\s+\.mail-search\s*\{[^}]*max-width:\s*520px")
         self.assertRegex(CSS, r"\.mail-head\s+\.mail-search\s*\{[^}]*flex:\s*1")
 
-    def test_account_picker_pinned_left(self):
-        self.assertRegex(CSS, r"\.mail-account-select\s*\{[^}]*flex-shrink:\s*0")
+    def test_account_and_folder_pickers_shrink_before_search_does(self):
+        self.assertRegex(CSS, r"\.mail-account-select\s*\{[^}]*flex:\s*0 1 12rem")
+        self.assertRegex(CSS, r"\.mail-folder-select\s*\{[^}]*flex:\s*0 1 10rem")
 
     def test_all_inboxes_option_for_multiple_accounts(self):
         self.assertIn("_accounts.length > 1", MAIL)

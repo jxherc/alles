@@ -1309,21 +1309,17 @@
     <!-- ── mail view ── -->
     <div class="page-view" id="mail-view" data-specialist-app="mail" style="display:none">
       <div class="page-view-head mail-head">
-        <button type="button" class="icon-btn mail-sidebar-toggle" id="mail-sidebar-toggle" title="toggle folders" aria-label="toggle folders" data-kokuen-icon="menu" data-i18n-title="shell.mail.toggle_folders" data-i18n-aria-label="shell.mail.toggle_folders"></button>
         <div id="mail-account" class="settings-input custom-select mail-account-select"></div>
+        <div id="mail-folder" class="settings-input custom-select mail-folder-select"></div>
         <input type="text" id="mail-search" aria-label="search mail" class="cal-quick mail-search" placeholder="search mail…" data-i18n-aria-label="shell.mail.search_mail_2" data-i18n-placeholder="shell.mail.search_mail">
-        <div class="mail-head-actions">
-          <button type="button" class="btn" id="mail-refresh-btn" data-i18n="common.refresh">refresh</button>
-          <button type="button" class="btn primary" id="mail-compose-btn" data-i18n="shell.mail.compose">compose</button>
-          <button type="button" class="icon-btn app-cog" data-app="mail" title="mail settings" data-i18n-title="shell.mail.mail_settings" data-kokuen-icon="gear"></button>
-        </div>
+        <button type="button" class="btn primary" id="mail-compose-btn" data-i18n="shell.mail.compose">compose</button>
+        <div class="mail-more-wrap" id="mail-more-wrap"></div>
       </div>
       <div class="mail-saved" id="mail-saved"></div>
       <div class="mail-saved" id="mail-draft-recovery" hidden></div>
       <div class="mail-saved" id="mail-outbox-recovery" hidden></div>
       <div class="mail-scheduled" id="mail-scheduled"></div>
       <div class="mail-layout">
-        <nav class="mail-sidebar" id="mail-sidebar"></nav>
         <div class="mail-list" id="mail-list"></div>
         <div class="mail-main" id="mail-main"></div>
       </div>

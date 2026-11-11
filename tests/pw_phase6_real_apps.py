@@ -166,11 +166,15 @@ def run() -> None:
                       const title = root.querySelector('.page-view-title');
                       const titleStyle = title ? getComputedStyle(title) : null;
                       const titleBox = title ? title.getBoundingClientRect() : null;
-                      const mailSidebar = root.id === 'mail-view'
-                        ? root.querySelector('.mail-sidebar')
+                      const mailHead = root.id === 'mail-view'
+                        ? root.querySelector('.mail-head')
                         : null;
-                      const mailSidebarStyle = mailSidebar ? getComputedStyle(mailSidebar) : null;
-                      const mailSidebarBox = mailSidebar ? mailSidebar.getBoundingClientRect() : null;
+                      const mailHeadBox = mailHead ? mailHead.getBoundingClientRect() : null;
+                      const mailHeadRows = mailHead
+                        ? new Set([...mailHead.children]
+                          .filter(el => el.getClientRects().length)
+                          .map(el => Math.round(el.getBoundingClientRect().top))).size
+                        : 0;
                       return {
                         rootRight: box.right,
                         rootLeft: box.left,
@@ -189,9 +193,9 @@ def run() -> None:
                         titleSize: title && titleStyle.display !== 'none' && titleBox.width > 0
                           ? parseFloat(titleStyle.fontSize)
                           : null,
-                        mailMobileLayout: mailSidebar ? {
-                          width: mailSidebarBox.width,
-                          flexDirection: mailSidebarStyle.flexDirection,
+                        mailMobileLayout: mailHead ? {
+                          width: mailHeadBox.width,
+                          rows: mailHeadRows,
                         } : null,
                         animation: style.animationName,
                       };
@@ -223,11 +227,11 @@ def run() -> None:
                     and view == "mail"
                     and (
                         metrics["mailMobileLayout"]["width"] < width - 2
-                        or metrics["mailMobileLayout"]["flexDirection"] != "row"
+                        or metrics["mailMobileLayout"]["rows"] > 2
                     )
                 ):
                     failures.append(
-                        f"{prefix}: folder navigation wastes the mobile width "
+                        f"{prefix}: the mail toolbar is more than two rows on mobile "
                         f"{metrics['mailMobileLayout']}"
                     )
                 if metrics["animation"] not in ("none", ""):

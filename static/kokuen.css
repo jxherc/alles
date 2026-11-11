@@ -3008,19 +3008,19 @@ body[data-app="files"] #files-view button.crumb:hover {
 
 /* Local navigation rows share the data-row contract: bare at rest, hover tone,
    selected = raised surface + weight. No accent tint or accent edge bar. */
-html[data-kokuen-version="5"] :is(.mail-nav-item, .photos-nav-item, .skl-rail-cat) {
+html[data-kokuen-version="5"] :is(.photos-nav-item, .skl-rail-cat) {
   gap: var(--k-space-2);
   padding: 0 var(--k-space-2);
   border: 0;
   border-radius: var(--k-radius-control);
 }
 
-html[data-kokuen-version="5"] :is(.mail-nav-item, .photos-nav-item, .skl-rail-cat):hover {
+html[data-kokuen-version="5"] :is(.photos-nav-item, .skl-rail-cat):hover {
   background: var(--k-hover);
   color: var(--k-text);
 }
 
-html[data-kokuen-version="5"] :is(.mail-nav-item.active, .photos-nav-item.active, .skl-rail-cat.active) {
+html[data-kokuen-version="5"] :is(.photos-nav-item.active, .skl-rail-cat.active) {
   background: var(--k-raised);
   color: var(--k-text);
   font-weight: 560;
@@ -3040,7 +3040,7 @@ html[data-kokuen-version="5"] [data-kokuen-state="loading"] {
 /* tabs show selection with tone and weight only (COMPONENTS.md tabs). anything with its own mark
    (a radio dot, a tick) lets the mark show the state; a box behind it as well is just noise.
    activity sources start all on, so "on" is tone and "off" is struck through instead */
-html[data-kokuen-version="5"] [data-kokuen-state="selected"]:not(:where(.s-switch, .andromeda-switch, .home-settings-switch, .news-switch, [role="tab"], .news-choice, .cal-chk-row, .ie-chk, .token-scope, .act-chip, .book-star, :has(> .radio-mark, > .chk, > .token-scope-mark))) {
+html[data-kokuen-version="5"] [data-kokuen-state="selected"]:not(:where(.s-switch, .andromeda-switch, .home-settings-switch, .news-switch, [role="tab"], .news-choice, .cal-chk-row, .ie-chk, .token-scope, .act-chip, .book-star, .mail-flag, :has(> .radio-mark, > .chk, > .token-scope-mark))) {
   color: var(--k-text);
   background: var(--k-raised);
 }

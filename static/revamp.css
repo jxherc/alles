@@ -2438,7 +2438,7 @@ html:not(#_):not(#_) #task-add-input { text-overflow: ellipsis; }
    the oct 27 fix went into docs only and the settings rows kept touching. a new row list joins
    this list */
 html:not(#_):not(#_) :is(
-  .s-nav-item, .mail-nav-item, .photos-nav-item, .skl-rail-cat, .mail-row, .session-item,
+  .s-nav-item, .photos-nav-item, .skl-rail-cat, .mail-row, .session-item,
   .aide-tool-link, .task-item, .specialist-record-row, .activity-row, .contact-item, .vault-entry,
   .health-row, .k-row
 ) {
@@ -2448,11 +2448,11 @@ html:not(#_):not(#_) :is(
 }
 
 html:not(#_):not(#_) :is(
-  .s-nav-item, .mail-nav-item, .photos-nav-item, .skl-rail-cat, .mail-row, .session-item,
+  .s-nav-item, .photos-nav-item, .skl-rail-cat, .mail-row, .session-item,
   .aide-tool-link, .task-item, .specialist-record-row, .activity-row, .contact-item, .vault-entry,
   .health-row, .k-row
 ) + :is(
-  .s-nav-item, .mail-nav-item, .photos-nav-item, .skl-rail-cat, .mail-row, .session-item,
+  .s-nav-item, .photos-nav-item, .skl-rail-cat, .mail-row, .session-item,
   .aide-tool-link, .task-item, .specialist-record-row, .activity-row, .contact-item, .vault-entry,
   .health-row, .k-row
 ) {
@@ -3069,120 +3069,92 @@ html:not(#_):not(#_) #reminders-view #reminder-status:empty { display: none; }
 html:not(#_):not(#_) #reminders-view #reminder-status + div { margin: var(--k-space-2) 0 var(--k-rhythm) !important; }
 
 
-/* ── mail with an account: files' frame. the folders run from the top as a round panel, the
-   toolbar sits over the list and the reading pane, rows are compact with their actions on hover
-   (always shown on touch), and an empty pane says what goes there. mail turns compact (list or
-   reader, not both) at 1100px, so the frame starts above that ── */
+/* ── mail: the toolbar is one row over the list and the reading pane (decision 0076). the list is
+   a column with the reading pane beside it, and mail turns compact (list or reader, not both) at
+   1100px ── */
 @media (min-width: 1101px) {
-  html:not(#_):not(#_) #mail-view[style*="flex"]:has(#mail-sidebar > *) {
-    display: grid !important;
-    grid-template-columns: auto minmax(300px, 380px) minmax(0, 1fr);
-    grid-template-rows: auto auto auto auto auto minmax(0, 1fr);
-  }
-
-  html:not(#_):not(#_) #mail-view:has(#mail-sidebar > *) > :not(.mail-layout) { grid-column: 2 / -1; }
-  html:not(#_):not(#_) #mail-view:has(#mail-sidebar > *) > .mail-layout { display: contents; }
-
-  html:not(#_):not(#_) #mail-view:has(#mail-sidebar > *) #mail-sidebar {
-    grid-column: 1;
-    grid-row: 1 / -1;
+  html:not(#_):not(#_) #mail-view .mail-list {
     box-sizing: border-box;
-    width: 244px;
-    min-height: 0;
-    padding: var(--k-space-3) calc(var(--k-gutter) - 8px);
-    border-right: 0;
-    border-start-end-radius: var(--k-radius-surface);
-    background: var(--k-panel);
-  }
-
-  html:not(#_):not(#_) #mail-view.sidebar-collapsed:has(#mail-sidebar > *) #mail-sidebar { width: 68px; }
-
-  html:not(#_):not(#_) #mail-view:has(#mail-sidebar > *) :is(#mail-list, #mail-main) {
-    grid-row: 6;
-    min-height: 0;
-  }
-
-  html:not(#_):not(#_) #mail-view:has(#mail-sidebar > *) #mail-list {
-    grid-column: 2;
-    width: auto;
     padding: 0 var(--k-space-2) var(--k-space-6) calc(var(--k-gutter) - 12px);
     border-right: 1px solid var(--k-line);
   }
-
-  html:not(#_):not(#_) #mail-view:has(#mail-sidebar > *) #mail-main { grid-column: 3; }
-
-  /* the toolbar: folders toggle, account, search growing to 520px, then refresh, compose, settings */
-  html:not(#_):not(#_) #mail-view:has(#mail-sidebar > *) > .mail-head {
-    gap: var(--k-space-2);
-    padding: var(--k-space-3) var(--k-gutter);
-  }
-
-  html:not(#_):not(#_) #mail-view:has(#mail-sidebar > *) > .mail-head .mail-search {
-    flex: 1 1 auto;
-    max-width: 520px;
-    margin: 0;
-  }
-
-  html:not(#_):not(#_) #mail-view:has(#mail-sidebar > *) > .mail-head .mail-head-actions { margin-inline-start: auto; }
 }
 
-html:not(#_):not(#_) #mail-view .mail-nav-item.active {
-  background: var(--k-selected-fill);
-  color: var(--k-text);
-}
-
-html:not(#_):not(#_) #mail-view .mail-nav-item:not(.active):hover { background: var(--k-hover); }
-
-/* rows: no dividers, a rounded fill on hover and when picked, 2px apart */
+/* rows (decision 0076): two lines, sender and time over the subject, and the row's end holds the
+   flag and one "more" button. no dividers, a rounded fill on hover and when picked, --k-row-gap
+   apart (the row list rule). every row is the same height, so a list reads as a column */
 html:not(#_):not(#_) #mail-view .mail-row {
   position: relative;
-  margin-top: 2px;
-  padding: var(--k-space-2) var(--k-space-3);
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  column-gap: var(--k-control-gap);
+  align-items: center;
+  align-content: center;
+  min-height: calc(2 * var(--k-space-1) + 24px + var(--k-control));
+  padding: var(--k-space-1) var(--k-space-1) var(--k-space-1) var(--k-space-3);
   border: 0;
   border-radius: var(--k-radius-control);
 }
 
 html:not(#_):not(#_) #mail-view .mail-row:hover { background: var(--k-hover); }
 html:not(#_):not(#_) #mail-view .mail-row.sel { background: var(--k-selected-fill); }
-html:not(#_):not(#_) #mail-view .mail-row .mail-subject .mail-open { min-height: 44px; }
+html:not(#_):not(#_) #mail-view .mail-row > :is(.mail-row-top, .mail-subject) { grid-column: 1; }
+html:not(#_):not(#_) #mail-view .mail-row > .mail-row-top { margin: 0; }
+html:not(#_):not(#_) #mail-view .mail-row > .mail-row-acts { grid-column: 2; grid-row: 1 / span 2; }
 
-@media (hover: hover) and (pointer: fine) {
-  /* the actions take the sender and date line while pointed at (the date's place, like most mail
-     apps), so the subject below stays one clear target */
-  /* the sender line is the actions' full 44px, so they never reach the subject: a click on the
-     middle of the row opens the mail instead of snoozing it */
-  html:not(#_):not(#_) #mail-view .mail-row { padding-top: 0; }
-  html:not(#_):not(#_) #mail-view .mail-row .mail-row-top { min-height: 44px; align-items: center; }
-
-  html:not(#_):not(#_) #mail-view .mail-row .mail-row-acts {
-    position: absolute;
-    top: 0;
-    right: var(--k-space-2);
-    height: 44px;
-    padding-left: var(--k-space-6);
-    border-radius: var(--k-radius-control);
-    background: linear-gradient(to right, transparent, color-mix(in srgb, var(--k-text) 6%, var(--k-page)) 24px);
-    opacity: 0;
-    transition: opacity 120ms var(--k-ease-out);
-  }
-
-  html:not(#_):not(#_) #mail-view .mail-row.sel .mail-row-acts {
-    background: linear-gradient(to right, transparent, color-mix(in srgb, var(--k-text) 11%, var(--k-page)) 24px);
-  }
-
-  /* the pointer is over the row whenever it is over the actions, so they are shown whenever they
-     can be clicked */
-  html:not(#_):not(#_) #mail-view .mail-row:is(:hover, :focus-within) .mail-row-acts { opacity: 1; }
+html:not(#_):not(#_) #mail-view .mail-row .mail-subject {
+  display: flex;
+  align-items: center;
+  gap: var(--k-control-gap);
+  width: auto;
+  margin: 0;
+  padding: 0;
 }
 
-html:not(#_):not(#_) #mail-view .mail-error-strip {
-  margin: var(--k-space-2) 0 var(--k-space-1);
-  border: 0;
-  border-radius: var(--k-radius-control);
+/* the subject is the row's keyboard target: 44px tall, its words on the sender's column, the
+   inset focus ring kept off the first letter by padding that the margin pulls back */
+html:not(#_):not(#_) #mail-view .mail-row .mail-subject .mail-open {
+  flex: 1 1 0;
+  width: auto;
+  min-height: var(--k-control);
+  margin-inline: calc(-1 * var(--k-space-2)) 0;
+  padding-inline: var(--k-space-2);
 }
+
+html:not(#_):not(#_) #mail-view .mail-row .mail-label-chip { flex: 0 0 auto; margin-left: 0; }
+
+html:not(#_):not(#_) #mail-view .mail-row-acts {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: var(--k-control-gap);
+}
+
+html:not(#_):not(#_) #mail-view .mail-row-acts :is(.mail-flag, .mail-more) {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--k-control);
+  min-width: var(--k-control);
+  height: var(--k-control);
+  padding: 0;
+  opacity: 1;
+}
+
+/* the row's own menu hangs under its button and turns upward where the list ends */
+html:not(#_):not(#_) #mail-view .mail-menu {
+  position: absolute;
+  top: calc(100% + var(--k-space-1));
+  right: 0;
+  z-index: 20;
+  min-width: 11rem;
+  max-width: calc(100vw - 2 * var(--k-space-3));
+}
+
+html:not(#_):not(#_) #mail-view .mail-menu.mail-menu-up { top: auto; bottom: calc(100% + var(--k-space-1)); }
 
 /* an empty reading pane says what it is for */
-html:not(#_):not(#_) #mail-view:has(#mail-sidebar > *) #mail-main:empty::before {
+html:not(#_):not(#_) #mail-view:not([data-no-account]) #mail-main:empty::before {
   content: attr(data-empty-pick);
   display: block;
   margin-top: clamp(48px, 14vh, 120px);
@@ -3191,10 +3163,6 @@ html:not(#_):not(#_) #mail-view:has(#mail-sidebar > *) #mail-main:empty::before 
   text-align: center;
 }
 
-/* with no mailbox there's nothing to pick, so it points at where one gets added */
-html:not(#_):not(#_) #mail-view[data-no-account]:has(#mail-sidebar > *) #mail-main:empty::before {
-  content: attr(data-empty-no-account);
-}
 
 /* overview cards: a card title owns one 44px row, so titles across a row of cards line up whether
    or not a head holds an action (inbox's "open mail") */
@@ -3613,7 +3581,6 @@ html:not(#_):not(#_) .code-block > .code-block-header :is(.code-copy, .code-run)
     .docs-nav-panel [aria-current="page"],
     .files-phase7-location-panel .files-view-button.is-active,
     .photos-sidebar .photos-nav-item.active,
-    #mail-view .mail-nav-item.active,
     #mail-view .mail-row.sel,
     #photos-view .photos-filt-seg > button.active
   ) {
@@ -3892,56 +3859,6 @@ html:not(#_):not(#_) .vault-modal #vf-fields {
   gap: 0.75rem;
 }
 
-/* mail on a touch screen: when the list is wide enough, the badge shares the line with the row's
-   actions (it sat on a fourth line under them). 360px is what the badge, five 44px actions and the
-   row padding need; an iPad portrait list is narrower and keeps them on separate lines */
-#mail-view #mail-list { container-type: inline-size; }
-
-@media (hover: none), (pointer: coarse) {
-  @container (min-width: 361px) {
-    html:not(#_):not(#_) #mail-view .mail-row:has(> .mail-row-acts) {
-      display: grid;
-      grid-template-columns: minmax(5.5rem, 1fr) auto;
-      align-items: center;
-    }
-
-    html:not(#_):not(#_) #mail-view .mail-row:has(> .mail-row-acts) .mail-row-acts { gap: 0; }
-
-    html:not(#_):not(#_) #mail-view .mail-row:has(> .mail-row-acts) > :is(.mail-row-top, .mail-subject) { grid-column: 1 / -1; }
-    html:not(#_):not(#_) #mail-view .mail-row:has(> .mail-row-acts) > .mail-row-acts { grid-column: 2; grid-row: 3; }
-
-    html:not(#_):not(#_) #mail-view .mail-row:has(> .mail-row-acts) > .mail-account-badge {
-      grid-column: 1;
-      grid-row: 3;
-      justify-self: start;
-      margin-top: 0;
-    }
-  }
-}
-
-/* a badge reads on one line with a normal line height (a long account name collapsed into two
-   overlapping lines) */
-html:not(#_):not(#_) #mail-view .mail-account-badge {
-  max-width: 100%;
-  overflow: hidden;
-  line-height: 1.3;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-/* the retry button sits under the message instead of inside its last line, and the strip keeps
-   a gutter from the list edge */
-html:not(#_):not(#_) #mail-view .mail-error-strip {
-  margin-inline: var(--k-space-2);
-  padding: var(--k-space-3);
-}
-
-html:not(#_):not(#_) #mail-view .mail-error-strip > .btn {
-  display: flex;
-  width: fit-content;
-  margin-top: var(--k-space-2);
-}
-
 /* an empty signature list still took a flex slot and its gap, pushing "+ sig" in from the edge when
    the compose toolbar wraps */
 html:not(#_):not(#_) #mail-view .mail-richbar :is(.mail-sig-wrap, .mail-status):empty { display: none; }
@@ -3954,7 +3871,7 @@ html:not(#_) .specialist-inline-action {
 
 /* bare-word buttons that start a column: room for the inset focus ring, then pulled back by the
    same 8px so the words stay on the column. the ring ran through their first letter */
-html:not(#_):not(#_) :is(.task-title, .file-name-button, #mail-view .mail-row .mail-subject, #mail-view .mail-row .mail-subject .mail-open) {
+html:not(#_):not(#_) :is(.task-title, .file-name-button) {
   width: calc(100% + 2 * var(--k-space-2));
   margin-inline: calc(-1 * var(--k-space-2));
   padding-inline: var(--k-space-2);

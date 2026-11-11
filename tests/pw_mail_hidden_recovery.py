@@ -9,6 +9,7 @@ from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 from browser_gate_safety import require_server_ownership
+from mail_browser_layout import choose_folder, open_row_menu
 from playwright.sync_api import expect, sync_playwright
 from pw_inbox_workflows import seed_mail
 
@@ -96,8 +97,11 @@ with sync_playwright() as pw:
                 )
 
             def restore():
+                open_row_menu(page, row())
                 button = row().get_by_role(
-                    "button", name="unmute thread" if action == "mute" else "end snooze", exact=True
+                    "menuitem",
+                    name="unmute thread" if action == "mute" else "end snooze",
+                    exact=True,
                 )
                 button.focus()
                 page.keyboard.press("Enter")
@@ -124,23 +128,24 @@ with sync_playwright() as pw:
                 expect(page.locator("#mail-list")).to_have_attribute("aria-busy", "false")
                 if mode == "success":
                     expect(row()).to_be_visible()
+                    open_row_menu(page, row())
                     row().locator("[data-" + action + "]").focus()
                     page.keyboard.press("Enter")
                     expect(row()).to_have_count(0)
                     saved = state()
                     assert saved["muted"] if action == "mute" else saved["until"]
-                nav = page.locator(f'.mail-nav-item[data-filter="{hidden}"]')
-                nav.click()
+                choose_folder(page, hidden)
                 expect(row()).to_be_visible()
                 expect(page.locator("#mail-list")).to_have_attribute("aria-busy", "false")
                 if mode == "reload":
                     page.reload(wait_until="networkidle")
                     page.get_by_role("tab", name="mail", exact=True).click()
-                    nav.click()
+                    choose_folder(page, hidden)
                     expect(row()).to_be_visible()
                     expect(page.locator("#mail-list")).to_have_attribute("aria-busy", "false")
                 if mode == "cross":
                     added = "snooze" if action == "mute" else "mute"
+                    open_row_menu(page, row())
                     row().locator("[data-" + added + "]").click()
                     expect(
                         page.get_by_text(
@@ -150,8 +155,9 @@ with sync_playwright() as pw:
                     ).to_be_visible()
                     assert state()["muted"] and state()["until"]
                     expect(row()).to_be_visible()
+                    open_row_menu(page, row())
                     row().get_by_role(
-                        "button",
+                        "menuitem",
                         name="end snooze" if added == "snooze" else "unmute thread",
                         exact=True,
                     ).click()
@@ -201,15 +207,16 @@ with sync_playwright() as pw:
                 other = state("INBOX" if folder == "Work" else "Work")
                 assert other["muted"] if action == "mute" else other["until"]
                 if mode == "both":
-                    page.locator('.mail-nav-item[data-filter="inbox"]').click()
+                    choose_folder(page, "inbox")
                     expect(page.locator("#mail-list")).to_have_attribute("aria-busy", "false")
                     expect(row()).to_have_count(0)
-                    page.locator('.mail-nav-item[data-filter="snoozed"]').click()
+                    choose_folder(page, "snoozed")
                     expect(row()).to_be_visible()
-                    row().get_by_role("button", name="end snooze", exact=True).click()
+                    open_row_menu(page, row())
+                    row().get_by_role("menuitem", name="end snooze", exact=True).click()
                     expect(row()).to_have_count(0)
                     assert state()["until"] == ""
-                page.locator('.mail-nav-item[data-filter="inbox"]').click()
+                choose_folder(page, "inbox")
                 expect(page.locator("#mail-list")).to_have_attribute("aria-busy", "false")
                 if folder == "INBOX":
                     expect(row()).to_be_visible()
@@ -227,7 +234,7 @@ with sync_playwright() as pw:
                     )
                 ], console
                 assert page.evaluate("()=>document.documentElement.scrollWidth<=innerWidth+1")
-                sizes = page.locator(".mail-row-acts button,.mail-nav-item").evaluate_all(
+                sizes = page.locator(".mail-row-acts button,#mail-folder").evaluate_all(
                     "buttons=>buttons.filter(b=>b.getClientRects().length).map(b=>{const r=b.getBoundingClientRect();return [r.width,r.height]})"
                 )
                 assert all(w >= 44 and h >= 44 for w, h in sizes), sizes

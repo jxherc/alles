@@ -95,13 +95,15 @@ def main():
             "() => document.querySelectorAll('.mail-row').length >= 4", timeout=20000
         )
 
-        r["category_tabs_present"] = (
-            pg.query_selector('[data-filter="cat:promotions"]') is not None
-            and pg.query_selector('[data-filter="cat:primary"]') is not None
+        r["category_tabs_present"] = pg.evaluate(
+            "document.getElementById('mail-folder').dataset.options.includes('cat:promotions')"
+        ) and pg.evaluate(
+            "document.getElementById('mail-folder').dataset.options.includes('cat:primary')"
         )
 
         # ---- promotions tab → only the newsletter (has list-unsubscribe) ----
-        pg.click('[data-filter="cat:promotions"]')
+        pg.click("#mail-folder")
+        pg.get_by_role("option", name="promotions", exact=True).click()
         pg.wait_for_function(
             "() => document.querySelectorAll('.mail-row').length === 1", timeout=8000
         )
@@ -109,7 +111,8 @@ def main():
         pg.screenshot(path=str(EVID / "categories.png"))
 
         # ---- primary tab → the work/personal mail, not the newsletter ----
-        pg.click('[data-filter="cat:primary"]')
+        pg.click("#mail-folder")
+        pg.get_by_role("option", name="primary", exact=True).click()
         pg.wait_for_function(
             "() => document.querySelectorAll('.mail-row').length >= 2", timeout=8000
         )
@@ -117,7 +120,8 @@ def main():
         r["primary_tab_back"] = "Project plan" in subs and "Newsletter" not in subs
 
         # ---- back to inbox, add a label to the first row ----
-        pg.click('[data-filter="inbox"]')
+        pg.click("#mail-folder")
+        pg.get_by_role("option", name="inbox", exact=True).click()
         pg.wait_for_function(
             "() => document.querySelectorAll('.mail-row').length >= 4", timeout=8000
         )

@@ -7,6 +7,7 @@ import traceback
 from pathlib import Path
 
 from browser_gate_safety import require_server_ownership
+from mail_browser_layout import open_mail_settings
 from playwright.sync_api import expect, sync_playwright
 from pw_inbox_workflows import seed_mail
 
@@ -109,7 +110,7 @@ with sync_playwright() as pw:
                 page.goto(base + "/?view=inbox", wait_until="networkidle")
                 page.get_by_role("tab", name="mail", exact=True).click()
                 expect(page.locator("#mail-list")).to_have_attribute("aria-busy", "false")
-                page.get_by_role("button", name="mail settings", exact=True).click()
+                open_mail_settings(page)
                 page.get_by_role("button", name="rules & vacation responder", exact=True).click()
                 if case == "read-stale":
                     for _ in range(100):
@@ -176,7 +177,7 @@ with sync_playwright() as pw:
                                 break
                             page.wait_for_timeout(20)
                         assert held
-                        page.get_by_role("button", name="mail settings", exact=True).click()
+                        open_mail_settings(page)
                         page.get_by_role(
                             "button", name="rules & vacation responder", exact=True
                         ).click()
@@ -254,7 +255,7 @@ with sync_playwright() as pw:
                         assert api.get("/api/mail/vacation").json() == expected
                         page.reload(wait_until="networkidle")
                         page.get_by_role("tab", name="mail", exact=True).click()
-                        page.get_by_role("button", name="mail settings", exact=True).click()
+                        open_mail_settings(page)
                         page.get_by_role(
                             "button", name="rules & vacation responder", exact=True
                         ).click()

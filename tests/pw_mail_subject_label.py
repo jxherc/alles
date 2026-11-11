@@ -14,6 +14,7 @@ sys.path[:0] = [
     str(Path(__file__).resolve().parents[1] / "tests"),
 ]
 from browser_gate_safety import require_server_ownership  # noqa: E402
+from mail_browser_layout import choose_folder  # noqa: E402
 from playwright.sync_api import expect, sync_playwright  # noqa: E402
 from pw_inbox_workflows import seed_mail  # noqa: E402
 
@@ -158,7 +159,7 @@ with (
                 expect(subject).to_have_value(exact)
                 page.reload(wait_until="networkidle")
                 page.get_by_role("tab", name="mail", exact=True).click()
-                page.get_by_role("button", name="drafts", exact=True).click()
+                choose_folder(page, "drafts")
                 page.get_by_role("button", name=exact, exact=True).click()
                 expect(subject).to_have_value(exact)
                 expect(visible_label).to_be_visible()

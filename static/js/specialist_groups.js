@@ -669,6 +669,20 @@ async function _renderInbox(target, request) {
   const contacts = _asArray(_settled(contactsResult, []));
   const accountsError = _settledError(accountsResult, t('groups.err_mail_accounts'));
   const contactsError = _settledError(contactsResult, t('groups.err_contacts'));
+  // no mailbox: one line and the button that opens the accounts panel, not cards of zeros
+  if (!accounts.length && !accountsError) {
+    const box = _el('div', 'empty-state specialist-mail-none');
+    const add = _el('button', 'btn primary', t('mail.add_account'));
+    add.type = 'button';
+    add.id = 'inbox-add-account';
+    add.addEventListener('click', async () => {
+      await window._navigateSpecialistSection?.('inbox', 'mail');
+      window._mailAccounts?.();
+    });
+    box.append(_el('div', 'empty-state-desc', t('mail.no_account')), add);
+    target.replaceChildren(box);
+    return;
+  }
   const cached = await Promise.allSettled(accounts.map(account =>
     _json(request, `/api/mail/cached/${encodeURIComponent(account.id)}?folder=INBOX&limit=24`)));
   const cachedFailures = cached.flatMap((result, index) => result.status === 'rejected'
@@ -741,7 +755,7 @@ async function _renderInbox(target, request) {
     ? t('groups.mail_accounts_unavailable')
     : cachedFailures.length
       ? t('groups.cached_unavailable')
-      : accounts.length ? t('groups.inbox_clear') : t('groups.connect_account');
+      : t('groups.inbox_clear');
   const sender = message => message.from_name || message.from || message.sender || message.from_email || '';
   const drawDetail = message => {
     detail.replaceChildren();

@@ -9,7 +9,7 @@ import traceback
 from pathlib import Path
 
 from browser_gate_safety import require_server_ownership
-from mail_browser_layout import split_mail_panes
+from mail_browser_layout import choose_folder, refresh_mail, split_mail_panes
 from playwright.sync_api import expect, sync_playwright
 from pw_inbox_workflows import seed_mail
 
@@ -128,7 +128,7 @@ with sync_playwright() as pw:
 
             def open_row(row):
                 with split_mail_panes(page):
-                    page.get_by_role("button", name="drafts", exact=True).click()
+                    choose_folder(page, "drafts")
                 page.locator(f'.mail-draft-row[data-id="{row["id"]}"] .mail-open').click()
                 expect(body).to_be_visible()
 
@@ -168,7 +168,7 @@ with sync_playwright() as pw:
                         body.fill("pending update")
                     else:
                         with split_mail_panes(page):
-                            page.get_by_role("button", name="drafts", exact=True).click()
+                            choose_folder(page, "drafts")
                         page.wait_for_load_state("networkidle")
                         compose("pending create")
                     held = []
@@ -198,7 +198,7 @@ with sync_playwright() as pw:
                     page.locator("#mc-save").click()
                     wait_held(held)
                     if case != "successful-save-stalled-read":
-                        page.locator("#mail-refresh-btn").click()
+                        refresh_mail(page)
                     expect(page.locator("#mail-draft-retry")).to_have_attribute(
                         "aria-disabled", "false"
                     )
@@ -256,7 +256,7 @@ with sync_playwright() as pw:
                         held_posts.append((route, response))
 
                     page.route(metadata, hold_read)
-                    page.locator("#mail-refresh-btn").click()
+                    refresh_mail(page)
                     wait_held(held_reads)
                     changed = api.post(endpoint, data={**original, "body": "version B"}).json()
                     page.route(endpoint, hold_post)
@@ -337,7 +337,7 @@ with sync_playwright() as pw:
                         ).json()
                     else:
                         assert api.delete(endpoint + "/" + original["id"]).ok
-                    page.locator("#mail-refresh-btn").click()
+                    refresh_mail(page)
                     expect(page.locator("#mail-draft-copy")).to_have_attribute(
                         "aria-disabled", "false"
                     )
@@ -676,7 +676,7 @@ with sync_playwright() as pw:
                         page.unroute(metadata)
                         page.unroute(endpoint, lose)
                         with split_mail_panes(page):
-                            page.get_by_role("button", name="drafts", exact=True).click()
+                            choose_folder(page, "drafts")
                         saved()
                         assert len(rows()) == 1
                     elif case == "deleted-pending-create":
@@ -812,7 +812,7 @@ with sync_playwright() as pw:
                             ),
                         )
                         with split_mail_panes(page):
-                            page.get_by_role("button", name="drafts", exact=True).click()
+                            choose_folder(page, "drafts")
                         expect(page.locator("#mc-status")).to_contain_text("different mail store")
                         page.get_by_role("button", name="compose", exact=True).click()
                         page.get_by_role("alertdialog").get_by_role(
@@ -834,7 +834,7 @@ with sync_playwright() as pw:
                         )
                     else:
                         with split_mail_panes(page):
-                            page.get_by_role("button", name="drafts", exact=True).click()
+                            choose_folder(page, "drafts")
                         expect(page.get_by_text("draft saved", exact=True).last).to_be_visible()
                         if case in {"confirmed-new-save-old-ack", "confirmed-new-save-old-error"}:
                             expect(page.locator("#mc-save")).to_have_attribute(
@@ -861,7 +861,7 @@ with sync_playwright() as pw:
                             )
                         else:
                             assert api.delete(endpoint + "/" + first["id"]).ok
-                            page.locator("#mail-refresh-btn").click()
+                            refresh_mail(page)
                             expect(page.locator(".mail-draft-row")).to_have_count(0)
                             route, response = held.pop()
                             route.fulfill(response=response)
