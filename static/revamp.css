@@ -462,7 +462,7 @@ html:not(#_) :is(.custom-dropdown-panel, [data-kokuen-surface] [role="menu"]) {
 html:not(#_):not(#_) :is(
   .ctx-menu, .aide-central-menu, .msg-actions-menu, .aide-sidebar-menu, .aide-project-context-menu,
   .aide-schedule-project-menu, .docs-action-menu, .plan-board-menu, .perm-menu, .photos-albmenu,
-  .jrnl-lockmenu, .mention-menu, .slash-popup, .custom-dropdown-panel
+  .jrnl-lockmenu, .mention-menu, .slash-popup, .custom-dropdown-panel, .model-popover-card
 ) {
   gap: 0;
   border: 1px solid transparent;
@@ -475,7 +475,7 @@ html:not(#_):not(#_) :is(
   .ctx-menu, .aide-central-menu, .msg-actions-menu, .aide-sidebar-menu,
   .aide-project-context-menu:not(.folder-mode), .aide-schedule-project-menu, .docs-action-menu,
   .plan-board-menu, .perm-menu, .photos-albmenu, .jrnl-lockmenu, .mention-menu, .slash-popup,
-  .custom-dropdown-panel
+  .custom-dropdown-panel, .model-popover-card
 ) {
   padding: var(--k-space-1);
 }
@@ -672,6 +672,42 @@ html:not(#_) .toast:is(.success, .error, .info) {
   box-shadow: none;
   color: var(--k-text);
   text-decoration: none;
+}
+
+/* the shell's line is a one-line chip in the header corner: it never wraps */
+.specialist-state[data-state="loading"] > span { white-space: nowrap; }
+
+/* a pane's own load state (decision 0079): the same card and retry as above, laid at the top of the
+   pane it is about, so a failure shows once. while a pane draws its own loading box the shell's
+   corner words step aside */
+.specialist-state[data-inline] {
+  align-self: stretch;
+  margin: 0 0 var(--k-space-3);
+}
+
+.specialist-state[data-inline]:is([data-state="error"], [data-state="partial"]) .specialist-state-retry {
+  flex: 0 0 auto;
+  min-height: var(--k-control);
+}
+
+/* the photos page has no padding of its own, so its failure sits on the gutter like the toolbar above it */
+#photos-load-status { margin-inline: var(--k-gutter); }
+
+.specialist-state[data-inline][data-state="busy"] {
+  position: relative;
+  box-sizing: border-box;
+  min-height: var(--k-space-6);
+  justify-content: flex-start;
+  gap: 0;
+  padding: var(--k-space-2) var(--k-space-3);
+  border-radius: var(--k-radius-surface);
+  color: var(--k-muted);
+  font-size: 0.875rem;
+  text-align: left;
+}
+
+:has(.specialist-state[data-inline][data-state="busy"]) > .specialist-state[data-state="loading"] > span {
+  visibility: hidden;
 }
 
 
@@ -1697,12 +1733,13 @@ html:not(#_) #today-view[data-kokuen-surface="home"] .today-capture:focus-within
 }
 
 html:not(#_) #today-view[data-kokuen-surface="home"] .today-capture textarea {
+  padding-block: 9px;
   padding-inline: var(--k-space-2);
 }
 
-/* both buttons keep a 44px target; a 6px clear border leaves a 32px fill inside, so the fill
+/* the send button keeps a 44px target; a 6px clear border leaves a 32px fill inside, so the fill
    sits 6px from the box's edges on every side and its corner (16 - 6) stays concentric */
-html:not(#_) #today-view[data-kokuen-surface="home"] :is(.today-capture-mode, .today-capture-send) {
+html:not(#_) #today-view[data-kokuen-surface="home"] .today-capture-send {
   min-width: 44px;
   height: 44px;
   min-height: 44px;
@@ -1713,14 +1750,23 @@ html:not(#_) #today-view[data-kokuen-surface="home"] :is(.today-capture-mode, .t
   font-weight: 560;
 }
 
-html:not(#_) #today-view[data-kokuen-surface="home"] .today-capture-mode {
-  padding: 0 var(--k-space-2);
-  background-color: var(--k-accent-tint);
-  color: var(--k-text);
+html:not(#_) #today-view[data-kokuen-surface="home"] .today-capture-mode > [role="radio"] {
+  min-width: 0;
+  padding-inline: var(--k-space-3);
 }
 
-html:not(#_) #today-view[data-kokuen-surface="home"] .today-capture-mode[aria-pressed="false"] {
-  background-color: var(--k-raised);
+/* the hint stays on one line so the box keeps one height on a narrow phone */
+html:not(#_) #today-view[data-kokuen-surface="home"] .today-capture textarea::placeholder {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* the task or note switch is a 44px track; the box gives it 4px on every side so the track never
+   sits on the box's own edge */
+html:not(#_) #today-view[data-kokuen-surface="home"] .today-capture {
+  padding: var(--k-space-1);
+  min-height: calc(var(--k-control) + 2 * var(--k-space-1));
 }
 
 html:not(#_) #today-view[data-kokuen-surface="home"] .today-capture-send {
@@ -2312,7 +2358,7 @@ html:not(#_):not(#_) .specialist-workbench-empty + .btn {
 html:not(#_):not(#_) :is(
   .settings-input, .settings-textarea, .date-input, .cal-quick, .act-search, .cal-side-search,
   [data-specialist-app] input[type="search"],
-  .modal-search input, .mm-add-form input, .andromeda-tool-field :is(input, textarea),
+  .modal-search input, .andromeda-tool-field :is(input, textarea),
   :is(.andromeda-translate-input, .andromeda-tool-text) textarea,
   .docs-nav-search, .docs-notes-actions input, .docs-dialog-field input, .docs-ask-panel input,
   .jrnl-tags, .jrnl-migration-confirm input, .plan-board-search, .shell-input,
@@ -2379,7 +2425,7 @@ html:not(#_):not(#_) :is(.settings-textarea, textarea:is(.settings-input, .shell
 html:not(#_):not(#_) :is(
   .settings-input, .settings-textarea, .date-input, .cal-quick, .act-search, .cal-side-search,
   [data-specialist-app] input[type="search"],
-  .modal-search input, .mm-add-form input, .andromeda-tool-field :is(input, textarea),
+  .modal-search input, .andromeda-tool-field :is(input, textarea),
   :is(.andromeda-translate-input, .andromeda-tool-text) textarea,
   .docs-nav-search, .docs-notes-actions input, .docs-dialog-field input, .docs-ask-panel input,
   .jrnl-tags, .jrnl-migration-confirm input, .plan-board-search, .shell-input,

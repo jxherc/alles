@@ -1,5 +1,5 @@
 // journal — one entry per day. mood + tags + prompt + streak + on-this-day + AI reflect.
-import { toast, mdToHtml, plainError } from './util.js';
+import { stateHtml, toast, mdToHtml, plainError } from './util.js';
 import { formatCalendarDate, formatTime, t, tp } from './i18n.js';
 import { whenFull, whenHtml } from './when.js';
 import { createFocusBoundary } from './kokuen.js?v=5';
@@ -69,6 +69,7 @@ export async function initJournal() {
   const body = document.getElementById('journal-body');
   if (!body) return;
   wireProductNavigation();
+  if (!body.firstElementChild || body.querySelector(':scope > .specialist-state')) body.innerHTML = stateHtml('loading', t('shell.state_loading', { label: t('journal.title') }));
   // Check the server-side lock before trusting hydrated content. Another tab can
   // clear every unlock token while this view is still mounted.
   let status;
@@ -663,14 +664,8 @@ function showLock(mode) {
   _failedDay = '';
   _built = false;
   if (mode === 'unavailable') {
-    body.innerHTML = `
-      <div class="jrnl-lock">
-        <div class="jrnl-lock-card" role="status">
-          <div class="jrnl-lock-icon">${_si('lock')}</div>
-          <div class="jrnl-lock-title">${t('journal.unavailable_title')}</div>
-          <p class="jrnl-lock-err">${t('journal.unavailable_body')}</p>
-        </div>
-      </div>`;
+    body.innerHTML = stateHtml('error', t('shell.state_failed', { label: t('journal.title') }), { retry: 'data-act="retry-load"' });
+    body.querySelector('[data-act="retry-load"]').addEventListener('click', () => initJournal());
     return;
   }
   const titles = { unlock: t('journal.locked_title'), set: t('journal.set_passcode'), change: t('journal.change_passcode'), disable: t('journal.disable_lock') };

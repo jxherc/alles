@@ -140,7 +140,6 @@ test('settings refreshes role state and provider catalogs without hiding failure
   const shared = readFileSync(new URL('../../static/js/settings/shared.js', import.meta.url), 'utf8');
   assert.match(shared, /window\._fetchWithRecentOwner = _fetchWithRecentOwner/);
   assert.match(models, /_ownerFetch\('\/api\/models\/endpoint'/);
-  assert.match(models, /_ownerFetch\(`\/api\/models\/endpoint\/\$\{btn\.dataset\.id\}`/);
 });
 
 test('memory off disables write and extraction controls', () => {

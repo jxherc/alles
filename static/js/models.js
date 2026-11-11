@@ -1,9 +1,7 @@
 import { escapeHtml, toast } from './util.js';
-import { confirm as _dlgConfirm } from './dialog.js';
 import { providerLogo, providerKey, brandColor } from './brandlogo.js';
 import { sortModels, filterNewest } from './modelfilter.js';
-import { t, tp } from './i18n.js';
-import { populateDropdown } from './dropdown.js?v=217';
+import { t } from './i18n.js';
 import { esc as escHtml } from './escape.js';
 const _si = n => (globalThis.window?.icon ? globalThis.window.icon(n) : '');   // the shared svg icon set
 
@@ -21,23 +19,6 @@ function _ls(key) { try { return JSON.parse(localStorage.getItem(key) || 'null')
 function _ownerFetch(input, init) {
   return window._fetchWithRecentOwner?.(input, init) || fetch(input, init);
 }
-
-const PRESETS = [
-  { name: 'OpenAI',      url: 'https://api.openai.com',                              key: 'sk-...' },
-  { name: 'Anthropic',   url: 'https://api.anthropic.com',                           key: 'sk-ant-...' },
-  { name: 'DeepSeek',    url: 'https://api.deepseek.com',                            key: 'sk-...' },
-  { name: 'Kimi',        url: 'https://api.moonshot.ai/v1',                          key: 'sk-...' },
-  { name: 'Groq',        url: 'https://api.groq.com/openai',                         key: 'gsk_...' },
-  { name: 'Gemini',      url: 'https://generativelanguage.googleapis.com/v1beta/openai', key: 'AIza...' },
-  { name: 'xAI (Grok)', url: 'https://api.x.ai',                                    key: 'xai-...' },
-  { name: 'Mistral',     url: 'https://api.mistral.ai',                              key: '' },
-  { name: 'Perplexity',  url: 'https://api.perplexity.ai',                           key: 'pplx-...' },
-  { name: 'OpenRouter',  url: 'https://openrouter.ai/api',                           key: 'sk-or-...' },
-  { name: 'Together',    url: 'https://api.together.xyz',                            key: '' },
-  { name: 'Fireworks',   url: 'https://api.fireworks.ai/inference',                  key: 'fw-...' },
-  { name: 'Cohere',      url: 'https://api.cohere.ai',                               key: '' },
-  { name: 'Ollama',      url: 'http://localhost:11434',                              key: '' },
-];
 
 export async function loadModels() {
   const sequence = ++_catalogSequence;
@@ -365,7 +346,7 @@ export function renderModelList(filter = '') {
       </button>`;
     }
   }
-  if (!html) html = `<div style="padding:1rem;font-size:0.8125rem;color:var(--muted)">${escHtml(t('models.no_endpoints_add'))}</div>`;
+  if (!html) html = `<div class="model-empty"><span>${escHtml(t('models.no_endpoints_add'))}</span><button type="button" class="btn" data-model-settings>${escHtml(t('common.settings'))}</button></div>`;
   list.innerHTML = html;
   const rows = [...list.querySelectorAll('.model-row')];
   if (rows.length && !rows.some(row => row.tabIndex === 0)) rows[0].tabIndex = 0;
@@ -373,6 +354,10 @@ export function renderModelList(filter = '') {
     el.addEventListener('click', () => selectModel(el.dataset.ep, el.dataset.model));
   });
   list.querySelectorAll('.model-probe').forEach(el => el.addEventListener('click', () => window.probeEndpoint(el.dataset.ep)));
+  list.querySelectorAll('[data-model-settings]').forEach(el => el.addEventListener('click', () => {
+    window._closeModelModal?.();
+    window._openSettings?.('models');
+  }));
   list.onkeydown = event => {
     const index = rows.indexOf(document.activeElement);
     let next = -1;
@@ -486,217 +471,26 @@ export async function selectModel(endpointId, model) {
   }
 }
 
-// ── endpoints tab ─────────────────────────────────────────────────────────────
-export function renderEndpointList() {
-  const el = document.getElementById('mm-ep-list');
-  if (!el) return;
-  if (!_endpoints.length) {
-    el.innerHTML = `<div style="padding:0.65rem 0.75rem;font-size:0.8125rem;color:var(--muted)">${escHtml(t('models.no_endpoints_presets'))}</div>`;
-    return;
-  }
-  el.innerHTML = _endpoints.map(ep => {
-    const color = brandColor(providerKey([ep.provider, ep.name, ep.base_url].filter(Boolean).join(' ')));
-    return `
-    <div class="mm-ep-card" data-id="${ep.id}">
-      <div class="mm-ep-card-head">
-        <span class="provider-dot" style="background:${color}"></span>
-        <span class="mm-ep-name" style="font-weight:500">${escHtml(ep.name)}</span>
-        <span class="mm-ep-count" style="font-size:0.8125rem;color:var(--muted)">${escHtml(tp('models.models_count', ep.models.length))}</span>
-        <div class="mm-ep-actions">
-          <button class="btn mm-test-btn" type="button" data-id="${ep.id}" title="${escAttr(t('models.test_completion'))}" ${!ep.models.length ? 'disabled' : ''}>${escHtml(t('models.test'))}</button>
-          <button class="btn mm-probe-btn" type="button" data-id="${ep.id}" title="${escAttr(t('models.probe_models'))}">${escHtml(t('models.probe'))}</button>
-          <button class="act-btn mm-del-btn" type="button" data-id="${ep.id}" aria-label="${escAttr(t('models.remove_endpoint', { name: ep.name }))}">×</button>
-        </div>
-      </div>
-      <div class="mm-ep-edit" id="mm-ep-edit-${ep.id}" style="display:none">
-        <input class="settings-input mm-edit-name" placeholder="${escAttr(t('models.placeholder_name'))}" value="${escAttr(ep.name)}" style="width:8rem">
-        <input class="settings-input mm-edit-url" placeholder="${escAttr(t('models.placeholder_base_url'))}" value="${escAttr(ep.base_url || '')}" style="flex:1">
-        <input class="settings-input mm-edit-key" type="password" placeholder="${escAttr(t('models.placeholder_api_key'))}" value="" style="width:9rem">
-        <button class="btn primary mm-save-btn" type="button" data-id="${ep.id}">${escHtml(t('common.save'))}</button>
-        <button class="btn mm-cancel-btn" type="button" data-id="${ep.id}">${escHtml(t('common.cancel'))}</button>
-      </div>
-      <div class="mm-ep-info">
-        <span style="font-size:0.8125rem;color:var(--muted)">${escHtml(ep.base_url || '')}</span>
-        <button class="mm-edit-toggle" type="button" data-id="${ep.id}" aria-expanded="false" aria-controls="mm-ep-edit-${ep.id}" style="font-size:0.8125rem;color:var(--muted);background:none;border:none;cursor:pointer;padding:0 0.25rem">${escHtml(t('common.edit'))}</button>
-      </div>
-    </div>`;
-  }).join('');
-
-  el.querySelectorAll('.mm-edit-toggle').forEach(btn => {
-    btn.addEventListener('click', () => {
-      const card = btn.closest('.mm-ep-card');
-      const editRow = card.querySelector('.mm-ep-edit');
-      const isOpen = editRow.style.display !== 'none';
-      editRow.style.display = isOpen ? 'none' : 'flex';
-      btn.setAttribute('aria-expanded', String(!isOpen));
-    });
-  });
-
-  el.querySelectorAll('.mm-save-btn').forEach(btn => {
-    btn.addEventListener('click', async () => {
-      const card = btn.closest('.mm-ep-card');
-      const patch = {
-        name: card.querySelector('.mm-edit-name').value.trim(),
-        base_url: card.querySelector('.mm-edit-url').value.trim(),
-      };
-      const keyVal = card.querySelector('.mm-edit-key').value.trim();
-      if (keyVal) patch.api_key = keyVal;
-      const response = await _ownerFetch(`/api/models/endpoint/${btn.dataset.id}`, {
-        method: 'PATCH', headers: {'content-type':'application/json'},
-        body: JSON.stringify(patch),
-      });
-      if (!response.ok) { toast(t('models.endpoint_save_failed'), 'error'); return; }
-      toast(t('models.saved'), 'success');
-      await loadModels();
-      renderEndpointList();
-    });
-  });
-
-  el.querySelectorAll('.mm-cancel-btn').forEach(btn => {
-    btn.addEventListener('click', () => {
-      btn.closest('.mm-ep-card').querySelector('.mm-ep-edit').style.display = 'none';
-    });
-  });
-
-  el.querySelectorAll('.mm-probe-btn').forEach(btn => {
-    btn.addEventListener('click', async () => {
-      btn.textContent = '…'; btn.disabled = true;
-      try {
-        const r = await fetch(`/api/models/endpoint/${btn.dataset.id}/probe`, { method: 'POST' });
-        const d = await r.json();
-        toast(tp('models.models_count', d.models?.length || 0), 'success');
-        await loadModels();
-        renderEndpointList();
-      } catch { toast(t('models.probe_failed'), 'error'); }
-      btn.textContent = t('models.probe'); btn.disabled = false;
-    });
-  });
-
-  el.querySelectorAll('.mm-test-btn').forEach(btn => {
-    btn.addEventListener('click', async () => {
-      btn.textContent = '…'; btn.disabled = true;
-      try {
-        const r = await fetch(`/api/models/endpoint/${btn.dataset.id}/test`, { method: 'POST' });
-        if (!r.ok) throw new Error(await r.text());
-        const d = await r.json();
-        toast(t('models.test_success', { response: d.response }), 'success', 4000);
-      } catch (e) { toast(t('models.test_failed'), 'error'); }
-      btn.textContent = t('models.test'); btn.disabled = false;
-    });
-  });
-
-  el.querySelectorAll('.mm-del-btn').forEach(btn => {
-    btn.addEventListener('click', async () => {
-      if (!await _dlgConfirm(t('models.remove_confirm'))) return;
-      const response = await _ownerFetch(`/api/models/endpoint/${btn.dataset.id}`, { method: 'DELETE' });
-      if (!response.ok) { toast(t('models.endpoint_disconnect_failed'), 'error'); return; }
-      toast(t('models.removed'), 'success');
-      await loadModels();
-      renderEndpointList();
-    });
-  });
-}
-
-// a list that can grow is one dropdown, never a wall of chips (28.14): picking a provider fills
-// the name and url below and moves on to the key
-function _renderPresets() {
-  const el = document.getElementById('mm-presets');
-  if (!el) return;
-  el.innerHTML = '';
-  const pick = document.createElement('div');
-  pick.className = 'settings-input custom-select mm-preset-pick';
-  pick.dataset.placeholder = t('models.add_a_provider');
-  pick.setAttribute('aria-label', t('models.add_a_provider'));
-  el.appendChild(pick);
-  populateDropdown(pick, PRESETS.map(p => ({ value: p.name, label: p.name })), '');
-  pick.addEventListener('change', () => {
-    const p = PRESETS.find(item => item.name === pick.value);
-    if (!p) return;
-    document.getElementById('ep-name').value = p.name;
-    document.getElementById('ep-url').value = p.url;
-    document.getElementById('ep-key').value = '';
-    document.getElementById('ep-key').placeholder = p.key || t('models.leave_blank');
-    document.getElementById('ep-key').focus();
+// the newest-only switches (settings > models, the models page) share one state; wiring is idempotent
+export function wireNewestSwitches() {
+  document.querySelectorAll('.newest-only-switch, #newest-only-switch').forEach(sw => {
+    sw.classList.toggle('on', _newestOnly);
+    sw.setAttribute('aria-checked', String(_newestOnly));
+    if (sw.dataset.newestWired) return;
+    sw.dataset.newestWired = '1';
+    sw.addEventListener('click', () => setNewestOnly(!sw.classList.contains('on')));
   });
 }
 
 export function initModelModal() {
-  // newest-only toggle — both the models page (#newest-only-switch) and the top picker modal
-  // (.newest-only-switch) share the same state; setNewestOnly() re-syncs every switch.
-  document.querySelectorAll('.newest-only-switch, #newest-only-switch').forEach(sw => {
-    sw.classList.toggle('on', _newestOnly);
-    sw.setAttribute('aria-checked', String(_newestOnly));
-    sw.addEventListener('click', () => setNewestOnly(!sw.classList.contains('on')));
-  });
+  wireNewestSwitches();
   // clicking the image-slot chip drops the companion image model
   document.getElementById('image-slot-btn')?.addEventListener('click', () => {
     setImageSlot(null, null);
     toast(t('models.image_cleared'), '');
   });
-  // refresh model lists when the picker opens (debounced) + manual button
+  // refresh model lists when the picker opens (debounced)
   document.getElementById('model-btn')?.addEventListener('click', maybeAutoRefresh);
-  document.getElementById('mm-refresh-all')?.addEventListener('click', async () => {
-    const b = document.getElementById('mm-refresh-all');
-    b.textContent = '…'; b.disabled = true;
-    await refreshModels(true);
-    renderEndpointList();
-    b.textContent = t('common.refresh'); b.disabled = false;
-  });
-  // tab switching
-  const tabs = [...document.querySelectorAll('.mm-tab')];
-  const activateTab = tab => {
-    tabs.forEach(candidate => {
-      const active = candidate === tab;
-      candidate.classList.toggle('active', active);
-      candidate.setAttribute('aria-selected', String(active));
-      candidate.tabIndex = active ? 0 : -1;
-    });
-    const name = tab.dataset.tab;
-    const modelsPanel = document.getElementById('mm-panel-models');
-    const endpointsPanel = document.getElementById('mm-panel-endpoints');
-    modelsPanel.style.display = name === 'models' ? '' : 'none';
-    endpointsPanel.style.display = name === 'endpoints' ? '' : 'none';
-    modelsPanel.hidden = name !== 'models';
-    endpointsPanel.hidden = name !== 'endpoints';
-    if (name === 'endpoints') {
-      renderEndpointList();
-      _renderPresets();
-    }
-  };
-  tabs.forEach(tab => {
-    tab.addEventListener('click', () => {
-      activateTab(tab);
-    });
-    tab.addEventListener('keydown', event => {
-      const index = tabs.indexOf(tab);
-      let next = -1;
-      if (event.key === 'ArrowRight') next = (index + 1) % tabs.length;
-      else if (event.key === 'ArrowLeft') next = (index - 1 + tabs.length) % tabs.length;
-      else if (event.key === 'Home') next = 0;
-      else if (event.key === 'End') next = tabs.length - 1;
-      if (next < 0) return;
-      event.preventDefault();
-      activateTab(tabs[next]);
-      tabs[next].focus();
-    });
-  });
-
-  // add endpoint from modal
-  document.getElementById('ep-add-btn')?.addEventListener('click', async () => {
-    const name = document.getElementById('ep-name').value.trim();
-    const url  = document.getElementById('ep-url').value.trim();
-    const key  = document.getElementById('ep-key').value.trim();
-    if (!name || !url) { toast(t('models.name_url_required'), 'error'); return; }
-    const btn = document.getElementById('ep-add-btn');
-    btn.textContent = t('models.probing'); btn.disabled = true;
-    try {
-      await addEndpoint(name, url, key);
-      ['ep-name','ep-url','ep-key'].forEach(id => document.getElementById(id).value = '');
-      toast(t('models.endpoint_added'), 'success');
-      renderEndpointList();
-    } catch (e) { toast(t('models.failed_with', { message: e.message }), 'error'); }
-    btn.textContent = t('models.add_probe'); btn.disabled = false;
-  });
 }
 
 window.probeEndpoint = async function(epId) {

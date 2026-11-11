@@ -207,7 +207,7 @@ def run():
                     page.reload(wait_until="networkidle")
                     entry.fill(original)
                     if variant == "note":
-                        page.locator("#today-capture-mode").click()
+                        page.locator('#today-capture-mode [data-value="note"]').click()
                     if variant == "submit":
                         submit.click()
                     else:
@@ -232,7 +232,7 @@ def run():
                         == 1
                     )
                     if variant == "note":
-                        page.locator("#today-capture-mode").click()
+                        page.locator('#today-capture-mode [data-value="task"]').click()
                         entry.clear()
                     record("recovered-input-" + variant)
                 original = "🙂" * 3001

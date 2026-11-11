@@ -93,6 +93,7 @@ function harness() {
     dlgConfirm: async () => state.confirm, calendarPlacementDate: value => new Date(value),
     _bindNav() {}, _tickWorldClock() {}, resolveCalendarWeekStart: () => 1, _syncViewBtns() {},
     renderSidebar() {}, refreshCalendarPicker() { state.pickerRefreshes++; }, calendarMetadataNotice() {},
+    calendarLoading() {}, clearCalendarLoading() {},
     render() { state.renders++; state.editor = false; }, calendarLoadError: message => errors.push(message),
     editorBusy() {}, editorError: message => errors.push(message), chooseScope: async () => 'all',
     hasOccurrence: () => state.occurrenceValid,

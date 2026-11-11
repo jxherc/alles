@@ -115,9 +115,7 @@ def run(device: str) -> None:
             else:
                 expect(page.locator("html")).not_to_have_attribute("data-theme", "light")
             title = f"browser smoke {device} task"
-            mode = page.locator("#today-capture-mode")
-            if mode.get_attribute("aria-pressed") != "true":
-                mode.click()
+            page.locator('#today-capture-mode [data-value="task"]').click()
             capture = page.locator("#today-capture-input")
             capture.fill(title)
             if device == "phone":
@@ -141,9 +139,7 @@ def run(device: str) -> None:
             tasks = context.request.get(base + "/api/tasks").json()
             assert len([task for task in tasks if task["title"] == title]) == 1
 
-            mode = page.locator("#today-capture-mode")
-            if mode.get_attribute("aria-pressed") != "false":
-                mode.click()
+            page.locator('#today-capture-mode [data-value="note"]').click()
             note = f"browser smoke {device} note"
             for suffix in ("", " 2"):
                 capture.fill(note)

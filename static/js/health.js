@@ -1,6 +1,6 @@
 // health — a simple health/fitness log. log weight/sleep/workout/meds/custom, see the
 // latest reading + a hand-drawn trend line per metric over a range. mirrors panel conventions.
-import { api, toast } from './util.js';
+import { api, stateHtml, toast } from './util.js';
 import { initCustomDropdown } from './dropdown.js?v=217';
 import { confirm as dlgConfirm, prompt as dlgPrompt } from './dialog.js';
 import { calendarDateKey, formatList, t, tp } from './i18n.js';
@@ -80,9 +80,7 @@ function _loadFailure(failures, successes) {
 function _loadNotice() {
   if (_loadState.state === 'resting') return '';
   const loading = _loadState.state === 'loading';
-  return `<div class="specialist-group-note legacy-load-note" role="${loading ? 'status' : 'alert'}" aria-live="${loading ? 'polite' : 'assertive'}" data-kokuen-state="${_loadState.state}">
-    <span>${esc(_loadState.message)}</span>${loading ? '' : '<button type="button" class="btn" data-act="retry-load">' + esc(t('common.retry')) + '</button>'}
-  </div>`;
+  return stateHtml(_loadState.state, _loadState.message, { cls: 'legacy-load-note', retry: loading ? '' : 'data-act="retry-load"' });
 }
 
 export async function loadHealth(fetcher = _fetcher, { clearWriteError = false } = {}) {

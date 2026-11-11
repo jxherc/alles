@@ -85,11 +85,11 @@
 <link rel="modulepreload" href="/static/js/escape.js">
 <link rel="modulepreload" href="/static/js/brandlogo.js">
 <link rel="modulepreload" href="/static/js/modelfilter.js">
-<link rel="modulepreload" href="/static/js/dropdown.js?v=217">
 <link rel="modulepreload" href="/static/js/artifacts.js">
 <link rel="modulepreload" href="/static/js/aidebackgroundpolicy.js">
 <link rel="modulepreload" href="/static/js/recent_owner.js">
 <link rel="modulepreload" href="/static/js/aidequestions.js?v=2">
+<link rel="modulepreload" href="/static/js/dropdown.js?v=217">
 <link rel="modulepreload" href="/static/js/datepick.js">
 <link rel="modulepreload" href="/static/js/when.js">
 <link rel="modulepreload" href="/static/js/act_row.js">
@@ -308,7 +308,7 @@
           <button class="today-ask" id="today-ask-aide" type="button" data-i18n="home.ask_aide">ask aide about today →</button>
         </header>
         <form class="today-capture" id="today-capture">
-          <button class="today-capture-mode" id="today-capture-mode" type="button" aria-pressed="true" data-i18n="home.task">task</button>
+          <div class="k-pill-switch today-capture-mode" id="today-capture-mode" data-kokuen-choice="switch" aria-label="capture as" data-i18n-aria-label="home.capture_as"><button type="button" data-value="task" aria-checked="true" data-i18n="home.task">task</button><button type="button" data-value="note" data-i18n="home.note">note</button></div>
           <textarea id="today-capture-input" rows="1" data-kokuen-entry="autogrow" aria-label="capture a task" placeholder="capture something…" data-i18n-aria-label="home.capture_task" data-i18n-placeholder="home.capture_placeholder" autocomplete="off"></textarea>
           <button class="today-capture-send" type="submit" aria-label="save capture" data-i18n-aria-label="home.save_capture">↑</button>
         </form>
@@ -1353,7 +1353,7 @@
           </div>
         </div>
       </div>
-      <div class="photos-recovery" id="photos-load-status" role="status" hidden><span></span><button type="button" class="btn" id="photos-load-retry" data-i18n="common.retry">retry</button></div>
+      <div class="specialist-state" id="photos-load-status" data-state="error" data-inline role="alert" hidden><span></span><button type="button" class="specialist-state-retry" id="photos-load-retry" data-i18n="common.retry">retry</button></div>
       <div class="photos-recovery" id="photos-upload-status" role="status" hidden><span></span><button type="button" class="btn" id="photos-upload-retry" data-i18n="shell.photos.retry_upload">retry upload</button><button type="button" class="btn" id="photos-upload-dismiss" data-i18n="common.dismiss">dismiss</button></div>
       <div class="photos-selbar" id="photos-selbar">
         <button type="button" class="icon-btn photos-sel-clear" id="photos-sel-clear" title="clear selection" data-i18n-title="shell.photos_sel.clear_selection">×</button>
@@ -1634,41 +1634,13 @@
   </div>
 </div>
 
-<!-- model picker modal -->
-<div class="modal-overlay" id="model-modal" role="dialog" aria-modal="true" aria-label="models and endpoints" style="display:none" data-i18n-aria-label="shell.model.models_and_endpoints">
-  <div class="modal-card model-modal-card" tabindex="-1">
-    <div class="modal-head">
-      <div class="mm-tabs" role="tablist" aria-label="model configuration" data-i18n-aria-label="shell.model.model_configuration">
-        <button class="mm-tab active" type="button" data-tab="models" role="tab" aria-selected="true" aria-controls="mm-panel-models" data-i18n="common.models">models</button>
-        <button class="mm-tab" type="button" data-tab="endpoints" role="tab" aria-selected="false" aria-controls="mm-panel-endpoints" data-i18n="shell.model.endpoints">endpoints</button>
-      </div>
-      <button class="modal-close" id="model-modal-close" type="button" aria-label="close model picker" style="margin-left:auto" data-i18n-aria-label="shell.model.close_model_picker">×</button>
+<!-- model picker: a popover on the button that opened it -->
+<div class="model-popover" id="model-modal" role="dialog" aria-label="choose model" style="display:none" data-i18n-aria-label="aide.choose_model">
+  <div class="model-popover-card" tabindex="-1">
+    <div class="modal-search">
+      <input type="text" id="model-search-input" placeholder="search models…" aria-label="search models" data-i18n-aria-label="shell.model.search_models_2" data-i18n-placeholder="shell.model.search_models">
     </div>
-
-    <!-- models tab -->
-    <div class="mm-panel" id="mm-panel-models" role="tabpanel">
-      <div class="modal-search">
-        <input type="text" id="model-search-input" placeholder="search models…" aria-label="search models" data-i18n-aria-label="shell.model.search_models_2" data-i18n-placeholder="shell.model.search_models">
-        <span class="newest-only-label" data-i18n="common.newest_only">newest only</span>
-        <div class="s-switch newest-only-switch" id="mm-newest-switch" role="switch" tabindex="0" aria-checked="false" aria-label="show only newest model of each family" title="show only the newest model of each family" data-i18n-title="common.show_only_the_newest_model_of" data-i18n-aria-label="shell.model.show_only_newest_model_of_each"></div>
-        <button class="btn mm-refresh-all" id="mm-refresh-all" type="button" title="re-probe every endpoint for new models" data-i18n="common.refresh" data-i18n-title="shell.model.re_probe_every_endpoint_for_new">refresh</button>
-      </div>
-      <div class="modal-body" id="model-list" role="listbox" aria-label="available models" data-i18n-aria-label="shell.model.available_models"></div>
-    </div>
-
-    <!-- endpoints tab -->
-    <div class="mm-panel" id="mm-panel-endpoints" role="tabpanel" hidden style="display:none">
-      <div class="mm-ep-list" id="mm-ep-list"></div>
-      <div class="mm-add-section">
-        <div class="mm-presets" id="mm-presets"></div>
-        <div class="mm-add-form">
-          <input type="text" id="ep-name" placeholder="name" aria-label="endpoint name" data-i18n-aria-label="shell.model.endpoint_name" data-i18n-placeholder="common.name">
-          <input type="text" id="ep-url" placeholder="base url" aria-label="endpoint base URL" data-i18n-aria-label="shell.model.endpoint_base_url" data-i18n-placeholder="common.base_url">
-          <input type="password" id="ep-key" placeholder="api key" aria-label="endpoint API key" data-i18n-aria-label="shell.model.endpoint_api_key" data-i18n-placeholder="common.api_key">
-          <button class="btn primary" id="ep-add-btn" type="button" data-i18n="shell.model.add_probe">add + probe</button>
-        </div>
-      </div>
-    </div>
+    <div class="modal-body" id="model-list" role="listbox" aria-label="available models" data-i18n-aria-label="shell.model.available_models"></div>
   </div>
 </div>
 
@@ -1816,6 +1788,7 @@
             <div class="s-card-body">
               <div class="s-ep-signin" id="s-ep-signin"></div>
               <div id="s-ep-list" style="margin-bottom:0.75rem"></div>
+              <button type="button" class="s-switch s-switch-labeled newest-only-switch" id="s-newest-only" role="switch" aria-checked="false" hidden data-i18n="common.show_only_the_newest_model_of">show only the newest model of each family</button>
               <details id="s-ep-add-details">
                 <summary class="s-add-summary" data-i18n="shell.settings_models.add_connection">+ add connection</summary>
                 <div class="s-ep-form">

@@ -1,4 +1,4 @@
-import { busyText, toast } from './util.js';
+import { appLabel, busyText, stateHtml, toast } from './util.js';
 import { prompt as _dlgPrompt, fields as _dlgFields } from './dialog.js';
 import { initCustomDropdown, getDropdownValue, populateDropdown, setDropdownValue } from './dropdown.js?v=217';
 import { formatCalendarDate, formatDate, formatTime, t, tp } from './i18n.js';
@@ -114,6 +114,7 @@ export async function loadContacts(q = '', fetcher = fetch) {
   const list = document.getElementById('contacts-list');
   if (!list) return;
   const load = ++_contactsLoad;
+  if (!list.children.length || list.querySelector(':scope > .specialist-state')) list.innerHTML = stateHtml('loading', t('shell.state_loading', { label: appLabel('contacts') }));
   try {
     const params = new URLSearchParams();
     if (q) params.set('q', q);
@@ -131,7 +132,7 @@ export async function loadContacts(q = '', fetcher = fetch) {
     _returnTo = null;
   } catch {
     if (load !== _contactsLoad) return;
-    list.innerHTML = `<div class="page-empty" role="alert">${t('contacts.load_failed')} <button class="btn" id="contacts-retry">${t('common.retry')}</button></div>`;
+    list.innerHTML = stateHtml('error', t('contacts.load_failed'), { retry: 'id="contacts-retry"' });
     list.querySelector('#contacts-retry').addEventListener('click', () => loadContacts(q, fetcher));
   }
 }

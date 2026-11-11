@@ -1,7 +1,7 @@
 // habits — a dedicated habit grid (journal has streaks, but no habit tracker). tap a
 // day to mark it done; each habit shows its streak, this-week progress, and a
 // GitHub-style contribution heatmap. mirrors the days/watch panel conventions.
-import { api, toast } from './util.js';
+import { api, stateHtml, toast } from './util.js';
 import { initCustomDropdown } from './dropdown.js?v=217';
 import { confirm as dlgConfirm, pick } from './dialog.js';
 import { calendarDateKey, formatCalendarDate, t, tp } from './i18n.js';
@@ -181,8 +181,8 @@ function _render() {
   const opened = _open && _habits.find(h => h.id === _open);
   if (_open && !opened) _open = null;
   // a failed refresh shows over an opened habit too (no loading line there: it would shift the page)
-  const error = _loadError ? `<div class="specialist-group-note legacy-load-note habit-load-error" role="alert"><span>${esc(_loadError)}</span><button type="button" class="btn" data-act="retry-load">${esc(t('common.retry'))}</button></div>` : '';
-  const notes = `${_loading ? `<div class="specialist-group-note" role="status">${esc(t('habits.loading'))}</div>` : ''}${error}`;
+  const error = _loadError ? stateHtml('error', _loadError, { cls: 'legacy-load-note habit-load-error', retry: 'data-act="retry-load"' }) : '';
+  const notes = `${_loading ? stateHtml('loading', t('habits.loading')) : ''}${error}`;
   if (opened) {
     body.innerHTML = error + _detail(opened);
   } else {

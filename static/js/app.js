@@ -827,6 +827,12 @@ function _paintSpecialistState(root, state, retry, details = null) {
     line.replaceChildren();
     return;
   }
+  // a pane that drew its own failure (with its own retry) is the one message: the corner chip would repeat it
+  if (state === 'error' && root.querySelector('.specialist-state[data-inline][data-state="error"]')) {
+    line.hidden = true;
+    line.replaceChildren();
+    return;
+  }
   line.hidden = false;
   const label = appLabel(root.dataset.stateLabel || root.dataset.specialistApp || 'page');
   const partialMessage = typeof details?.partialMessage === 'string' ? details.partialMessage : '';
@@ -2018,7 +2024,6 @@ function bindEvents() {
 
   // model picker
   document.getElementById('model-btn').addEventListener('click', openModelModal);
-  document.getElementById('model-modal-close').addEventListener('click', closeModelModal);
   document.getElementById('model-search-input').addEventListener('input', e => renderModelList(e.target.value));
 
   // export/share/print dropdown
@@ -2182,8 +2187,7 @@ function bindEvents() {
   document.querySelectorAll('.modal-overlay:not(#settings-modal):not(#files-preview-modal)').forEach(o => {
     o.addEventListener('click', e => {
       if (e.target !== o) return;
-      if (o.id === 'model-modal') closeModelModal();
-      else closeAllModals();
+      closeAllModals();
     });
   });
 
@@ -2846,10 +2850,16 @@ window._updateFavicon = updateFavicon;
 // ── model picker ──────────────────────────────────────────────────────────────
 let _modelModalInited = false;
 let _modelModalFocusBoundary = null;
+let _modelPopoverOutside = null;
+let _modelPopoverAnchor = null;
 function closeModelModal() {
   const modal = document.getElementById('model-modal');
   if (!modal || modal.style.display === 'none') return;
   modal.style.display = 'none';
+  if (_modelPopoverOutside) document.removeEventListener('pointerdown', _modelPopoverOutside, true);
+  _modelPopoverOutside = null;
+  _modelPopoverAnchor = null;
+  window.removeEventListener('resize', closeModelModal);
   document.querySelectorAll('#model-btn, #aide-model-choice, #composer-choose-model').forEach(button => {
     button.setAttribute('aria-expanded', 'false');
   });
@@ -2857,25 +2867,57 @@ function closeModelModal() {
 }
 window._closeModelModal = closeModelModal;
 window._openModelModal = () => openModelModal();
-function openModelModal() {
+// the picker opens on the button that asked for it: above it when that button sits in the lower
+// half of the window (the composer), below it otherwise (the top bar), on the side the button is on
+function placeModelPopover(modal, anchor) {
+  const card = modal.firstElementChild;
+  const edge = 12, gap = 6;
+  const vw = window.innerWidth, vh = window.innerHeight;
+  const box = anchor.getBoundingClientRect();
+  const width = Math.min(card.offsetWidth, vw - 2 * edge);
+  const left = box.left + box.width / 2 > vw / 2 ? box.right - width : box.left;
+  modal.style.left = `${Math.max(edge, Math.min(left, vw - width - edge))}px`;
+  const above = box.top > vh / 2;
+  modal.style.top = above ? 'auto' : `${box.bottom + gap}px`;
+  modal.style.bottom = above ? `${vh - box.top + gap}px` : 'auto';
+  card.style.maxHeight = `${Math.max(160, (above ? box.top : vh - box.bottom) - gap - edge)}px`;
+}
+
+function openModelModal(event) {
   const modal = document.getElementById('model-modal');
-  modal.style.display = 'flex';
+  const clicked = event?.currentTarget instanceof Element ? event.currentTarget : null;
+  const anchor = clicked || ['aide-model-choice', 'composer-choose-model', 'model-btn']
+    .map(id => document.getElementById(id)).find(el => el?.getClientRects().length);
+  // the same button again shuts it
+  if (modal.style.display !== 'none') {
+    const wasOpenFor = _modelPopoverAnchor;
+    closeModelModal();
+    if (clicked && clicked === wasOpenFor) return;
+  }
+  modal.style.display = 'block';
   document.querySelectorAll('#model-btn, #aide-model-choice, #composer-choose-model').forEach(button => {
     button.setAttribute('aria-expanded', 'true');
   });
   if (!_modelModalInited) { initModelModal(); _modelModalInited = true; }
-  // make sure models tab is active
-  document.querySelector('.mm-tab[data-tab="models"]')?.click();
   renderModelList();
   const inp = document.getElementById('model-search-input');
   if (inp) inp.value = '';
+  if (anchor) {
+    _modelPopoverAnchor = anchor;
+    placeModelPopover(modal, anchor);
+    _modelPopoverOutside = e => { if (!modal.contains(e.target) && !anchor.contains(e.target)) closeModelModal(); };
+    document.addEventListener('pointerdown', _modelPopoverOutside, true);
+    window.addEventListener('resize', closeModelModal);
+  }
   if (!_modelModalFocusBoundary) {
     _modelModalFocusBoundary = createFocusBoundary(modal, {
       trigger: document.getElementById('model-btn'),
       onEscape: closeModelModal,
     });
   }
-  _modelModalFocusBoundary.activate({ focus: inp, source: document.activeElement });
+  _modelModalFocusBoundary.activate({ focus: inp, source: anchor || document.activeElement });
+  // a popover on a button, not a modal: nothing behind it is hidden from the reader
+  modal.removeAttribute('aria-modal');
 }
 
 // ── persona picker ────────────────────────────────────────────────────────────

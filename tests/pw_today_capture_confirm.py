@@ -104,8 +104,10 @@ def run() -> None:
             expect(capture).to_have_value("")
             page.locator("#capture-cancel").click()
 
-            mode.click()
-            expect(mode).to_have_attribute("aria-pressed", "false")
+            page.locator('#today-capture-mode [data-value="note"]').click()
+            expect(page.locator('#today-capture-mode [data-value="note"]')).to_have_attribute(
+                "aria-checked", "true"
+            )
             page.route(
                 "**/api/vault-md/file",
                 lambda route: (
