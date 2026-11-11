@@ -460,8 +460,9 @@ function _goToCatalogTarget(target) {
     const node = document.querySelector(target.anchor);
     const card = node?.closest('.s-card') || node;
     if (!card) return;
+    if (card.dataset.channel) { card.dataset.open = '1'; card.hidden = false; }
     card.scrollIntoView({ block: 'start', behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' });
-    card.querySelector('button:not([disabled]), a[href], input, textarea')?.focus({ preventScroll: true });
+    (document.getElementById(card.dataset.channel || '') || card.querySelector('button:not([disabled]), a[href], input, textarea'))?.focus({ preventScroll: true });
   };
   if (!target.pane) { go(); return; }
   document.querySelector(`.s-nav-item[data-pane="${CSS.escape(target.pane)}"]`)?.click();
@@ -664,6 +665,7 @@ function _renderDiscordConnection(data) {
   setup.hidden = !!data.configured;
   manage.hidden = !data.configured;
   head.textContent = data.configured ? _connectionState(data.connection_state || 'disconnected') : t('common.not_connected');
+  _channelRest('jarvis-discord-card', !!data.configured, 'jarvis-discord-token');
   if (!data.configured) return;
 
   document.getElementById('jarvis-discord-name').textContent = data.bot_name || 'Jarvis';
@@ -1040,6 +1042,16 @@ async function _delPermRule(rule) {
 }
 
 
+// a chat channel that is not set up is only its catalog row; "set up" shows the card with focus in its
+// first field (decision 0080)
+function _channelRest(cardId, configured, firstId) {
+  const card = document.getElementById(cardId);
+  if (!card) return;
+  card.dataset.channel = firstId;
+  if (configured) delete card.dataset.open;
+  card.hidden = !configured && card.dataset.open !== '1';
+}
+
 // ── texting Aide over iMessage (photon) ──
 
 let _photonBound = false;
@@ -1150,11 +1162,12 @@ function _renderPhoton(data) {
   }
   const id = document.getElementById('photon-project-id');
   if (document.activeElement !== id) id.value = data.project_id || '';
-  document.getElementById('photon-secret-note').textContent = data.has_secret ? t('connections.photon_secret_saved') : '';
   const owner = document.getElementById('photon-owner');
   if (document.activeElement !== owner) owner.value = (data.owner_handles || []).map(formatPhone).join('\n');
   _renderPhotonLogin(data);
   _renderPhotonLine(data);
+  const signingIn = ['starting', 'waiting', 'finishing'].includes(data.login?.state);
+  _channelRest('photon-card', !!(data.has_secret || data.enabled || data.state !== 'off' || (data.owner_handles || []).length || signingIn), 'photon-connect-btn');
 }
 
 async function _savePhoton(enabled, receipts = _photonReceipts) {
@@ -1228,9 +1241,7 @@ function _renderTelegram(data) {
   } else detail.textContent = t('connections.telegram_detail');
   // the steps are for getting there; once it runs they're noise
   document.getElementById('telegram-steps').hidden = data.state === 'ready';
-  document.getElementById('telegram-token-note').textContent = data.has_token
-    ? t('connections.telegram_token_saved')
-    : '';
+  _channelRest('telegram-card', !!(data.has_token || data.enabled || data.state !== 'off'), 'telegram-token');
   const open = document.getElementById('telegram-open-bot');
   open.hidden = !data.bot;
   if (data.bot) {

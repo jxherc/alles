@@ -224,20 +224,10 @@ def run():
                     page.screenshot(path=str(output / f"{profile}-{state}.png"), full_page=True)
 
             def choose_option(label, name):
-                field = page.get_by_role("group", name=label, exact=True)
-                trigger = field.get_by_role("button", name="change " + label, exact=True)
+                name = name.replace(";", ",")  # the dropdown's option string can't hold ";"
+                trigger = page.get_by_role("combobox", name=label, exact=True)
                 trigger.press("Enter")
-                search = field.get_by_role(
-                    "searchbox", name="search " + label + " choices", exact=True
-                )
-                expect(search).to_be_focused()
-                search.fill("owned nonexistent choice")
-                expect(field.get_by_role("option")).to_have_count(0)
-                expect(field.get_by_role("status")).to_contain_text("no matching choices")
-                search.press("Escape")
-                expect(trigger).to_be_focused()
-                expect(trigger).to_have_attribute("aria-expanded", "false")
-                trigger.press("Enter")
+                panel = page.locator("#" + trigger.get_attribute("aria-controls"))
                 catalogue = api.get(
                     base
                     + (
@@ -246,17 +236,12 @@ def run():
                         else "/api/finance/imports/profiles"
                     )
                 ).json()
-                expect(field.get_by_role("option")).to_have_count(
+                expect(panel.get_by_role("option")).to_have_count(
                     len(catalogue if label == "account" else catalogue["profiles"])
                 )
-                search.fill(name)
-                expect(field.get_by_role("option", name=name, exact=True)).to_be_visible()
-                search.press("ArrowDown")
-                expect(field.get_by_role("option", name=name, exact=True)).to_be_focused()
-                page.keyboard.press("Enter")
-                expect(trigger).to_be_focused()
+                panel.get_by_role("option", name=name, exact=True).click()
                 expect(trigger).to_have_attribute("aria-expanded", "false")
-                expect(field.locator(".finance-import-selected")).to_have_text(name)
+                expect(trigger).to_contain_text(name)
 
             record = begin("header-destination-preview")
             try:

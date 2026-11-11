@@ -424,10 +424,8 @@ def run() -> None:
         page.locator("#vault-manage-btn").click()
         modal = page.locator(".vault-modal")
         expect(modal).to_be_visible()
-        expect(page.locator("#mv-x")).to_be_focused()
-        page.keyboard.press("Shift+Tab")
         expect(page.locator("#mv-close")).to_be_focused()
-        page.locator("#mv-x").focus()
+        expect(page.locator("#mv-x")).to_have_count(0)
         expect(page.locator(".mv-browser-code").filter(has_text=pairing["code"])).to_be_visible()
         assert (
             page.locator(

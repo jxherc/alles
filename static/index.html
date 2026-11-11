@@ -1231,20 +1231,23 @@
         <div class="files-phase7-dialog">
           <div class="files-phase7-dialog-head">
             <h2 id="files-settings-title" data-i18n="common.location_settings">location settings</h2>
-            <button class="files-bare-icon" data-files-dialog-close="settings" type="button" aria-label="close location settings" data-i18n-aria-label="shell.files_settings.close_location_settings">×</button>
           </div>
           <div class="files-location-settings" id="files-location-status">
             <strong id="files-current-location-name"></strong>
             <div id="files-current-location-path"></div>
-            <div id="files-current-location-access"></div>
+            <div class="files-location-state"><span id="files-current-location-access"></span><span class="files-location-index-state" role="status" aria-live="polite"></span></div>
             <div id="files-location-message" role="status" aria-live="polite"></div>
-            <div class="files-location-index-state" role="status" aria-live="polite"></div>
-            <div id="files-index-help" data-i18n="shell.files_settings.index_readable_text_for_search_without">Index readable text for search without changing your files. Local filename search works without an index.</div>
-            <div class="files-location-controls">
-              <button class="btn" type="button" data-location-action="test" data-i18n="shell.files_settings.test_connection">test connection</button>
+            <div class="files-phase7-dialog-actions">
+              <div class="files-more-wrap">
+                <button class="btn" type="button" id="files-location-more" aria-haspopup="menu" aria-expanded="false" aria-controls="files-location-more-menu" data-i18n="common.more">more</button>
+                <div class="ctx-menu files-more-menu" id="files-location-more-menu" role="menu" aria-labelledby="files-location-more" hidden>
+                  <button class="ctx-item" type="button" role="menuitem" data-location-action="test" data-i18n="shell.files_settings.test_connection">test connection</button>
+                  <button class="ctx-item" type="button" role="menuitem" data-location-action="access" hidden data-i18n="shell.files_settings.change_access">change access</button>
+                  <button class="ctx-item danger" type="button" role="menuitem" data-location-action="remove" hidden data-i18n="shell.files_settings.remove_location">remove location</button>
+                </div>
+              </div>
+              <button class="btn" data-files-dialog-close="settings" type="button" data-i18n="common.cancel">cancel</button>
               <button class="btn primary" type="button" data-location-action="index" data-i18n="shell.files_settings.index_for_search">index for search</button>
-              <button class="btn" type="button" data-location-action="access" hidden data-i18n="shell.files_settings.change_access">change access</button>
-              <button class="btn danger" type="button" data-location-action="remove" hidden data-i18n="shell.files_settings.remove_location">remove location</button>
             </div>
           </div>
         </div>
@@ -1965,10 +1968,10 @@
                 <div class="mem-policy-copy">
                   <div class="s-toggle-label" data-i18n="shell.settings_memory.memory_policy">save new memories</div>
                 </div>
-                <div class="mem-policy-options" role="group" aria-label="memory policy choices" data-i18n-aria-label="shell.settings_memory.memory_policy_choices">
-                  <button type="button" class="mem-policy-btn" data-memory-policy="off" data-i18n="common.off">off</button>
-                  <button type="button" class="mem-policy-btn" data-memory-policy="ask" data-i18n="common.ask">ask</button>
-                  <button type="button" class="mem-policy-btn" data-memory-policy="auto" data-i18n="common.auto">auto</button>
+                <div class="mem-policy-options k-pill-switch" data-kokuen-choice="switch" role="radiogroup" aria-label="memory policy choices" data-i18n-aria-label="shell.settings_memory.memory_policy_choices">
+                  <button type="button" role="radio" class="mem-policy-btn" data-memory-policy="off" data-value="off" aria-checked="false" tabindex="0" data-i18n="common.off">off</button>
+                  <button type="button" role="radio" class="mem-policy-btn" data-memory-policy="ask" data-value="ask" aria-checked="false" tabindex="-1" data-i18n="common.ask">ask</button>
+                  <button type="button" role="radio" class="mem-policy-btn" data-memory-policy="auto" data-value="auto" aria-checked="false" tabindex="-1" data-i18n="common.auto">auto</button>
                 </div>
               </div>
               <div class="s-toggle-row">
@@ -2228,10 +2231,10 @@
             <div class="s-card-body" id="s-default-theme">
               <div class="s-default-lock" id="s-theme-lock-note" style="display:none"></div>
               <div class="s-field">
-                <label data-i18n="shell.settings_themes.mode">mode</label>
-                <div class="theme-mode-row" id="s-theme-mode-row" role="group" aria-label="theme mode" data-i18n-aria-label="shell.settings_themes.theme_mode">
-                  <button type="button" class="theme-mode-btn" data-theme-mode="dark" aria-pressed="false" data-i18n="shell.settings_themes.dark">dark</button>
-                  <button type="button" class="theme-mode-btn" data-theme-mode="light" aria-pressed="false" data-i18n="common.light">light</button>
+                <label id="s-theme-mode-label" data-i18n="shell.settings_themes.mode">mode</label>
+                <div class="k-pill-switch theme-mode-row" id="s-theme-mode-row" data-kokuen-choice="switch" role="radiogroup" aria-labelledby="s-theme-mode-label">
+                  <button type="button" role="radio" class="theme-mode-btn" data-theme-mode="dark" data-value="dark" aria-checked="false" tabindex="0" data-i18n="shell.settings_themes.dark">dark</button>
+                  <button type="button" role="radio" class="theme-mode-btn" data-theme-mode="light" data-value="light" aria-checked="false" tabindex="-1" data-i18n="common.light">light</button>
                 </div>
               </div>
               <details class="s-appearance-details" id="s-accent-details">
@@ -2334,11 +2337,11 @@
                 <div class="persona-temp-foot"><span class="cold" data-i18n="shell.settings_personas.precise_0">precise · 0</span><span class="hot" data-i18n="shell.settings_personas.creative_2">creative · 2</span></div>
               </div>
               <div class="s-field">
-                <label data-i18n="shell.settings_personas.runs_as">runs as</label>
-                <div class="seg" id="persona-mode">
-                  <button type="button" class="seg-opt active" data-val="" data-i18n="common.auto">auto</button>
-                  <button type="button" class="seg-opt" data-val="chat" data-i18n="shell.settings_personas.chat_only">chat only</button>
-                  <button type="button" class="seg-opt" data-val="agent" data-i18n="common.agent">agent</button>
+                <label id="persona-mode-label" data-i18n="shell.settings_personas.runs_as">runs as</label>
+                <div class="k-pill-switch" id="persona-mode" data-kokuen-choice="switch" role="radiogroup" aria-labelledby="persona-mode-label">
+                  <button type="button" role="radio" class="persona-mode-opt" data-val="" data-value="" aria-checked="true" tabindex="0" data-i18n="common.auto">auto</button>
+                  <button type="button" role="radio" class="persona-mode-opt" data-val="chat" data-value="chat" aria-checked="false" tabindex="-1" data-i18n="shell.settings_personas.chat_only">chat only</button>
+                  <button type="button" role="radio" class="persona-mode-opt" data-val="agent" data-value="agent" aria-checked="false" tabindex="-1" data-i18n="common.agent">agent</button>
                 </div>
               </div>
               <div class="s-field">

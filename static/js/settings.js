@@ -354,10 +354,6 @@ function _initSettings() {
   document.getElementById('persona-temp-pin')?.addEventListener('click', _togglePersonaTempPin);
   _renderTempBar();   // paint the empty/auto track on first open
   document.getElementById('persona-default')?.addEventListener('click', e => e.currentTarget.classList.toggle('on'));
-  document.getElementById('persona-mode')?.addEventListener('click', e => {
-    const opt = e.target.closest('.seg-opt'); if (!opt) return;
-    opt.parentElement.querySelectorAll('.seg-opt').forEach(o => o.classList.toggle('active', o === opt));
-  });
   document.getElementById('cookbook-add-btn')?.addEventListener('click', addCookbookEntry);
 
   // ── tools (mcp) ──
@@ -620,7 +616,8 @@ function _markMode() {
   document.querySelectorAll('.theme-mode-btn').forEach(b => {
     const selected = b.dataset.themeMode === cur;
     b.classList.toggle('active', selected);
-    b.setAttribute('aria-pressed', String(selected));
+    b.setAttribute('aria-checked', String(selected));
+    b.tabIndex = selected ? 0 : -1;
   });
 }
 function _loadThemeColorControls() {
@@ -1040,11 +1037,14 @@ function _onTempKeydown(e) {
 }
 
 function _setPersonaMode(val) {
-  document.querySelectorAll('#persona-mode .seg-opt').forEach(o =>
-    o.classList.toggle('active', (o.dataset.val || '') === (val || '')));
+  document.querySelectorAll('#persona-mode [role="radio"]').forEach(o => {
+    const picked = (o.dataset.val || '') === (val || '');
+    o.setAttribute('aria-checked', String(picked));
+    o.tabIndex = picked ? 0 : -1;
+  });
 }
 function _getPersonaMode() {
-  return document.querySelector('#persona-mode .seg-opt.active')?.dataset.val || '';
+  return document.querySelector('#persona-mode [role="radio"][aria-checked="true"]')?.dataset.val || '';
 }
 
 // curated persona accent palette. deliberately NO green / red — those carry "right vs

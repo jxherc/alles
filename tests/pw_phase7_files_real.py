@@ -171,9 +171,7 @@ def _desktop(browser: Browser, errors: list[str], second: Path, read_only: Path)
     assert page.locator(".files-phase7-workbench").get_attribute("inert") is not None
     assert page.locator('[data-location-action="remove"]').is_hidden()
     page.keyboard.press("Shift+Tab")
-    assert page.locator('[data-location-action="index"]').evaluate(
-        "el => el === document.activeElement"
-    )
+    assert page.locator("#files-location-more").evaluate("el => el === document.activeElement")
     page.keyboard.press("Tab")
     assert page.locator('[data-files-dialog-close="settings"]').evaluate(
         "el => el === document.activeElement"
@@ -454,21 +452,26 @@ def _desktop(browser: Browser, errors: list[str], second: Path, read_only: Path)
     # Location health, access changes, and safe removal are all live controls.
     assert page.locator("#files-app-status").inner_text() == "read only"
     page.locator("#files-settings-btn").click()
-    page.locator('[data-location-action="test"]').click()
+
+    def more(action):
+        page.locator("#files-location-more").click()
+        page.locator(f'[data-location-action="{action}"]').click()
+
+    more("test")
     page.wait_for_function(
         "document.querySelector('#files-location-status')?.textContent.includes('ready')"
     )
-    page.locator('[data-location-action="access"]').click()
+    more("access")
     page.wait_for_function("!document.querySelector('#files-mkdir-btn').disabled")
-    page.locator('[data-location-action="access"]').click()
+    more("access")
     page.wait_for_function("document.querySelector('#files-mkdir-btn').disabled")
-    page.locator('[data-location-action="remove"]').click()
+    more("remove")
     page.locator(".dialog-overlay [data-dialog-cancel]").press("Enter")
     assert page.locator("#files-settings-dialog").is_visible()
-    assert page.locator('[data-location-action="remove"]').evaluate(
-        "el => el === document.activeElement"
+    assert page.evaluate(
+        "document.getElementById('files-settings-dialog').contains(document.activeElement)"
     )
-    page.locator('[data-location-action="remove"]').press("Enter")
+    more("remove")
     assert page.locator('.dialog-overlay [role="alertdialog"]').is_visible()
     page.locator(".dialog-overlay [data-dialog-confirm]").click()
     page.wait_for_function(

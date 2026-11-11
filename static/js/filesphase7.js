@@ -1,4 +1,5 @@
 import { toast, plainError } from './util.js';
+import { wireActionMenu } from './kokuen.js?v=5';
 import { prompt as dlgPrompt, confirm as dlgConfirm } from './dialog.js';
 import { formatDate, t, tp } from './i18n.js';
 import { pushRouteUrl, replaceRouteUrl } from './route_history.js';
@@ -277,11 +278,7 @@ function renderLocationStatus(message) {
   if (message !== undefined) notice.textContent = message;
   $('files-current-location-name').textContent = location.name;
   $('files-current-location-path').textContent = locationLabel(location);
-  const kind = location.kind === 'local' ? t('files.local_folder') : location.kind.toUpperCase();
-  $('files-current-location-access').textContent = `${kind} · ${location.access === 'managed' ? t('files.changes_allowed') : t('files.read_only')}`;
-  $('files-index-help').textContent = location.kind === 'local'
-    ? t('files.index_help_local')
-    : t('files.index_help_remote');
+  $('files-current-location-access').textContent = location.access === 'managed' ? t('files.changes_allowed') : t('files.read_only');
   const indexing = ['queued', 'running'].includes(index.state);
   const indexCopy = indexing
     ? (index.files_indexed ? tp('files.indexing_count', index.files_indexed) : t('files.indexing'))
@@ -1913,6 +1910,7 @@ function bindEvents() {
     renderLocationStatus();
     openFilesDialog('settings', '[data-files-dialog-close]');
   });
+  wireActionMenu($('files-location-more'), $('files-location-more-menu'));
   $('files-add-location')?.addEventListener('click', openLocationDialog);
   $('files-location-list')?.addEventListener('click', async event => {
     const button = event.target.closest('[data-location-id]');

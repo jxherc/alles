@@ -78,10 +78,10 @@ def run() -> None:
                 selected.click()
                 assert (page.locator("html").get_attribute("data-theme") or "dark") == theme
                 expect(selected).to_have_class("theme-mode-btn active")
-                expect(selected).to_have_attribute("aria-pressed", "true")
+                expect(selected).to_have_attribute("aria-checked", "true")
                 expect(
                     page.locator(f'.theme-mode-btn:not([data-theme-mode="{theme}"])')
-                ).to_have_attribute("aria-pressed", "false")
+                ).to_have_attribute("aria-checked", "false")
                 expect(page.locator("#s-pane-themes > .theme-save-state")).to_have_attribute(
                     "data-state", "saved"
                 )

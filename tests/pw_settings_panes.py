@@ -4498,7 +4498,9 @@ def exercise(page, api, endpoint, destination):
         )
     )
     pane("tools")
-    expect(page.locator("#jarvis-discord-setup")).to_be_visible()
+    expect(page.locator("#jarvis-discord-card")).to_be_hidden()
+    page.locator('[data-catalog="discord"]').click()
+    expect(page.locator("#jarvis-discord-token")).to_be_focused()
     page.locator("#jarvis-discord-token").fill("example")
     page.locator("#jarvis-discord-connect").click()
     page.wait_for_function("window.__settingsPaneDiscordConnectReady === true")
@@ -4589,6 +4591,7 @@ def exercise(page, api, endpoint, destination):
     for outcome in ("newer", "failure", "unchanged"):
         action_state["configured"] = False
         close_and_reopen("tools")
+        page.locator('[data-catalog="discord"]').click()
         expect(page.locator("#jarvis-discord-setup")).to_be_visible()
         token.fill("example-old")
         count = len(action_connects) + 1

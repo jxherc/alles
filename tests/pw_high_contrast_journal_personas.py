@@ -114,7 +114,7 @@ def run():
                 mode = page.locator('#persona-mode [data-val="chat"]')
                 mode.focus()
                 mode.press("Space")
-                expect(mode).to_have_class("seg-opt active")
+                expect(mode).to_have_attribute("aria-checked", "true")
                 selected_mode = appearance(mode)
                 other_mode = appearance(page.locator('#persona-mode [data-val="agent"]'))
                 assert selected_mode["background"] != other_mode["background"]

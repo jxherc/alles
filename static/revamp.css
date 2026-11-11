@@ -155,7 +155,7 @@ html:not(#_) :is(.docs-home-card, .docs-card):hover {
 
 /* ── cards: filled, not outlined ───────────────────────────────────────────── */
 
-html:not(#_) :is(.money-card, .ms-card, .habit-card, .day-card, .skl-card, .brain-section, .brain-stat, .health-card, .book-card, .read-card, .watch-card, .note-card, .finance-import-choice) {
+html:not(#_) :is(.money-card, .ms-card, .habit-card, .day-card, .skl-card, .brain-section, .brain-stat, .health-card, .book-card, .read-card, .watch-card, .note-card) {
   border-color: transparent;
   border-radius: var(--k-radius-surface);
   background: var(--k-panel);
@@ -203,7 +203,7 @@ html:not(#_) :is(.cal-weekday, .photos-nav-group, .photos-faces-h, .today-sectio
 /* ── picked chips, segments, tabs ──────────────────────────────────────────── */
 
 /* chips take the accent tint when picked; tabs and segments get the sliding pill below */
-html:not(#_)[data-kokuen-version="5"] :is(.health-chip, .read-chip, .mem-policy-btn, .btn.active, .act-chip):is(.active, [aria-pressed="true"]):not(.off) {
+html:not(#_)[data-kokuen-version="5"] :is(.health-chip, .read-chip, .btn.active, .act-chip):is(.active, [aria-pressed="true"]):not(.off) {
   border-color: transparent;
   background: var(--k-pill);
   color: var(--k-text);
@@ -212,7 +212,7 @@ html:not(#_)[data-kokuen-version="5"] :is(.health-chip, .read-chip, .mem-policy-
   -webkit-text-stroke: 0.35px currentColor;
 }
 
-html:not(#_)[data-kokuen-version="5"] :is(.seg-opt, .tasks-tab, .te-seg button, .theme-mode-btn, .s-nav-item).active {
+html:not(#_)[data-kokuen-version="5"] :is(.seg-opt, .tasks-tab, .te-seg button, .s-nav-item).active {
   border-color: transparent;
   background: var(--k-pill);
   color: var(--k-text);
@@ -3283,35 +3283,7 @@ html:not(#_):not(#_) .money-summary .ms-card .ms-val > .ms-label {
 
 html:not(#_):not(#_) #money-view h2 { color: var(--k-text); }
 
-/* finance imports: a choice card's label sits inside it above its value (a fieldset legend drew
-   it on the card's top edge), and its change button is a secondary button */
-html:not(#_):not(#_) .finance-import-choice {
-  padding: var(--k-space-4) var(--k-space-5);
-  border-radius: var(--k-radius-surface);
-}
-
-html:not(#_):not(#_) .finance-import-choice > legend {
-  float: left;
-  width: 100%;
-  margin: 0 0 var(--k-space-1);
-  padding: 0;
-  color: var(--k-muted);
-  font-size: 0.8125rem;
-  line-height: 16px;
-  font-weight: 500;
-}
-
-html:not(#_):not(#_) .finance-import-choice > legend + * { clear: both; }
-
-html:not(#_):not(#_) .finance-import-choice > button {
-  border-color: transparent;
-  background: var(--k-btn-fill);
-  color: var(--k-text);
-}
-
-html:not(#_):not(#_) .finance-import-choice > button:hover { background: var(--k-btn-fill-hover); }
-
-/* the file, apply and receipt buttons are secondary buttons like the change buttons above them, not
+/* the file, apply and receipt buttons are secondary buttons, not
    outlined boxes; the file's name takes the room between the picker and "preview import" so the
    preview button ends on the right edge */
 html:not(#_):not(#_) #finance-view :is(.finance-import-file-row, .finance-import-actions) > button:not(:disabled) {

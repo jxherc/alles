@@ -327,6 +327,10 @@ def run():
                         # a remote backup is one row until its form is opened
                         for kind in ("webdav", "s3"):
                             page.locator(f"#{kind}-backup-setup-btn").click()
+                    if pane == "tools":
+                        # a chat channel is its catalog row until "set up" opens its card
+                        for kind in ("imessage", "telegram", "discord"):
+                            page.locator(f'[data-catalog="{kind}"]').click()
                     for field in [f for f in fields if f["pane"] == pane]:
                         inspect(field)
                     if pane == "models":
