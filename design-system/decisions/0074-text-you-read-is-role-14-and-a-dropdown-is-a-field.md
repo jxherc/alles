@@ -45,3 +45,6 @@ one move in a month drew a flat line with a step in it.
 - `fit.py` before and after at phone and ipad: no new control off screen and no new clipped
   label; finance's four tabs fit a 390px row.
 - `tests/js/numbers.test.mjs`: one move in a month draws no line.
+- the kit rules gate has the rule `text-under-13`: any visible text under 13px, on any route at
+  any of its four sizes, fails the gate. the 16px reading size is not gated, because a rule
+  can't tell a label from a sentence.

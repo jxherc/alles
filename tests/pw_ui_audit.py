@@ -893,6 +893,16 @@ KIT_RULES = r"""
     const between = content.some(c => c.bottom > top + 0.5 && c.top < bottom - 0.5 && c.right > l && c.left < r);
     if (!between) out.push(['stacked-lines', sig(a.el) + ' / ' + sig(b.el), dy.toFixed(1) + 'px']);
   }
+
+  // text floor (decision 0074): nothing a person reads is under 13px. svg text is sized in the
+  // drawing's own units, so its computed size says nothing about what is seen
+  for (const el of document.querySelectorAll('body *')) {
+    if (el.closest('svg')) continue;
+    const own = [...el.childNodes].filter(n => n.nodeType === 3).map(n => n.textContent.trim()).join(' ').trim();
+    if (own.length < 3 || !vis(el)) continue;
+    const size = px(getComputedStyle(el).fontSize);
+    if (size < 12.95) out.push(['text-under-13', sig(el), size.toFixed(1) + 'px']);
+  }
   return out.slice(0, 80);
 }
 """
