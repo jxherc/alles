@@ -68,6 +68,41 @@
           "key": "uploads_dont_stall",
           "title": "uploads don't stall the page",
           "body": "saving a photo, a file or a vault attachment no longer makes everything else wait."
+        },
+        {
+          "key": "settings_one_row",
+          "title": "settings show less until you set things up",
+          "body": "a backup target, local models or a chat channel you haven't set up is one row with one button. connections & tools is now three panes: connections, agent and this machine."
+        },
+        {
+          "key": "calendar_on_phone",
+          "title": "the calendar fits a phone",
+          "body": "the toolbar is two rows, the month shows dots for each day's events, and month, week, day, agenda and year are one dropdown."
+        },
+        {
+          "key": "mail_rows",
+          "title": "mail you can scan",
+          "body": "a message is two lines with a flag and one menu for the rest. account, folder, search and compose share one toolbar, so the first message starts much higher on a phone."
+        },
+        {
+          "key": "matching_pickers",
+          "title": "pickers that match",
+          "body": "journal's mood is a dropdown, a book's shelf is a switch and its rating a row of numbers, and contacts have one filter."
+        },
+        {
+          "key": "quieter_vault",
+          "title": "a quieter vault and gallery",
+          "body": "the vault toolbar is one row with the rest in a menu, delete moved into each entry's menu, and pictures show a select ring only while you're selecting."
+        },
+        {
+          "key": "app_list_fits",
+          "title": "the app list fits the screen",
+          "body": "the more sheet shows every app without scrolling and marks the one you're in."
+        },
+        {
+          "key": "one_error_one_retry",
+          "title": "one error, one retry",
+          "body": "when calendar, books, health, habits, gallery, contacts or journal can't load, one card says so with one retry button. the model picker opens on its button, and newest only moved to settings > models."
         }
       ]
     },
