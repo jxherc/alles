@@ -6996,7 +6996,7 @@
     "shell.original_unavailable": "المحادثة الأصلية أو الرد غير متاح",
     "shell.overview_in_progress": "جارٍ إنشاء نظرة عامة بالفعل",
     "shell.perm_approve_desc": "اسأل قبل كل تغيير",
-    "shell.perm_full_access_desc": "بلا موافقة؛ صدفة المضيف غير مقيّدة ما لم تكن معزولة",
+    "shell.perm_full_access_desc": "بلا موافقة؛ الصدفة غير مقيّدة",
     "shell.perm_full_auto_desc": "تنفيذ العمل الآمن؛ والسؤال عند الخطر الفعلي",
     "shell.perm_plan_desc": "للقراءة فقط: ضع خطة دون تغيير أي شيء",
     "shell.persona": "الشخصية",

@@ -7000,7 +7000,7 @@ const BUILTIN_ENGLISH = {
     "shell.original_unavailable": "the original conversation or reply is unavailable",
     "shell.overview_in_progress": "already generating an overview",
     "shell.perm_approve_desc": "ask before each change",
-    "shell.perm_full_access_desc": "no approval; host shell is unrestricted unless sandboxed",
+    "shell.perm_full_access_desc": "no approval; the shell is unrestricted",
     "shell.perm_full_auto_desc": "handle safe work; ask at real risk",
     "shell.perm_plan_desc": "read-only: just make a plan, change nothing",
     "shell.persona": "persona",

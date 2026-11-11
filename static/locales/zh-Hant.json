@@ -6997,7 +6997,7 @@
     "shell.original_unavailable": "原始對話或回覆已無法使用",
     "shell.overview_in_progress": "已在產生概覽",
     "shell.perm_approve_desc": "每次變更前詢問",
-    "shell.perm_full_access_desc": "不需批准；除非有沙箱，否則主機 shell 不受限制",
+    "shell.perm_full_access_desc": "不需批准；shell 不受限制",
     "shell.perm_full_auto_desc": "處理安全的工作；有實際風險時才詢問",
     "shell.perm_plan_desc": "唯讀：只制定計畫，不做任何變更",
     "shell.persona": "角色",

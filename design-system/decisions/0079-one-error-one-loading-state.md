@@ -46,3 +46,9 @@ and carried a "newest only" switch, a refresh button and an endpoints tab next t
 - "show only the newest model of each family" and refresh live in settings > models (a labeled
   switch at the top of model connections; "refresh all" was already there). endpoints are added,
   tested and removed in settings only.
+
+## the permission menu
+
+it keeps one short line under each mode (they prevent a real mistake) and is 21rem wide like the
+effort menu. the full access line is "no approval; the shell is unrestricted" so it fits on one
+line at that width in every language.

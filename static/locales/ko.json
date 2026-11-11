@@ -6997,7 +6997,7 @@
     "shell.original_unavailable": "원래 대화나 답변을 사용할 수 없습니다",
     "shell.overview_in_progress": "이미 개요를 생성하는 중입니다",
     "shell.perm_approve_desc": "변경할 때마다 묻기",
-    "shell.perm_full_access_desc": "승인 없음. 샌드박스가 아니면 호스트 셸은 제한이 없습니다",
+    "shell.perm_full_access_desc": "승인 없음. 셸에 제한이 없습니다",
     "shell.perm_full_auto_desc": "안전한 작업은 처리하고 실제 위험이 있을 때 묻기",
     "shell.perm_plan_desc": "읽기 전용: 계획만 세우고 아무것도 변경하지 않기",
     "shell.persona": "페르소나",

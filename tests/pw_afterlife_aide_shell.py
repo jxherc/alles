@@ -761,7 +761,7 @@ def run() -> None:
 
             page.locator("#perm-mode-btn").click()
             assert page.locator("#perm-menu button").all_inner_texts() == [
-                "full access\nno approval; host shell is unrestricted unless sandboxed",
+                "full access\nno approval; the shell is unrestricted",
                 "auto mode\nhandle safe work; ask at real risk",
                 "ask for approval\nask before each change",
                 "plan\nread-only: just make a plan, change nothing",

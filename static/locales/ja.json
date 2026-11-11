@@ -6997,7 +6997,7 @@
     "shell.original_unavailable": "元の会話または返信は利用できません",
     "shell.overview_in_progress": "すでに概要を生成中です",
     "shell.perm_approve_desc": "変更のたびに確認",
-    "shell.perm_full_access_desc": "承認なし。サンドボックスでない限り、ホストのシェルは無制限です",
+    "shell.perm_full_access_desc": "承認なし。シェルは無制限です",
     "shell.perm_full_auto_desc": "安全な作業は任せ、本当に危ないときは確認",
     "shell.perm_plan_desc": "読み取り専用: 計画だけ立てて、何も変更しない",
     "shell.persona": "ペルソナ",

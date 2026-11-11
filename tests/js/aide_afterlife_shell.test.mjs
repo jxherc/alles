@@ -101,7 +101,7 @@ test('full access is orange while auto mode keeps the ai purple', () => {
   assert.match(css, /body\.afterlife-aide-projects\[data-space="aide"\] \.perm-btn\.perm-full\s*\{\s*color:\s*var\(--signal\)/);
 });
 
-test('full access warns that an unsandboxed host shell is unrestricted', () => {
+test('full access warns that the shell is unrestricted', () => {
   assert.match(app, /t\('shell\.perm_full_access_desc'\)/);
 });
 

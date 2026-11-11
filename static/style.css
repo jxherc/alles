@@ -1278,7 +1278,7 @@ a.run-src-item { display: flex; align-items: center; min-height: 44px; text-deco
 /* permission mode menu (.perm-btn styled with the composer bar below) */
 .perm-menu {
   position: fixed; z-index: 300;
-  min-width: 12.5rem; max-width: calc(100vw - 24px);
+  width: min(21rem, calc(100vw - 24px));
   background: var(--panel); border: 1px solid var(--faint); border-radius: var(--k-radius-control);
   padding: 0.25rem; box-shadow: 0 8px 30px rgba(0,0,0,0.5);
 }

@@ -6997,7 +6997,7 @@
     "shell.original_unavailable": "原始对话或回复不可用",
     "shell.overview_in_progress": "已在生成概览",
     "shell.perm_approve_desc": "每次更改前询问",
-    "shell.perm_full_access_desc": "无需批准；除非有沙盒限制，否则主机 shell 不受限制",
+    "shell.perm_full_access_desc": "无需批准；shell 不受限制",
     "shell.perm_full_auto_desc": "处理安全的工作；有真正风险时再询问",
     "shell.perm_plan_desc": "只读：只做计划，不做任何更改",
     "shell.persona": "角色",

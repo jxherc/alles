@@ -6997,7 +6997,7 @@
     "shell.original_unavailable": "la conversation ou la réponse d’origine est indisponible",
     "shell.overview_in_progress": "un aperçu est déjà en cours de génération",
     "shell.perm_approve_desc": "demander avant chaque modification",
-    "shell.perm_full_access_desc": "aucune approbation ; le shell de l’hôte est sans restriction hors bac à sable",
+    "shell.perm_full_access_desc": "aucune approbation ; shell sans restriction",
     "shell.perm_full_auto_desc": "gérer le travail sûr ; demander en cas de vrai risque",
     "shell.perm_plan_desc": "lecture seule : faire un plan, ne rien changer",
     "shell.persona": "persona",

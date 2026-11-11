@@ -6997,7 +6997,7 @@
     "shell.original_unavailable": "la conversación o respuesta original no está disponible",
     "shell.overview_in_progress": "ya se está generando un resumen",
     "shell.perm_approve_desc": "preguntar antes de cada cambio",
-    "shell.perm_full_access_desc": "sin aprobación; el shell del host no tiene restricciones salvo que esté en un sandbox",
+    "shell.perm_full_access_desc": "sin aprobación; el shell no tiene restricciones",
     "shell.perm_full_auto_desc": "se encarga del trabajo seguro; pregunta ante un riesgo real",
     "shell.perm_plan_desc": "solo lectura: solo haz un plan, no cambies nada",
     "shell.persona": "persona",
