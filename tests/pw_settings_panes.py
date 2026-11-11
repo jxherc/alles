@@ -4591,6 +4591,7 @@ def exercise(page, api, endpoint, destination):
     for outcome in ("newer", "failure", "unchanged"):
         action_state["configured"] = False
         close_and_reopen("tools")
+        page.locator('[data-catalog="discord"]').click()
         expect(page.locator("#jarvis-discord-setup")).to_be_visible()
         token.fill("example-old")
         count = len(action_connects) + 1
