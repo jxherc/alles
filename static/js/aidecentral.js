@@ -133,7 +133,11 @@ function renderJobs() {
   const focusedAction = content.contains(document.activeElement) ? document.activeElement?.dataset.contextAction : '';
   const rows = [...jobs].sort((a, b) => Number(ACTIVE.has(b.state)) - Number(ACTIVE.has(a.state)));
   content.replaceChildren();
-  if (!rows.length) content.append(node('p', t('aide.no_background_work'), 'aide-context-empty'));
+  // an empty drawer is one line; scheduled work stays in the more menu until there is work to sit beside
+  if (!rows.length) {
+    content.append(node('p', t('aide.no_background_work'), 'aide-context-empty'));
+    return;
+  }
   for (const run of rows) {
     const button = action('', () => {
       closeContext({ restoreFocus: false });
