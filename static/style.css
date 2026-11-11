@@ -11473,7 +11473,7 @@ html[data-kokuen-version="5"] .btn.photos-restore { background: color-mix(in srg
 }
 .token-scope:hover { background: color-mix(in srgb, var(--k-raised, var(--raised)) 60%, transparent); color: var(--text); }
 .token-scope:focus-visible { outline: 2px solid var(--focus); outline-offset: var(--k-focus-offset, -2px); }
-.token-scope-mark { grid-row: span 2; position: relative; width: 16px; height: 16px; border: 1px solid var(--k-line-strong, var(--line-strong)); border-radius: var(--k-radius-control); }
+.token-scope-mark { grid-row: span 2; position: relative; width: 16px; height: 16px; border: 1px solid var(--k-muted, var(--muted)); border-radius: var(--k-radius-control); }
 .token-scope-name { color: var(--text); font-size: 0.8125rem; line-height: 1.3; }
 .token-scope-desc { font-size: 0.8125rem; line-height: 1.35; overflow-wrap: anywhere; }
 .token-scope[aria-pressed="true"] .token-scope-name { -webkit-text-stroke: 0.35px currentColor; }
