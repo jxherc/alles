@@ -161,6 +161,12 @@ body.aide-central[data-space="aide"] .aide-background-details { font-size: 0.812
   .aide-history-context { padding-inline: var(--k-space-4, 16px); }
   .aide-context-panel { border-left: 0; }
 }
+/* under 350px (an ipad slide over is 320) five 44px controls and their 8px gaps are 25px more
+   than one row, and the model button drew over the mode button. the tools keep the first row;
+   model, mic and send take a second one, so no name is cut and the gaps stay */
+@media (max-width: 350px) {
+  body.aide-central[data-space="aide"] .composer-bar .c-right { flex: 1 0 100%; }
+}
 /* with the larger type (0044) the drawer name and three actions need about 380px: one row from
    a phone's 390px up, tighter edges under 430px */
 @media (max-width: 429px) {
