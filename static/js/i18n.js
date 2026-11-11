@@ -4035,6 +4035,7 @@ const BUILTIN_ENGLISH = {
     "home.capture_add_title": "add a title",
     "home.capture_add_to_plan": "add to plan",
     "home.capture_all_day": "all day",
+    "home.capture_as": "capture as",
     "home.capture_clear_failed": "could not clear the saved retry; try closing again",
     "home.capture_close": "close",
     "home.capture_confirming": "confirming the saved item…",

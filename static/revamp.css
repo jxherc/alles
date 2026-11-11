@@ -1741,12 +1741,13 @@ html:not(#_) #today-view[data-kokuen-surface="home"] .today-capture:focus-within
 }
 
 html:not(#_) #today-view[data-kokuen-surface="home"] .today-capture textarea {
+  padding-block: 9px;
   padding-inline: var(--k-space-2);
 }
 
-/* both buttons keep a 44px target; a 6px clear border leaves a 32px fill inside, so the fill
+/* the send button keeps a 44px target; a 6px clear border leaves a 32px fill inside, so the fill
    sits 6px from the box's edges on every side and its corner (16 - 6) stays concentric */
-html:not(#_) #today-view[data-kokuen-surface="home"] :is(.today-capture-mode, .today-capture-send) {
+html:not(#_) #today-view[data-kokuen-surface="home"] .today-capture-send {
   min-width: 44px;
   height: 44px;
   min-height: 44px;
@@ -1757,14 +1758,23 @@ html:not(#_) #today-view[data-kokuen-surface="home"] :is(.today-capture-mode, .t
   font-weight: 560;
 }
 
-html:not(#_) #today-view[data-kokuen-surface="home"] .today-capture-mode {
-  padding: 0 var(--k-space-2);
-  background-color: var(--k-accent-tint);
-  color: var(--k-text);
+html:not(#_) #today-view[data-kokuen-surface="home"] .today-capture-mode > [role="radio"] {
+  min-width: 0;
+  padding-inline: var(--k-space-3);
 }
 
-html:not(#_) #today-view[data-kokuen-surface="home"] .today-capture-mode[aria-pressed="false"] {
-  background-color: var(--k-raised);
+/* the hint stays on one line so the box keeps one height on a narrow phone */
+html:not(#_) #today-view[data-kokuen-surface="home"] .today-capture textarea::placeholder {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* the task or note switch is a 44px track; the box gives it 4px on every side so the track never
+   sits on the box's own edge */
+html:not(#_) #today-view[data-kokuen-surface="home"] .today-capture {
+  padding: var(--k-space-1);
+  min-height: calc(var(--k-control) + 2 * var(--k-space-1));
 }
 
 html:not(#_) #today-view[data-kokuen-surface="home"] .today-capture-send {

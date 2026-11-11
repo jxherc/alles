@@ -307,7 +307,7 @@
           <button class="today-ask" id="today-ask-aide" type="button" data-i18n="home.ask_aide">ask aide about today →</button>
         </header>
         <form class="today-capture" id="today-capture">
-          <button class="today-capture-mode" id="today-capture-mode" type="button" aria-pressed="true" data-i18n="home.task">task</button>
+          <div class="k-pill-switch today-capture-mode" id="today-capture-mode" data-kokuen-choice="switch" aria-label="capture as" data-i18n-aria-label="home.capture_as"><button type="button" data-value="task" aria-checked="true" data-i18n="home.task">task</button><button type="button" data-value="note" data-i18n="home.note">note</button></div>
           <textarea id="today-capture-input" rows="1" data-kokuen-entry="autogrow" aria-label="capture a task" placeholder="capture something…" data-i18n-aria-label="home.capture_task" data-i18n-placeholder="home.capture_placeholder" autocomplete="off"></textarea>
           <button class="today-capture-send" type="submit" aria-label="save capture" data-i18n-aria-label="home.save_capture">↑</button>
         </form>

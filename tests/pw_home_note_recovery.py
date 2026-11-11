@@ -55,8 +55,7 @@ def run():
 
             def home():
                 page.goto(base + "/?view=today", wait_until="networkidle")
-                if page.locator("#today-capture-mode").get_attribute("aria-pressed") == "true":
-                    page.locator("#today-capture-mode").click()
+                page.locator('#today-capture-mode [data-value="note"]').click()
 
             entry = page.locator("#today-capture-input")
             submit = page.locator('#today-capture [type="submit"]')
@@ -278,7 +277,12 @@ def run():
                 expect(recovery.locator(".note-saved-open")).to_be_focused()
                 expect(entry).to_have_value(newer)
                 assert writes[-1] == pending
-                assert page.locator("#today-capture-mode").get_attribute("aria-pressed") == "true"
+                assert (
+                    page.locator('#today-capture-mode [data-value="task"]').get_attribute(
+                        "aria-checked"
+                    )
+                    == "true"
+                )
                 record("reload-retry-keeps-new-task-input-and-focus")
 
                 home()

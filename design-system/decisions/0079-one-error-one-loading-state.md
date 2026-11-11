@@ -28,9 +28,9 @@ shell's "loading plan..." wrapped to two lines in an 80px corner.
 
 ## checked
 
-webkit at ipad landscape and phone, dark and light: each of the nine screens with a failing and a
-slow request shows one card and one retry (44px) or one loading box, retry loads the screen again, no
-second surface, nothing off the edge.
+webkit at ipad landscape and phone: each of the nine screens with a failing and a slow request shows
+one card and one retry (44px) or one loading box, retry loads the screen again, no second surface,
+nothing off the edge. dark on all nine; light on books and gallery.
 
 ## the model picker is a list on its button
 
@@ -64,3 +64,10 @@ sat 4px apart. every group now uses `--k-control-gap`. on a 360px phone the mode
 
 an empty drawer is one line, "no background work yet". the "scheduled work" action only appears
 under real work; scheduled work is always in the more menu.
+
+## home's capture mode is a pill switch
+
+tapping the "task" chip cycled to "note" with nothing showing the other option. there are two modes,
+so it is the pill switch (decision 0050): task and note both show, the picked one is lifted, arrow
+keys move it, and the field keeps focus. the capture box is 52px high at rest with 4px around the
+switch and the send button, and the hint stays on one line so a phone does not make it taller.

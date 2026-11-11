@@ -621,7 +621,7 @@ async function loadNoteRecovery() {
 
 function homeNoteSaved(saved, text, focus = false) {
   const input = document.getElementById('today-capture-input');
-  const asTask = document.getElementById('today-capture-mode')?.getAttribute('aria-pressed') === 'true';
+  const asTask = captureAsTask();
   if (input && !asTask && input.value === text) {
     input.value = '';
     autosizeTextarea(input);
@@ -647,12 +647,17 @@ function homeNoteSaved(saved, text, focus = false) {
 
 function homeCaptureSaved(saved, kind) {
   const input = document.getElementById('today-capture-input');
-  const asTask = document.getElementById('today-capture-mode')?.getAttribute('aria-pressed') === 'true';
+  const asTask = captureAsTask();
   if (input && asTask && kind === 'task' && saved.source?.kind === 'capture' && input.value === saved.source.excerpt) {
     input.value = '';
     autosizeTextarea(input);
   }
   if (input?.getClientRects().length) void load();
+}
+
+// the capture mode is a pill switch: task or note, both always shown
+function captureAsTask() {
+  return document.querySelector('#today-capture-mode [role="radio"][aria-checked="true"]')?.dataset.value !== 'note';
 }
 
 function wireCapture() {
@@ -667,24 +672,22 @@ function wireCapture() {
     event.preventDefault();
     form.requestSubmit();
   });
-  mode.addEventListener('click', () => {
-    const task = mode.getAttribute('aria-pressed') === 'true';
-    mode.setAttribute('aria-pressed', String(!task));
-    mode.textContent = task ? t('home.note') : t('home.task');
-    input.setAttribute('aria-label', task ? t('home.capture_note') : t('home.capture_task'));
+  mode.addEventListener('change', event => {
+    input.setAttribute('aria-label', event.detail.value === 'note' ? t('home.capture_note') : t('home.capture_task'));
     input.focus();
   });
+  const setModeDisabled = disabled => mode.querySelectorAll('[role="radio"]').forEach(option => { option.disabled = disabled; });
   form.addEventListener('submit', async event => {
     event.preventDefault();
     if (form.getAttribute('aria-busy') === 'true') return;
     const value = input.value;
     // nothing to save: send the caret back to the field instead of doing nothing at all
     if (!value.trim()) { input.focus(); return; }
-    const asTask = mode.getAttribute('aria-pressed') === 'true';
+    const asTask = captureAsTask();
     let reviewed = false;
     form.setAttribute('aria-busy', 'true');
     input.disabled = true;
-    mode.disabled = true;
+    setModeDisabled(true);
     const submit = form.querySelector('[type="submit"]');
     if (submit) submit.disabled = true;
     try {
@@ -706,7 +709,7 @@ function wireCapture() {
     finally {
       form.removeAttribute('aria-busy');
       input.disabled = false;
-      mode.disabled = false;
+      setModeDisabled(false);
       if (submit) submit.disabled = false;
       if (!reviewed && input.getClientRects().length) input.focus();
     }

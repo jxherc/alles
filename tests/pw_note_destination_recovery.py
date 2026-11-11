@@ -54,9 +54,7 @@ with sync_playwright() as pw:
                 change = api.patch(base + "/api/settings", data={"vault_dir": str(a)})
                 assert change.ok, change.text()
                 page.goto(base + "/?view=today", wait_until="networkidle")
-                mode = page.locator("#today-capture-mode")
-                if mode.get_attribute("aria-pressed") == "true":
-                    mode.click()
+                page.locator('#today-capture-mode [data-value="note"]').click()
                 entry = page.locator("#today-capture-input")
                 entry.fill(f"note belongs to vault a {width} {case}")
 
@@ -99,7 +97,7 @@ with sync_playwright() as pw:
                     expect(page.locator("#today-note-recovery .note-saved-open")).to_be_visible()
                     assert len(list(a.rglob("*.md"))) == 1 and not list(b.rglob("*.md"))
                 else:
-                    mode.click()
+                    page.locator('#today-capture-mode [data-value="task"]').click()
                     entry.fill("review a separate task")
                     page.locator('#today-capture [type="submit"]').click()
                     overlay = page.locator(".capture-overlay")

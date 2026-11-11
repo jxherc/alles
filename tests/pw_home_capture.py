@@ -64,7 +64,7 @@ def run() -> None:
                 assert box and box["width"] >= 44 and box["height"] >= 44, box
             empty_height = capture.bounding_box()["height"]
             for _ in range(3):
-                mode.focus()
+                page.locator('#today-capture-mode [aria-checked="true"]').focus()
                 page.keyboard.press("Tab")
                 expect(capture).to_be_focused()
                 focus_style = capture.evaluate(
@@ -103,8 +103,10 @@ def run() -> None:
             assert capture.evaluate("element => getComputedStyle(element).overflowY") == "auto"
             capture.fill("")
             assert capture.bounding_box()["height"] == empty_height
-            mode.click()
-            expect(mode).to_have_attribute("aria-pressed", "false")
+            page.locator('#today-capture-mode [data-value="note"]').click()
+            expect(page.locator('#today-capture-mode [data-value="note"]')).to_have_attribute(
+                "aria-checked", "true"
+            )
 
             title = f"capture collision {width}"
             original = context.request.post(
@@ -167,8 +169,10 @@ def run() -> None:
             assert len(expected_errors) == 1, expected_errors
             page.unroute("**/api/vault-md/file")
 
-            mode.click()
-            expect(mode).to_have_attribute("aria-pressed", "true")
+            page.locator('#today-capture-mode [data-value="task"]').click()
+            expect(page.locator('#today-capture-mode [data-value="task"]')).to_have_attribute(
+                "aria-checked", "true"
+            )
             capture.fill(f"captured task {width}")
             submit.click()
             expect(page.locator(".capture-review")).to_be_visible()
