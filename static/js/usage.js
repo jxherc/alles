@@ -1,11 +1,11 @@
 // token usage & cost dashboard — reads /api/usage/summary (tokens already saved
 // on each assistant message) and shows totals, a by-month bar chart, by-model.
 import { t } from './i18n.js';
+import { esc } from './escape.js';
 
 function fmt(n) {
   return n >= 1e6 ? (n / 1e6).toFixed(1) + 'M' : n >= 1e3 ? (n / 1e3).toFixed(1) + 'k' : String(n);
 }
-function esc(s = '') { return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;'); }
 let loadSequence = 0;
 
 export async function initUsage() {

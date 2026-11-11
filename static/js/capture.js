@@ -6,8 +6,8 @@ import { chosenTimeZone, resolvedTimeZone, t } from './i18n.js';
 import { toast, plainError } from './util.js';
 import { recordTarget } from './recordlinks.js';
 import { editorDates, eventTimeValues, storedWallTime } from './calendar.js';
+import { esc } from './escape.js';
 
-const esc = value => String(value ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
 const PREFIX = 'alles.capture.pending.v1:';
 let active = false;
 const wallInstant = value => Date.parse(String(value || '') + 'Z');

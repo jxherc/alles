@@ -1,6 +1,7 @@
 import { mdToHtml, toast } from './util.js';
 import { requestId } from './request_id.js';
 import { t, tp } from './i18n.js';
+import { esc as _esc } from './escape.js';
 
 let _comparison = null;
 let _startRead = 0;
@@ -258,10 +259,6 @@ async function pickWinner(comparison, index) {
 }
 
 window._pickWinner = index => pickWinner(_comparison, index);
-
-function _esc(s = '') {
-  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
-}
 
 export function initCompareView() {
   const btn = document.getElementById('compare-send-btn');

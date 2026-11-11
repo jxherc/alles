@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import test from 'node:test';
 import vm from 'node:vm';
+import { esc } from '../../static/js/escape.js';
 
 const i18n = readFileSync(new URL('../../static/js/i18n.js', import.meta.url), 'utf8')
   .replace(/^export /gm, '');
@@ -15,7 +16,7 @@ function harness(instant, zone) {
     constructor(...args) { super(...(args.length ? args : [instant])); }
   }
   const requests = [];
-  const context = vm.createContext({ Date: FixedDate, Intl,
+  const context = vm.createContext({ esc, Date: FixedDate, Intl,
     fetch: async (url, options) => { requests.push({ url, body: JSON.parse(options.body) }); return { ok: true }; },
   });
   vm.runInContext(i18n, context);

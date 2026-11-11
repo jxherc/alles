@@ -1,6 +1,7 @@
 import { toast } from './util.js';
 import { isIncognitoMode } from './modes.js?v=259';
 import { t } from './i18n.js';
+import { esc as _escHtml } from './escape.js';
 
 let _attachments = [];   // [{id, name, type, size, status?, progress?, previewUrl?, file?}]
 const _requests = new Map();
@@ -288,10 +289,6 @@ function _fmtSize(n = 0) {
 
 window._removeAttachment = (id) => removeAttachment(id);
 window._retryAttachment = (id) => retryAttachment(id);
-
-function _escHtml(s) {
-  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
-}
 
 // drag-and-drop (chat file attach). only reacts to real files dragged in from
 // outside — internal element drags (the docs tree move, etc.) carry no "Files"

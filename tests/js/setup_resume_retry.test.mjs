@@ -3,6 +3,7 @@ import { readFileSync } from 'node:fs';
 import test from 'node:test';
 import vm from 'node:vm';
 import { t as i18nT, tp as i18nTp } from '../../static/js/i18n.js';
+import { esc } from '../../static/js/escape.js';
 
 const source = readFileSync(new URL('../../static/js/setupwizard.js', import.meta.url), 'utf8')
   .replace(/import\s+[\s\S]*?from\s+['"][^'"]+['"];\r?\n/g, '')
@@ -19,7 +20,7 @@ function harness({ resume, completed = false }) {
   }
   let dismissed = resume, failed = false;
   const calls = [], rendered = [];
-  const context = vm.createContext({ t: i18nT, tp: i18nTp, plainError: value => value,
+  const context = vm.createContext({ esc, t: i18nT, tp: i18nTp, plainError: value => value,
     document: { getElementById: id => nodes.get(id), querySelector: () => null, activeElement: null }, HTMLElement: class {},
     fetch: async (path, options = {}) => {
       calls.push([path, options.method || 'GET']);

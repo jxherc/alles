@@ -19,6 +19,7 @@ import { saveAnswerTask } from './answer_task.js';
 import { markAideQuestionResolved, renderAideQuestion } from './aidequestions.js?v=2';
 import { compactResponseActions } from './response_actions.js?v=6';
 import { addQueued, clearQueued, queuedItems, restoreQueued, takeQueued } from './chatqueue.js';
+import { esc as escHtml } from './escape.js';
 
 // one-line human summary of a tool call, so an approval reads clearly, not as raw json
 function toolSummary(name, args = {}) {
@@ -1215,10 +1216,6 @@ async function followSessionProject(sessionId) {
 function _splitBeforeArtifact(text) {
   const idx = text.indexOf('<aide-artifact');
   return idx === -1 ? text : text.slice(0, idx).trimEnd();
-}
-
-function escHtml(s = '') {
-  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
 }
 
 // append an error line without nuking the live message DOM (textContent = no escaping needed)

@@ -4,13 +4,9 @@ import { formatDate, t, tp } from './i18n.js';
 import { pushRouteUrl, replaceRouteUrl } from './route_history.js';
 import { fetchWithRecentOwner } from './recent_owner.js';
 import { initCustomDropdown, getDropdownValue, setDropdownValue, populateDropdown } from './dropdown.js?v=217';
+import { esc } from './escape.js';
 
 const $ = id => document.getElementById(id);
-const esc = value => String(value ?? '')
-  .replace(/&/g, '&amp;')
-  .replace(/</g, '&lt;')
-  .replace(/>/g, '&gt;')
-  .replace(/"/g, '&quot;');
 
 const state = {
   locations: [],

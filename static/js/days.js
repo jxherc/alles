@@ -8,6 +8,7 @@ const _si = n => (window.icon ? window.icon(n) : '');   // central icon set, loa
 import { initDatePicker } from './datepick.js';
 import { wireActionMenu } from './kokuen.js?v=5';
 import { formatDate, formatNumber, ordinalCategory, t, tp } from './i18n.js';
+import { esc } from './escape.js';
 
 const $ = id => document.getElementById(id);
 let _events = [];
@@ -384,6 +385,3 @@ function _undoDelete(grid) {
   grid.querySelector(`.day-card[data-id="${CSS.escape(id)}"] .day-more`)?.focus();
 }
 
-function esc(s) {
-  return String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-}

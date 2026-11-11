@@ -1,5 +1,6 @@
 // @-mention file picker for the composer. type @ then a filename.
 import { getActiveId } from './sessions.js';
+import { esc as _esc } from './escape.js';
 
 let _menu = null, _items = [], _sel = 0, _range = null, _ta = null, _t = 0;
 
@@ -79,4 +80,3 @@ function _render() {
 
 function close() { _menu?.remove(); _menu = null; _items = []; _range = null; }
 
-function _esc(s) { return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;'); }

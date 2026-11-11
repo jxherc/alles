@@ -1,4 +1,5 @@
 import { formatNumber, t } from './i18n.js';
+import { esc as _esc } from './escape.js';
 let loadSequence = 0;
 
 export async function loadBrainPanel(fetcher = fetch) {
@@ -188,6 +189,3 @@ function _stat(label, value) {
   return `<div class="brain-stat"><span>${label}</span><strong>${value}</strong></div>`;
 }
 
-function _esc(s = '') {
-  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
-}

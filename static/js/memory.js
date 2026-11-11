@@ -4,6 +4,7 @@ import { confirm as confirmDialog, fields as fieldsDialog } from './dialog.js';
 import { categoryHue } from './color.js';
 import { fetchWithRecentOwner } from './recent_owner.js';
 import { getDropdownValue, setDropdownValue } from './dropdown.js?v=217';
+import { esc as escHtml } from './escape.js';
 
 let _memories = [];
 let _searchTimeout = null;
@@ -299,10 +300,6 @@ function _provenanceLabel(memory) {
     direct_owner_statement: t('aide.mem_prov_direct'),
     model_suggestion: t('aide.mem_prov_suggested'),
   }[kind] || memory.source || t('aide.mem_prov_manual');
-}
-
-function escHtml(s) {
-  return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
 }
 
 function _renderPolicy() {

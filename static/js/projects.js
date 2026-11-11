@@ -1,6 +1,7 @@
 import { toast } from './util.js';
 import { confirm as dlgConfirm } from './dialog.js';
 import { t } from './i18n.js';
+import { esc as _esc } from './escape.js';
 
 let _projects = [];
 
@@ -145,6 +146,3 @@ export function renderProjectFolders(sessions, onSelect, onChange) {
   });
 }
 
-function _esc(s) {
-  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
-}

@@ -1,6 +1,7 @@
 import { toast, plainError } from './util.js';
 import { formatDateTime, resolvedTimeZone, t, tp } from './i18n.js';
 import { getDropdownValue, populateDropdown } from './dropdown.js?v=217';
+import { esc } from './escape.js';
 
 let initialized = false;
 let state = null;
@@ -9,9 +10,6 @@ let restoreFocus = null;
 const savedUrls = new Set();
 
 const root = () => document.getElementById('aide-news-workbench');
-const esc = value => String(value ?? '').replace(/[&<>'"]/g, character => ({
-  '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;',
-}[character]));
 
 function safeMessage(value) {
   return (value ? plainError(value) : t('aide.news_unavailable')).replace(/jarvis/gi, 'Aide');

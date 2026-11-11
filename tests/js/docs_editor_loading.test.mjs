@@ -3,6 +3,7 @@ import { readFileSync } from 'node:fs';
 import test from 'node:test';
 import vm from 'node:vm';
 import { t, tp } from '../../static/js/i18n.js';
+import { esc } from '../../static/js/escape.js';
 
 const source = readFileSync(new URL('../../static/js/docs.js', import.meta.url), 'utf8')
   .replace(/^import .*;\n/gm, '')
@@ -88,7 +89,7 @@ function harness({ mobile = false } = {}) {
     return { ok: true, json: async () => response };
   };
   const routeLocation = new URL('http://local/');
-  const context = vm.createContext({ t, tp,
+  const context = vm.createContext({ esc, t, tp,
     document, fetch: fetcher, URL, URLSearchParams, TextEncoder, console,
     setTimeout: () => 1, clearTimeout() {},
     localStorage: { getItem: key => storage.get(key), setItem: (key, value) => storage.set(key, value), removeItem: key => storage.delete(key) },

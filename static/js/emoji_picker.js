@@ -2,6 +2,7 @@
 // content (a habit's own mark), so they stay emoji; every ui icon around them is still svg.
 // keywords are english and the first word is the name a screen reader says.
 import { t } from './i18n.js';
+import { esc } from './escape.js';
 
 const E = (glyph, words) => ({ glyph, words, name: words.split(' ')[0] });
 const EMOJI = [
@@ -170,7 +171,6 @@ export function searchEmoji(query) {
 }
 
 const nameOf = glyph => EMOJI.find(item => item.glyph === glyph)?.name || '';
-const esc = s => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 const _si = name => (window.icon ? window.icon(name) : '');
 
 // the host carries data-f="icon" and data-value, so a form reads it like any other field

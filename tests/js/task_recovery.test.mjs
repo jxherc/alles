@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import test from 'node:test';
 import vm from 'node:vm';
+import { esc } from '../../static/js/escape.js';
 
 const source = readFileSync(new URL('../../static/js/tasks.js', import.meta.url), 'utf8')
   .replace(/^import .*;$/gm, '').replaceAll('export ', '');
@@ -15,7 +16,7 @@ function harness(storage = new Map()) {
     getItem: key => storage.get(key) ?? null,
     setItem: (key, value) => storage.set(key, value), removeItem: key => storage.delete(key),
   };
-  const context = vm.createContext({
+  const context = vm.createContext({ esc, 
     document: { querySelectorAll: () => [], getElementById: id => id === 'tasks-list' ? list : id === 'tasks-search' ? search : null, querySelector: () => null },
     window: { addEventListener() {} }, sessionStorage, console, initDatePicker() {},
     tr: key => key, setTimeout: fn => { timers.set(++nextTimer, fn); return nextTimer; }, clearTimeout: id => timers.delete(id),

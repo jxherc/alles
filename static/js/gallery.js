@@ -1,6 +1,7 @@
 import { toast } from './util.js';
 import { confirm as confirmDialog } from './dialog.js';
 import { t, tp } from './i18n.js';
+import { esc } from './escape.js';
 
 let _images = [];
 let _next = 0;
@@ -134,4 +135,3 @@ export function initGalleryUpload() {
   });
 }
 
-function esc(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;'); }

@@ -12,6 +12,7 @@ import { initDatePicker as _dpInit } from './datepick.js';
 import { formatDate, formatDateTime, formatTime, resolvedTimeZone, t, tp } from './i18n.js';
 import { categoryHue } from './color.js';
 import { reminderTimeFromWall } from './reminders.js?v=247';
+import { esc } from './escape.js';
 
 // monochrome ui icons (same global as files/etc) — keeps the row controls matching the app
 const _si = n => (window.icon ? window.icon(n) : '');
@@ -130,7 +131,6 @@ const _subjPrefix = /^(?:\s*(?:re|fwd|fw|aw|wg)\s*:\s*)+/i;
 const threadKey = s => (String(s ?? '').replace(_subjPrefix, '').trim() || '(no subject)').toLowerCase();
 
 const $ = id => document.getElementById(id);
-const esc = s => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 const MAIL_BODY_CSP = "default-src 'none'; img-src data: cid:; style-src 'unsafe-inline'; font-src data:; base-uri 'none'; form-action 'none'";
 function stripAutomaticMailNavigation(html = '') {
   const source = String(html);

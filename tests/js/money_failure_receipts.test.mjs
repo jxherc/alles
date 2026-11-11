@@ -4,6 +4,7 @@ import test from 'node:test';
 import vm from 'node:vm';
 import { t, tp } from '../../static/js/i18n.js';
 import { undoGlobals } from './helpers/undo_globals.mjs';
+import { esc } from '../../static/js/escape.js';
 
 const source = readFileSync(new URL('../../static/js/money.js', import.meta.url), 'utf8')
   .replace(/^import .*;\r?\n/gm, '').replace(/^export /gm, '');
@@ -23,7 +24,7 @@ function harness() {
     });
     return elements.get(id);
   };
-  const context = vm.createContext({ ...undoGlobals,
+  const context = vm.createContext({ esc, ...undoGlobals,
     t, tp, bareSign: () => '',
     calendarDateKey: () => '2026-10-16', formatNumber: number => String(number),
     document: { getElementById: get, activeElement: null }, location: { search: '' },

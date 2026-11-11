@@ -3,6 +3,7 @@ import { readFileSync } from 'node:fs';
 import test from 'node:test';
 import vm from 'node:vm';
 import { t as i18nT, tp as i18nTp } from '../../static/js/i18n.js';
+import { esc } from '../../static/js/escape.js';
 
 const source = readFileSync(new URL('../../static/js/setupwizard.js', import.meta.url), 'utf8')
   .replace(/import\s+[\s\S]*?from\s+['"][^'"]+['"];\r?\n/g, '')
@@ -103,7 +104,7 @@ function harness(code = source) {
   const $ = id => document.getElementById(id);
   $('setup-wizard').style.display = 'flex';
   const requests = [], notices = [];
-  const context = vm.createContext({ t: i18nT, tp: i18nTp,
+  const context = vm.createContext({ esc, escHtml: esc, t: i18nT, tp: i18nTp,
     document, HTMLElement: Element, navigator: { language: 'en-US' }, Intl,
     resolvedTimeZone: () => 'UTC', regionName: code => code, pick: async () => nextPick, icon: () => '', visible: node => node.isConnected,
     setControlState() {}, toast: (...args) => notices.push(args), mountDependencies: () => ({ reload() {}, stop() {} }),

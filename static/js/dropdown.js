@@ -5,6 +5,7 @@
 // el._iconHtml keyed by value so it can't clash with the |/; serialization.
 import { providerLogo } from './brandlogo.js';
 import { t } from './i18n.js';
+import { esc as _esc } from './escape.js';
 let _open = null;
 let _sequence = 0;
 
@@ -356,6 +357,3 @@ function _close() {
   window.removeEventListener('scroll', _repositionOpen, true);
 }
 
-function _esc(s = '') {
-  return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
-}

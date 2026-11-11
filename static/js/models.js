@@ -4,6 +4,7 @@ import { providerLogo, providerKey, brandColor } from './brandlogo.js';
 import { sortModels, filterNewest } from './modelfilter.js';
 import { t, tp } from './i18n.js';
 import { populateDropdown } from './dropdown.js?v=217';
+import { esc as escHtml } from './escape.js';
 const _si = n => (globalThis.window?.icon ? globalThis.window.icon(n) : '');   // the shared svg icon set
 
 let _endpoints = [];
@@ -765,9 +766,6 @@ export async function addEndpoint(name, url, key, adapter = 'auto', manualModels
   return ep;
 }
 
-function escHtml(s = '') {
-  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
-}
 function escAttr(s = '') {
   return escHtml(s).replace(/"/g,'&quot;');
 }

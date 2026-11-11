@@ -2,6 +2,7 @@ import { filterCommands } from './palette.js';
 import { chosenTimeZone, t } from './i18n.js';
 import { whenDay } from './when.js';
 import { plainError } from './util.js';
+import { esc as _esc } from './escape.js';
 
 let _debounce = null;
 let _financeDebounce = null;
@@ -460,6 +461,3 @@ async function _go(option) {
   _input()?.focus({ preventScroll: true });
 }
 
-function _esc(value = '') {
-  return String(value).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
-}

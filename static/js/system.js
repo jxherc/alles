@@ -5,10 +5,10 @@ import { plainError } from './util.js';
 import { confirm as confirmDialog } from './dialog.js';
 import { fetchWithRecentOwner } from './recent_owner.js';
 import { resolvedTimeZone, t, tp } from './i18n.js';
+import { esc } from './escape.js';
 const _si = n => (globalThis.window?.icon ? globalThis.window.icon(n) : '');   // the shared svg icon set
 
 const $ = id => document.getElementById(id);
-const esc = s => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
 
 export const HIST = 720;   // ~18min @1.5s of samples kept in the page
 

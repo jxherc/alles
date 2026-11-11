@@ -1,6 +1,8 @@
 import { toast } from '../util.js';
 import { confirmRecentOwner, fetchWithRecentOwner } from '../recent_owner.js';
 import { t } from '../i18n.js';
+import { esc as _esc } from '../escape.js';
+export { _esc };
 
 // ── switch helpers ────────────────────────────────────────────────────────────
 export function _setSwitch(el, on) {
@@ -94,10 +96,6 @@ export function _patchSettings(patch) {
 
 export function _patchSetting(key, val) {
   return _patchSettings({ [key]: val });
-}
-
-export function _esc(s = '') {
-  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
 }
 
 export function _escAttr(s = '') {

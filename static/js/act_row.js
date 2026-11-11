@@ -4,6 +4,7 @@
 import { t } from './i18n.js';
 import { icon } from './icons.js';
 import { addDays, localDay, whenDay, whenTime } from './when.js';
+import { esc } from './escape.js';
 
 const SWIPE = 72;   // px a finger has to travel before a swipe counts
 
@@ -77,10 +78,6 @@ export function wireSwipe(row, { right, left }) {
 
 let panel = null;
 let opener = null;
-
-function esc(value) {
-  return String(value ?? '').replace(/[&<>"']/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]));
-}
 
 function build() {
   panel = document.createElement('aside');

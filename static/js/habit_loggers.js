@@ -9,6 +9,7 @@ import { formatDecimal } from './liveformat.js';
 import { clockText, initDatePickers } from './datepick.js';
 import { stepperHtml, wireSteppers } from './stepper.js';
 import { MEASURE_UNITS, fieldUnit, storedUnit, unitText } from './units.js';
+import { esc } from './escape.js';
 
 const LOGGED = new Set(['workout', 'reading', 'count', 'duration', 'distance']);
 const UNITS = new Set(['reps', 'steps', 'glasses', 'servings', 'words', 'cards', 'pages', 'chapters']);
@@ -17,7 +18,6 @@ const SUGGESTIONS = 8;
 
 export const hasLogger = habit => LOGGED.has(habit?.kind);
 
-const esc = s => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 const _si = name => (globalThis.window?.icon ? window.icon(name) : '');
 const num = value => formatNumber(value, { maximumFractionDigits: 2 });
 let _sequence = 0;

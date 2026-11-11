@@ -6,6 +6,7 @@ import { confirm as dlgConfirm, prompt as dlgPrompt } from './dialog.js';
 import { calendarDateKey, formatList, t, tp } from './i18n.js';
 import { whenDay, whenHtml } from './when.js';
 import { createUndoDelete, deleteItemHtml, goneTextHtml, moreMenuHtml, undoButtonHtml, wireMoreMenus } from './undo_delete.js';
+import { esc } from './escape.js';
 const _si = n => (window.icon ? window.icon(n) : '');
 
 const $ = id => document.getElementById(id);
@@ -110,8 +111,6 @@ export async function loadHealth(fetcher = _fetcher, { clearWriteError = false }
   _loadState = failures.length ? _loadFailure(failures, successes) : { state: 'resting', message: '' };
   _render();
 }
-
-function esc(s) { return String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
 
 function _line(series, target) {
   if (!series || series.length < 2) return `<div class="health-spark-empty">${esc(t('health.need_two'))}</div>`;

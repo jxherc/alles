@@ -5,6 +5,7 @@ import { confirm as dlgConfirm, prompt as dlgPrompt } from './dialog.js';
 import { initKokuenPrimitives, wireChoiceGroup } from './kokuen.js?v=5';
 import { t, tp } from './i18n.js';
 import { createUndoDelete, deleteItemHtml, goneTextHtml, moreMenuHtml, undoButtonHtml, wireMoreMenus } from './undo_delete.js';
+import { esc } from './escape.js';
 const _si = n => (window.icon ? window.icon(n) : '');
 
 const $ = id => document.getElementById(id);
@@ -92,8 +93,6 @@ export async function loadBooks(fetcher = _fetcher) {
   }
   _render();
 }
-
-function esc(s) { return String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
 
 function _rating(b) {
   return `<div class="k-number-row book-rate" data-kokuen-choice="rating" data-id="${b.id}" data-min="1" data-max="5" data-value="${b.rating || ''}" aria-label="${esc(t('books.rating_for', { title: b.title }))}"></div>`;

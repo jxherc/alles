@@ -97,7 +97,7 @@ test('a currency with no rate stays out of every total, named with its own subto
   const html = document.list.innerHTML.replace(/<[a-z/][^>]*>/gi, ' ').replace(/\s+/g, ' ');
   assert.match(document.summary.textContent, /3 active · CAD 20\.00\/mo \+ USD\u00a019\.49\/mo · CAD 240\.00\/yr \+ USD\u00a0233\.88\/yr/);
   assert.match(html, /totals in CAD/);
-  assert.match(html, /2 subscriptions in USD aren't in the total · USD 19\.49\/mo add USD rate/);
+  assert.match(html, /2 subscriptions in USD aren&#39;t in the total · USD 19\.49\/mo add USD rate/);
   assert.match(document.list.innerHTML, /data-totals-rate="USD:CAD"/);
   assert.match(html, /CAD 120\.00 \+ USD 116\.94 projected/);
   // some CAD is in the total, so switching the whole base isn't offered

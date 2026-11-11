@@ -8,6 +8,7 @@ import { wireChoiceGroup } from './kokuen.js?v=5';
 import { initCustomDropdowns } from './dropdown.js?v=217';
 import { toast } from './util.js';
 import { t, tp } from './i18n.js';
+import { esc } from './escape.js';
 export { generateHarmony };
 
 const LS_KEY = 'alles-appearance';
@@ -706,8 +707,6 @@ export function openThemeEditor() {
   _renderEditor();
 }
 function _close() { document.getElementById('theme-editor-overlay')?.remove(); }
-
-function esc(s) { return String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
 
 function _swatch(name, c) {
   const active = _draft.preset === name;
