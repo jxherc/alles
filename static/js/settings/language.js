@@ -1,6 +1,6 @@
 import { createSettingsPane } from './pane.js';
 import { toast } from '../util.js';
-import { closeCustomDropdowns, populateDropdown } from '../dropdown.js?v=217';
+import { closeCustomDropdowns, populateDropdown } from '../dropdown.js?v=218';
 import { setStatusLine } from './shared.js';
 import { prepareLocalization, regionName, t } from '../i18n.js';
 

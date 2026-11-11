@@ -1,6 +1,6 @@
 import { appLabel, plainError, stateEl, toast, writeClipboard } from './util.js';
 import { replaceLinkedRecord } from './recordlinks.js';
-import { initCustomDropdown, populateDropdown, getDropdownValue, getDropdownValues } from './dropdown.js?v=217';
+import { initCustomDropdown, populateDropdown, getDropdownValue, getDropdownValues } from './dropdown.js?v=218';
 import { initDatePickers } from './datepick.js';
 import { prompt as dlgPrompt, confirm as dlgConfirm, choose as dlgChoose } from './dialog.js';
 import { initKokuenPrimitives, wireActionMenu } from './kokuen.js?v=5';

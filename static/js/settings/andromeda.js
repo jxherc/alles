@@ -6,7 +6,7 @@ import { onModelRoles, roleOptions, setModelRole } from './model_roles.js';
 import { toast, plainError, writeClipboard } from '../util.js';
 import { confirm as confirmDialog } from '../dialog.js';
 import { fetchWithRecentOwner } from '../recent_owner.js';
-import { getDropdownValue, setDropdownValue, populateDropdown } from '../dropdown.js?v=217';
+import { getDropdownValue, setDropdownValue, populateDropdown } from '../dropdown.js?v=218';
 import { t, tp } from '../i18n.js';
 import { loadSearchEngines, wireSearchEngines, SEARCH_ENGINES_EVENT } from './search_engines.js';
 

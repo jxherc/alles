@@ -460,7 +460,7 @@ function render() {
     }
     await navigate(button.dataset.view);
     if (button.dataset.aideSection) {
-      const module = await import('./aidescheduled.js?v=249');
+      const module = await import('./aidescheduled.js?v=250');
       await module.activateAideScheduledTab(button.dataset.aideSection);
     }
   }));

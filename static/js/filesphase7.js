@@ -4,7 +4,7 @@ import { prompt as dlgPrompt, confirm as dlgConfirm } from './dialog.js';
 import { formatDate, t, tp } from './i18n.js';
 import { pushRouteUrl, replaceRouteUrl } from './route_history.js';
 import { fetchWithRecentOwner } from './recent_owner.js';
-import { initCustomDropdown, getDropdownValue, setDropdownValue, populateDropdown } from './dropdown.js?v=217';
+import { initCustomDropdown, getDropdownValue, setDropdownValue, populateDropdown } from './dropdown.js?v=218';
 import { esc } from './escape.js';
 
 const $ = id => document.getElementById(id);

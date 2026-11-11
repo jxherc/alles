@@ -6,7 +6,7 @@ import { initDatePicker } from './datepick.js';
 import { iconEl } from './icons.js';
 import { calendarDateKey, chosenTimeZone, formatCalendarDate, formatClock, formatDateParts, formatDateTime, formatNumber, t, tp } from './i18n.js';
 import { balanceOn, balanceSeries, lastThirtyDays, monthBefore, signedFigure, sparkSvg, weekChange, weekChangeText } from './numbers.js';
-import { getDropdownValue, populateDropdown } from './dropdown.js?v=217';
+import { getDropdownValue, populateDropdown } from './dropdown.js?v=218';
 import { disposePlanBoard, renderPlanBoard } from './plan_board.js';
 import { requestWithRecentOwner } from './recent_owner.js';
 import { recordTarget } from './recordlinks.js';
@@ -1449,7 +1449,7 @@ async function _renderFinance(target, request) {
 }
 
 async function _renderServer(target, request, section) {
-  const module = await import('./server_workbench.js?v=16');
+  const module = await import('./server_workbench.js?v=17');
   return module.renderServerSection(target, request, section);
 }
 

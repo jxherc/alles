@@ -3,7 +3,7 @@ import { openCaptureReview, showPendingCapture } from './capture.js';
 import { readRecordTarget, recordTarget } from './recordlinks.js';
 import { pushRouteUrl, replaceRouteUrl, routeHistoryPosition } from './route_history.js';
 import { confirm as dlgConfirm, prompt as dlgPrompt, fields as dlgFields } from './dialog.js';
-import { populateDropdown, getDropdownValue, initCustomDropdown, setDropdownValue } from './dropdown.js?v=217';
+import { populateDropdown, getDropdownValue, initCustomDropdown, setDropdownValue } from './dropdown.js?v=218';
 import { wireActionMenu } from './kokuen.js?v=5';
 import { openAppSettings } from './appsettings.js';
 import { mountSignin, signinReturn } from './signin.js';
@@ -11,7 +11,7 @@ import { detectSetup } from './setup_detect.js';
 import { initDatePicker as _dpInit } from './datepick.js';
 import { formatDate, formatDateTime, formatTime, resolvedTimeZone, t, tp } from './i18n.js';
 import { categoryHue } from './color.js';
-import { reminderTimeFromWall } from './reminders.js?v=247';
+import { reminderTimeFromWall } from './reminders.js?v=248';
 import { esc } from './escape.js';
 
 // monochrome ui icons (same global as files/etc) — keeps the row controls matching the app

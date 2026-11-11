@@ -1,6 +1,6 @@
 import { getProjects, loadProjects } from './projects.js';
 import { createSession, getActiveId, markActive } from './sessions.js';
-import { getCurrentEndpoint, getSelected } from './models.js?v=217';
+import { getCurrentEndpoint, getSelected } from './models.js?v=218';
 import { fetchWithRecentOwner as sharedFetchWithRecentOwner } from './recent_owner.js';
 import { requestId } from './request_id.js';
 import { toast, plainError } from './util.js';

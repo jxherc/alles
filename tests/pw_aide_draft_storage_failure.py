@@ -420,7 +420,7 @@ def run():
                             expect(page.locator("#incognito-exit")).to_be_visible()
                             expect(page.locator("#attachment-chips")).to_be_hidden()
                             row["private_active_attachments"] = page.evaluate(
-                                "async () => (await import('/static/js/uploads.js?v=254')).getAttachments()"
+                                "async () => (await import('/static/js/uploads.js?v=255')).getAttachments()"
                             )
                             assert row["private_active_attachments"] == []
                             assert api.get(base + "/api/uploads/" + upload).status == 404

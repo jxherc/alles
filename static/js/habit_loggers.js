@@ -3,7 +3,7 @@
 // logs them: dumbbells per hand, machines per side. a set row without reps is 10, without sets 1.
 import { formatCalendarDate, formatNumber, t, tp } from './i18n.js';
 import { initKokuenPrimitives } from './kokuen.js?v=5';
-import { getDropdownValues, initCustomDropdown } from './dropdown.js?v=217';
+import { getDropdownValues, initCustomDropdown } from './dropdown.js?v=218';
 import { api, toast } from './util.js';
 import { formatDecimal } from './liveformat.js';
 import { clockText, initDatePickers } from './datepick.js';

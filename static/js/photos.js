@@ -1,6 +1,6 @@
 import { appLabel, stateHtml, toast, writeClipboard } from './util.js';
 import { prompt as dlgPrompt, confirm as dlgConfirm, choose as dlgChoose } from './dialog.js';
-import { initCustomDropdown, populateDropdown, setDropdownValue } from './dropdown.js?v=217';
+import { initCustomDropdown, populateDropdown, setDropdownValue } from './dropdown.js?v=218';
 import { initDatePicker } from './datepick.js';
 import { formatDateTime, t, tp } from './i18n.js';
 import { whenDay } from './when.js';

@@ -2,7 +2,7 @@ import { toast, plainError } from './util.js';
 import { formatDateTime, resolvedTimeZone, t } from './i18n.js';
 import { initAideNews } from './aidenews.js';
 import { fetchWithRecentOwner } from './recent_owner.js';
-import { initCustomDropdown, setDropdownValue } from './dropdown.js?v=217';
+import { initCustomDropdown, setDropdownValue } from './dropdown.js?v=218';
 
 let initialized = false;
 let scheduleKind = 'schedule';

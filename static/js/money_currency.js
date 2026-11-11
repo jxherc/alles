@@ -3,7 +3,7 @@
 import { api, toast } from './util.js';
 import { formatNumber, localeTag, t } from './i18n.js';
 import { confirm as dlgConfirm, prompt as dlgPrompt } from './dialog.js';
-import { populateDropdown } from './dropdown.js?v=217';
+import { populateDropdown } from './dropdown.js?v=218';
 import { esc } from './escape.js';
 
 const known = code => /^[A-Z]{3}$/.test(code || '') && code !== 'XXX';

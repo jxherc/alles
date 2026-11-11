@@ -1,7 +1,7 @@
 // per-app settings — a gear in an app's header opens a small popover of just that
 // app's options, saved to settings.json. custom controls only (no native selects).
 import { t } from './i18n.js';
-import { initCustomDropdowns } from './dropdown.js?v=217';
+import { initCustomDropdowns } from './dropdown.js?v=218';
 import { writeClipboard } from './util.js';
 import { esc } from './escape.js';
 

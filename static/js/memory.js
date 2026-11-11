@@ -3,7 +3,7 @@ import { t, tp } from './i18n.js';
 import { confirm as confirmDialog, fields as fieldsDialog } from './dialog.js';
 import { categoryHue } from './color.js';
 import { fetchWithRecentOwner } from './recent_owner.js';
-import { getDropdownValue, setDropdownValue } from './dropdown.js?v=217';
+import { getDropdownValue, setDropdownValue } from './dropdown.js?v=218';
 import { esc as escHtml } from './escape.js';
 
 let _memories = [];

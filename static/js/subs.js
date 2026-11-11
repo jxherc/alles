@@ -3,7 +3,7 @@ import { api, toast } from './util.js';
 import { calendarDateKey, formatNumber, t, tp } from './i18n.js';
 import { createUndoDelete, deleteItemHtml, goneTextHtml, moreMenuHtml, undoButtonHtml, wireMoreMenus } from './undo_delete.js';
 import { whenDay, whenHtml } from './when.js';
-import { initCustomDropdown } from './dropdown.js?v=217';
+import { initCustomDropdown } from './dropdown.js?v=218';
 import { initDatePicker } from './datepick.js';
 import { choose as dlgChoose, confirm as dlgConfirm } from './dialog.js';
 import { amountIn, totalsCurrency, wireCurrency } from './money_currency.js';

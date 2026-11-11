@@ -163,7 +163,7 @@ function _showHelp() {
   overlay.querySelectorAll('[data-help-settings]').forEach(button => { button.onclick = async () => {
     const pane = button.dataset.helpSettings;
     close();
-    const { openSettings } = await import('./settings.js?v=302');
+    const { openSettings } = await import('./settings.js?v=303');
     if (source?.isConnected && document.activeElement === source) {
       openSettings(pane);
       if (pane === 'developer') requestAnimationFrame(() => {
@@ -418,7 +418,7 @@ export async function tryExecuteSlashCommand(text) {
     }
 
     case 'memories': {
-      (await import('./settings.js?v=302')).openSettings('memory');
+      (await import('./settings.js?v=303')).openSettings('memory');
       return true;
     }
 
@@ -455,7 +455,7 @@ export async function tryExecuteSlashCommand(text) {
 
     case 'incognito': {
       const { createSession } = await import('./sessions.js');
-      const { getCurrentEndpoint, getSelected } = await import('./models.js?v=217');
+      const { getCurrentEndpoint, getSelected } = await import('./models.js?v=218');
       const ep = getCurrentEndpoint();
       if (!ep) { toast(t('aide.slash_no_endpoint'), 'error'); return true; }
       const model = getSelected()?.model || ep.models?.[0] || '';
@@ -561,7 +561,7 @@ export async function tryExecuteSlashCommand(text) {
       if (_reminderBusy) return 'keep-draft';
       _reminderBusy = true;
       try {
-        const { parseReminderTime, reminderRequest, createReminder, reminderMayHaveSaved } = await import('./reminders.js?v=247');
+        const { parseReminderTime, reminderRequest, createReminder, reminderMayHaveSaved } = await import('./reminders.js?v=248');
         const type = cmd === 'send' ? 'message' : 'reminder';
         const sessionId = getActiveId();
         const command = `/${cmd} ${args}`;

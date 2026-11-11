@@ -3,7 +3,7 @@
 // list + reader views; mirrors the watch/habits panel conventions.
 import { stateHtml, toast, _safeUrl } from './util.js';
 import { confirm as dlgConfirm } from './dialog.js';
-import { initCustomDropdown } from './dropdown.js?v=217';
+import { initCustomDropdown } from './dropdown.js?v=218';
 import { readingPlace } from './reading_place.js';
 import { loadReadingNoteRecovery, takeReadingNote } from './reading_note.js';
 import { clearLinkedRecord } from './recordlinks.js';

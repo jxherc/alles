@@ -1,5 +1,5 @@
 import { createSettingsPane } from './pane.js';
-import { getDropdownValue } from '../dropdown.js?v=217';
+import { getDropdownValue } from '../dropdown.js?v=218';
 import { toast, plainError } from '../util.js';
 import { confirm as _dlgConfirm } from '../dialog.js';
 import { parsePrivateLines } from '../mcp-config.js';

@@ -12,7 +12,7 @@ export { normalizeWebdavBackupConfig, webdavBackupConfigPayload, webdavBackupsFr
 export { loadMcpServers, loadConnections, loadDiscordConnection } from './settings/connections.js';
 import { toast, writeClipboard } from './util.js';
 import { confirm as _dlgConfirm } from './dialog.js';
-import { initCustomDropdowns, closeCustomDropdowns, getDropdownValue, setDropdownValue, populateDropdown } from './dropdown.js?v=217';
+import { initCustomDropdowns, closeCustomDropdowns, getDropdownValue, setDropdownValue, populateDropdown } from './dropdown.js?v=218';
 import { initMemoryPanel } from './memory.js';
 import {
   sensitiveBlurEnabled, textOnlyEmojisEnabled, welcomeEnabled,

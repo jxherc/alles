@@ -1,5 +1,5 @@
 import { escapeHtml as esc, appLabel, plainError, writeClipboard } from './util.js';
-import { initCustomDropdowns, setDropdownValue } from './dropdown.js?v=217';
+import { initCustomDropdowns, setDropdownValue } from './dropdown.js?v=218';
 import { confirm as confirmDialog, view as viewDialog } from './dialog.js';
 import { formatDate, formatDateTime, localizationState, t as tr, tp as trp } from './i18n.js';
 import { whenDay } from './when.js';

@@ -1,6 +1,6 @@
 // cookbook — browse the 900+ model catalog ranked against your actual hardware
 // (the hwfit/llmfit engine). discover what fits, at what quant, how fast.
-import { getDropdownValue, populateDropdown } from './dropdown.js?v=217';
+import { getDropdownValue, populateDropdown } from './dropdown.js?v=218';
 import { t } from './i18n.js';
 import { esc } from './escape.js';
 let _built = false;

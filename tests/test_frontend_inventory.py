@@ -69,7 +69,7 @@ class FrontendInventoryTests(unittest.TestCase):
                 "app.js": "load('./settings/pane.js?v=1');",
                 "util.js": "export const root = true;",
                 "settings/pane.js": (
-                    "import './util.js'; import '../util.js?v=2'; "
+                    "import './util.js'; import '../util.js?v=3'; "
                     "export { child } from './deep/child.js';"
                 ),
                 "settings/util.js": "export const local = true;",

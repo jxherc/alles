@@ -5,7 +5,7 @@
 import { initColorPickers } from './colorpicker.js';
 import { generateHarmony, lum as _lum, mix as _mix, mutedFor as _mutedFor } from './color.js';
 import { wireChoiceGroup } from './kokuen.js?v=5';
-import { initCustomDropdowns } from './dropdown.js?v=217';
+import { initCustomDropdowns } from './dropdown.js?v=218';
 import { toast } from './util.js';
 import { t, tp } from './i18n.js';
 import { esc } from './escape.js';

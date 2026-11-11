@@ -3,7 +3,7 @@ import { stateHtml, toast, mdToHtml, plainError } from './util.js';
 import { formatCalendarDate, formatTime, t, tp } from './i18n.js';
 import { whenFull, whenHtml } from './when.js';
 import { createFocusBoundary } from './kokuen.js?v=5';
-import { getDropdownValue, populateDropdown } from './dropdown.js?v=217';
+import { getDropdownValue, populateDropdown } from './dropdown.js?v=218';
 import { replaceRouteUrl } from './route_history.js';
 import { fetchWithRecentOwner } from './recent_owner.js';
 import { esc } from './escape.js';
