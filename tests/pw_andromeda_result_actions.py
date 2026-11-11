@@ -294,7 +294,9 @@ async def run_profile(browser, base, output, device, theme, record):
         assert not pointer_after_keyboard["keyboardFocus"], pointer_after_keyboard
         await query.fill("result actions !ai")
         await query.press("Enter")
-        rows = page.locator("#andromeda-results .andromeda-result")
+        # rows of the search that is showing: while a new search waits for its spelling fix the
+        # old rows are still drawn but inert, and acting on them is the race this gate once lost
+        rows = page.locator("#andromeda-results:not([inert]) .andromeda-result")
         await expect(rows).to_have_count(2)
         marks = page.locator("#andromeda-results .andromeda-source-mark")
         await expect(marks).to_have_count(2)
@@ -366,9 +368,24 @@ async def run_profile(browser, base, output, device, theme, record):
             menu.get_by_role("menuitem", name="open in Library: Keyboard result actions")
         ).to_be_visible()
         await page.keyboard.press("Escape")
+        # a new search asks for its spelling fix before it clears the list. the old rows stay
+        # drawn for that moment and must be inert: a key pressed then acted on a row that was
+        # about to vanish. the observer notes the rows the instant the list goes inert
+        await page.evaluate(
+            """() => {
+              const list = document.getElementById('andromeda-results');
+              window.__staleRows = null;
+              new MutationObserver((_, observer) => {
+                if (!list.inert || window.__staleRows !== null) return;
+                window.__staleRows = list.querySelectorAll('.andromeda-result').length;
+                observer.disconnect();
+              }).observe(list, { attributes: true, attributeFilter: ['inert'] });
+            }"""
+        )
         await query.fill("result actions !ai")
         await query.press("Enter")
         await expect(rows).to_have_count(2)
+        assert await page.evaluate("window.__staleRows") == 2, "the old rows stayed live"
         first = rows.nth(0)
         await first.focus()
         await page.keyboard.press("m")

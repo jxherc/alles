@@ -603,6 +603,8 @@ function stopResultSummary({ announce = true } = {}) {
   if (announce) active.status.textContent = tr('andromeda.x_summary_stopped');
 }
 
+const RESULT_LISTS = ['andromeda-results', 'andromeda-images', 'andromeda-news', 'andromeda-videos'];
+
 function resetResultInteractions() {
   closeResultMenu();
   stopResultSummary({ announce: false });
@@ -1140,6 +1142,7 @@ export function renderAndromedaResults(results, state = 'ready', currentCategory
   };
   const list = targets[currentCategory];
   if (!list) return;
+  for (const id of RESULT_LISTS) { const shown = el(id); if (shown) shown.inert = false; }
   list.replaceChildren();
   if (state === 'loading' && currentCategory === 'images') {
     for (let index = 0; index < 15; index += 1) {
@@ -2365,6 +2368,10 @@ export async function runAndromedaSearch(queryValue = '', options = {}) {
   const searchGeneration = ++_searchGeneration;
   _searchAbort = new AbortController();
   const noAi = /(^|\s)!ai(?=\s|$)/i.test(query);
+  // the last search's rows stay drawn while the spelling fix is asked, so the page changes once
+  // and not twice. they are not this search's any more: nothing on them takes focus, a tap or a key
+  resetResultInteractions();
+  for (const id of RESULT_LISTS) { const stale = el(id); if (stale) stale.inert = true; }
   const early = exact ? null : await askLocalFix(query);
   if (searchGeneration !== _searchGeneration) return;
   // what is searched: the fixed words when the local fix found some, else what was typed
