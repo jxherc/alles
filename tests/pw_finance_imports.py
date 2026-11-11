@@ -226,6 +226,7 @@ def run():
             def choose_option(label, name):
                 trigger = page.get_by_role("combobox", name=label, exact=True)
                 trigger.press("Enter")
+                panel = page.locator("#" + trigger.get_attribute("aria-controls"))
                 catalogue = api.get(
                     base
                     + (
@@ -234,10 +235,10 @@ def run():
                         else "/api/finance/imports/profiles"
                     )
                 ).json()
-                expect(page.get_by_role("option")).to_have_count(
+                expect(panel.get_by_role("option")).to_have_count(
                     len(catalogue if label == "account" else catalogue["profiles"])
                 )
-                page.get_by_role("option", name=name, exact=True).click()
+                panel.get_by_role("option", name=name, exact=True).click()
                 expect(trigger).to_have_attribute("aria-expanded", "false")
                 expect(trigger).to_contain_text(name)
 
