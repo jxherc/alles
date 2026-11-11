@@ -8404,7 +8404,7 @@ html[data-kokuen-version="5"] :is(.cal-tev[data-id], .cal-tstack):focus-visible 
   background: var(--bg);
 }
 .mail-list {
-  width: min(380px, 38vw);
+  width: min(28rem, 40vw);
   flex-shrink: 0;
   overflow-y: auto;
   border-right: 1px solid var(--faint);
