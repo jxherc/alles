@@ -136,16 +136,12 @@ def run():
                         if case == "search-retry":
                             page.route(search_url, fail)
                             search("Receipt")
-                            expect(failure).to_contain_text(
-                                "synthetic unavailable"
-                            )
+                            expect(failure).to_contain_text("synthetic unavailable")
                             expect(mailbox).not_to_contain_text("no mail matches")
                             retry = page.locator("#mail-read-retry")
                             retry.focus()
                             page.keyboard.press("Enter")
-                            expect(failure).to_contain_text(
-                                "synthetic unavailable"
-                            )
+                            expect(failure).to_contain_text("synthetic unavailable")
                             expect(retry).to_be_focused()
                             page.screenshot(
                                 path=str(out / f"{width}-search-error.png"), full_page=True
@@ -262,9 +258,7 @@ def run():
                                 url = base + f"/api/mail/{endpoint}/{account['id']}?*"
                                 page.route(url, fail)
                                 choose_folder(page, choice)
-                                expect(failure).to_contain_text(
-                                    "synthetic unavailable"
-                                )
+                                expect(failure).to_contain_text("synthetic unavailable")
                                 expect(field).to_have_value("")
                                 page.unroute(url, fail)
                                 page.locator("#mail-read-retry").click()
@@ -277,9 +271,7 @@ def run():
                                 expect(failure).to_contain_text("saved mail")
                                 page.route(inbox_url, fail)
                                 refresh_mail(page)
-                                expect(failure).to_contain_text(
-                                    "synthetic unavailable"
-                                )
+                                expect(failure).to_contain_text("synthetic unavailable")
                                 expect(row("701")).to_be_visible()
                                 page.unroute(inbox_url, fail)
                             page.route(
@@ -306,9 +298,7 @@ def run():
                             )
                             page.route(folders_url, fail)
                             choose_folder(page, "sent")
-                            expect(failure).to_contain_text(
-                                "synthetic unavailable"
-                            )
+                            expect(failure).to_contain_text("synthetic unavailable")
                             assert not requests, requests
                             page.unroute(folders_url, fail)
                             page.route(
@@ -346,9 +336,7 @@ def run():
                             expect(mailbox.locator('.mail-row[data-uid="701"]')).to_have_count(2)
                             page.route(search_url, fail)
                             refresh_mail(page)
-                            expect(failure).to_contain_text(
-                                "synthetic unavailable"
-                            )
+                            expect(failure).to_contain_text("synthetic unavailable")
                             expect(mailbox.locator('.mail-row[data-uid="701"]')).to_have_count(2)
                             page.screenshot(
                                 path=str(out / f"{width}-partial-search.png"), full_page=True
@@ -398,14 +386,10 @@ def run():
                                 drafts_url = base + "/api/mail/drafts?*"
                                 page.route(drafts_url, fail)
                                 refresh_mail(page)
-                                expect(failure).to_contain_text(
-                                    "could not load drafts"
-                                )
+                                expect(failure).to_contain_text("could not load drafts")
                                 expect(body).to_have_text("unsaved newer draft")
                                 page.locator("#mail-drafts-retry").click()
-                                expect(failure).to_contain_text(
-                                    "could not load drafts"
-                                )
+                                expect(failure).to_contain_text("could not load drafts")
                                 expect(body).to_have_text("unsaved newer draft")
                                 page.unroute(drafts_url, fail)
                                 page.locator("#mail-drafts-retry").click()
@@ -438,9 +422,7 @@ def run():
                                     expect(row("702")).to_be_visible()
                                     page.route(url, fail)
                                     refresh_mail(page)
-                                    expect(failure).to_contain_text(
-                                        "synthetic unavailable"
-                                    )
+                                    expect(failure).to_contain_text("synthetic unavailable")
                                     if previous_reply is not None:
                                         expect(page.locator("#mc-html")).to_have_text(
                                             previous_reply
@@ -461,9 +443,7 @@ def run():
                                     page.locator("#mail-reply").click()
                                     page.locator("#mc-html").fill(f"unsaved {choice} reply {width}")
                                     page.locator("#mail-read-retry").click()
-                                    expect(failure).to_contain_text(
-                                        "synthetic unavailable"
-                                    )
+                                    expect(failure).to_contain_text("synthetic unavailable")
                                     expect(page.locator("#mc-html")).to_have_text(
                                         f"unsaved {choice} reply {width}"
                                     )
@@ -489,15 +469,11 @@ def run():
                                 )
                             page.route(inbox_url, fail)
                             choose_folder(page, folder)
-                            expect(failure).to_contain_text(
-                                "synthetic unavailable"
-                            )
+                            expect(failure).to_contain_text("synthetic unavailable")
                             retry = page.locator("#mail-read-retry")
                             retry.focus()
                             page.keyboard.press("Enter")
-                            expect(failure).to_contain_text(
-                                "synthetic unavailable"
-                            )
+                            expect(failure).to_contain_text("synthetic unavailable")
                             expect(retry).to_be_focused()
                             page.unroute(inbox_url, fail)
                             if case == "inbox-retry-moved-focus":
