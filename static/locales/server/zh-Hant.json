@@ -2579,6 +2579,7 @@
     "the destination is not inside docs": "目標不在文件資料夾內",
     "the docs folder itself cannot be changed": "文件資料夾本身不能被變更",
     "the root is a folder": "根目錄是資料夾",
-    "service reload failed": "服務重新載入失敗"
+    "service reload failed": "服務重新載入失敗",
+    "no response is running in this task": "此任務中沒有正在執行的回覆"
   }
 }

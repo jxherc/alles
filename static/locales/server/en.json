@@ -1195,6 +1195,7 @@
     "no readable text found; nothing was saved",
     "no remote server here",
     "no research task found",
+    "no response is running in this task",
     "no reviewed SearXNG rollback is available",
     "no saved sign-in for that site",
     "no shared protocol version (server: {supported})",

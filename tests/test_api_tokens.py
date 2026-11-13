@@ -38,6 +38,11 @@ class TokensApiTest(ApiTest):
         self.assertEqual(required_scope("POST", "/v1/chat/completions"), "models")
         self.assertEqual(required_scope("POST", "/api/agent/run"), "agent")
         self.assertEqual(required_scope("GET", "/api/vault"), "secrets")
+        self.assertEqual(required_scope("POST", "/api/vault/unlock"), "secrets")
+        # docs live at /api/vault-md; a docs token must not need the password vault's scope
+        self.assertEqual(required_scope("GET", "/api/vault-md/tree"), "read")
+        self.assertEqual(required_scope("POST", "/api/vault-md/safety/save"), "write")
+        self.assertEqual(required_scope("GET", "/api/vault-location"), "read")
         self.assertEqual(required_scope("GET", "/api/connections"), "connections")
         self.assertEqual(required_scope("GET", "/api/settings"), "admin")
         self.assertEqual(
@@ -138,6 +143,72 @@ class TokensApiTest(ApiTest):
             self.assertEqual(response.status_code, 401)
         finally:
             os.environ["AUTH_ENABLED"] = "false"
+
+    def test_a_token_removes_itself_whatever_its_scopes(self):
+        keep = self.client.post("/api/tokens", json={"name": "another device"}).json()
+        for scopes in (["read", "write", "models"], ["secrets"], ["models"], ["admin"]):
+            made = self.client.post(
+                "/api/tokens", json={"name": "alles app on iphone", "scopes": scopes}
+            ).json()
+            headers = {"Authorization": f"Bearer {made['token']}"}
+            os.environ["AUTH_ENABLED"] = "true"
+            try:
+                gone = self.client.delete("/api/tokens/current", headers=headers)
+                self.assertEqual(gone.status_code, 200, f"{scopes}: {gone.text}")
+                self.assertEqual(gone.json(), {"ok": True})
+                # it stopped working, for this and for everything else
+                again = self.client.delete("/api/tokens/current", headers=headers)
+                self.assertEqual(again.status_code, 401)
+                self.assertEqual(again.json()["code"], "invalid_token")
+            finally:
+                os.environ["AUTH_ENABLED"] = "false"
+        self.assertEqual([t["id"] for t in self.client.get("/api/tokens").json()], [keep["id"]])
+
+    def test_only_the_token_in_the_request_counts_as_current(self):
+        self.client.post("/api/tokens", json={"name": "phone"})
+        # the owner's own session carries no token, so there is nothing of its own to remove
+        self.assertEqual(self.client.delete("/api/tokens/current").status_code, 404)
+        other_kind = self.client.delete(
+            "/api/tokens/current", headers={"Authorization": "Bearer not-an-alles-token"}
+        )
+        self.assertEqual(other_kind.status_code, 404)
+        unknown = self.client.delete(
+            "/api/tokens/current", headers={"Authorization": "Bearer alles_never_made"}
+        )
+        self.assertEqual(unknown.status_code, 401)
+        self.assertEqual(unknown.json()["code"], "invalid_token")
+        self.assertEqual(len(self.client.get("/api/tokens").json()), 1)
+
+    def test_a_token_cannot_remove_another_one(self):
+        phone = self.client.post(
+            "/api/tokens", json={"name": "phone", "scopes": ["read", "write", "models"]}
+        ).json()
+        admin = self.client.post("/api/tokens", json={"name": "admin", "scopes": ["admin"]}).json()
+        os.environ["AUTH_ENABLED"] = "true"
+        try:
+            scoped = self.client.delete(
+                f"/api/tokens/{admin['id']}", headers={"Authorization": f"Bearer {phone['token']}"}
+            )
+            self.assertEqual(scoped.status_code, 403)
+            self.assertEqual(scoped.json()["code"], "token_scope_denied")
+            # not even an admin token: removing by id takes the owner's password
+            by_admin = self.client.delete(
+                f"/api/tokens/{phone['id']}", headers={"Authorization": f"Bearer {admin['token']}"}
+            )
+            self.assertEqual(by_admin.status_code, 403)
+            self.assertEqual(by_admin.json()["code"], "recent_auth_required")
+        finally:
+            os.environ["AUTH_ENABLED"] = "false"
+        self.assertEqual(len(self.client.get("/api/tokens").json()), 2)
+
+    def test_only_removing_itself_is_open_to_every_scope(self):
+        self.assertEqual(required_scope("DELETE", "/api/tokens/current"), "")
+        self.assertEqual(required_scope("delete", "/api/tokens/current"), "")
+        self.assertEqual(required_scope("GET", "/api/tokens/current"), "admin")
+        self.assertEqual(required_scope("POST", "/api/tokens/current"), "admin")
+        self.assertEqual(required_scope("DELETE", "/api/tokens/current/more"), "admin")
+        self.assertEqual(required_scope("DELETE", "/api/tokens/some-id"), "admin")
+        self.assertEqual(required_scope("DELETE", "/api/tokens"), "admin")
 
     def test_malformed_saved_scopes_fail_closed(self):
         token = self.client.post("/api/tokens", json={"name": "broken"}).json()

@@ -91,6 +91,20 @@ class CrossAppToolTests(unittest.TestCase):
         for name in ("shell", "calendar_delete", "mail_send", "computer_click", "spawn_agent"):
             self.assertEqual(at.decide_permission(name, {}, "full_auto", []), "ask")
 
+    def test_naming_what_alles_fetches_asks_the_owner_in_auto(self):
+        # a chat turn takes only the models scope, so a token that may not add a monitor through
+        # /api/watch could add one through aide. an ask is answered with the owner password
+        inside = {"name": "router", "url": "http://192.168.1.1/admin"}
+        self.assertEqual(at.decide_permission("watch_add", inside, "full_auto", []), "ask")
+        self.assertEqual(at.decide_permission("watch_add", inside, "approve", []), "ask")
+        self.assertEqual(at.decide_permission("watch_add", inside, "plan", []), "deny")
+        self.assertEqual(at.decide_permission("watch_status", {}, "full_auto", []), "allow")
+        # the approval's record names the address, not just the tool
+        self.assertEqual(
+            at.delegated_action_details("watch_add", inside, {})["target"],
+            "http://192.168.1.1/admin",
+        )
+
     def test_decide_permission_plan_denies_mutations(self):
         p = at.decide_permission("write_file", {"path": "/tmp/x.txt"}, "plan", [])
         self.assertEqual(p, "deny")

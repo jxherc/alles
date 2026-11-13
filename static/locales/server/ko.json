@@ -2579,6 +2579,7 @@
     "the destination is not inside docs": "대상이 문서 폴더 안에 없습니다",
     "the docs folder itself cannot be changed": "문서 폴더 자체는 바꿀 수 없습니다",
     "the root is a folder": "루트는 폴더입니다",
-    "service reload failed": "서비스를 다시 불러오지 못했습니다"
+    "service reload failed": "서비스를 다시 불러오지 못했습니다",
+    "no response is running in this task": "이 작업에서 실행 중인 응답이 없습니다"
   }
 }

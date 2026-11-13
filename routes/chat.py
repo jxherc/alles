@@ -352,6 +352,10 @@ class ChatRequest(BaseModel):
     # messages sent while aide was replying: this turn answers them, and they leave the queue
     # once their words are saved
     queued_ids: list[str] = []
+    # the turn runs on when its listener leaves (a phone that locked), and can be listened to
+    # again: GET /api/chat/stream/{session_id}. a page leaves it off: dropping its connection
+    # ends the turn, as before
+    keep_running: bool = False
 
 
 # what makes two sends "the same request" for a retry
@@ -364,6 +368,7 @@ _SAME_REQUEST = {
     "newest_id",
     "turn_token",
     "queued_ids",
+    "keep_running",
 }
 _FILE_GONE = "this question's file was deleted. ask again with it attached."
 _NOTE_CHANGED = {
@@ -709,6 +714,88 @@ def needs_compaction(messages: list[dict], threshold: int, min_chars: int) -> bo
     return len(chat_msgs) > threshold * 0.9 and size > min_chars
 
 
+class TurnFeed:
+    """What a kept turn has said so far. The turn writes here and listeners come and go.
+
+    A turn asked for with `keep_running` runs in a task of its own, not in its response, so a
+    listener that leaves doesn't end it. Each listener reads from any event on, and waits for
+    the next one while the turn still runs.
+    """
+
+    def __init__(self, settings: dict):
+        self.events: list[dict] = []
+        self.ended = False
+        self.error: Exception | None = None
+        self._settings = settings
+        self._listeners = 0
+        self._news = asyncio.Event()
+
+    def write(self, chunk: dict) -> None:
+        self.events.append(chunk)
+        self._tell()
+
+    def end(self, error: Exception | None = None) -> None:
+        self.ended, self.error = True, error
+        self._tell()
+
+    def _tell(self) -> None:
+        news, self._news = self._news, asyncio.Event()
+        news.set()
+
+    def _heard_by(self, change: int) -> None:
+        self._listeners += change
+        # while nobody listens nobody can answer an approval prompt: a step that needs one is
+        # turned down the way a background run's is, instead of waiting on a page that's gone
+        if self._listeners:
+            self._settings.pop("agent_detached", None)
+        else:
+            self._settings["agent_detached"] = True
+
+    async def listen(self, after: int = 0):
+        """(place, event) for every event from `after` on, until the turn ends."""
+        at = min(max(after, 0), len(self.events))
+        self._heard_by(1)
+        try:
+            while True:
+                while at < len(self.events):
+                    yield at, self.events[at]
+                    at += 1
+                if self.ended:
+                    break
+                await self._news.wait()
+        finally:
+            self._heard_by(-1)
+        if self.error is not None:
+            raise self.error
+
+
+async def _run_kept(session_id: str, gen, stop_event: asyncio.Event, feed: TurnFeed) -> None:
+    """A kept turn runs here until it ends or is stopped, whoever listens."""
+    error = None
+    try:
+        async with aclosing(gen):
+            async for chunk in gen:
+                feed.write(chunk)
+    except Exception as exc:
+        log.exception("a kept turn failed")
+        error = exc
+    finally:
+        # let go first, as a plain stream does: a listener that reads the history at the
+        # stream's last word finds the turn over
+        release_turn(session_id, stop_event)
+        _bg_tasks.pop(session_id, None)
+        feed.end(error)
+
+
+async def _sse_feed(feed: TurnFeed, after: int = 0):
+    """A kept turn as SSE. Each event carries its place (`id:`), so a listener that lost the
+    stream asks for the rest from there."""
+    async with aclosing(feed.listen(after)) as events:
+        async for at, chunk in events:
+            yield f"id: {at}\ndata: {json.dumps(chunk)}\n\n".encode()
+    yield b"data: [DONE]\n\n"
+
+
 async def _sse(gen):
     """wrap async generator into SSE — yield bytes so uvicorn flushes each chunk immediately"""
     async with aclosing(gen):
@@ -960,8 +1047,21 @@ async def create_chat_response(body: ChatRequest, request: Request, db, *, voice
             finally:
                 release_turn(body.session_id, stop_event)
 
+        if body.keep_running and not incognito_run and not voice_context:
+            # private work and a live call stay with their listener. first in the feed, the
+            # question: it isn't stored until the turn ends, and a listener that joins from
+            # the start (the phone app after ios ended it) has no copy
+            feed = stop_event.feed = TurnFeed(settings)
+            if not settings["retry_message_id"]:
+                feed.write({"asked": {"message": body.message}})
+            _bg_tasks[body.session_id] = asyncio.create_task(
+                _run_kept(body.session_id, gen, stop_event, feed)
+            )
+            stream = _sse_feed(feed)
+        else:
+            stream = _sse(cleanup_gen())
         response = StreamingResponse(
-            _sse(cleanup_gen()),
+            stream,
             media_type="text/event-stream",
             headers={
                 "cache-control": "no-store" if incognito_run else "no-cache",
@@ -1170,6 +1270,26 @@ def stop_chat(session_id: str, body: StopBody | None = None):
         ev.set()
         return {"ok": True}
     return {"ok": False, "msg": "no active stream"}
+
+
+@router.get("/chat/stream/{session_id}")
+async def rejoin_chat(session_id: str, turn_token: str = "", after: int = 0):
+    """The stream of a kept turn that still runs, from event `after` on.
+
+    For a listener that lost it (a phone that locked, an app ios ended): what the turn already
+    said comes at once and the rest as it's written. `turn_token` names the turn it means, so
+    the next turn in the task isn't mistaken for it.
+    """
+    running = _streams.get(session_id)
+    feed = getattr(running, "feed", None)
+    if feed is None or (turn_token and getattr(running, "turn_token", "") != turn_token):
+        # ended, never kept, or another turn: the history says what is stored and what runs
+        raise ApiError(404, "turn_not_running", "no response is running in this task")
+    return StreamingResponse(
+        _sse_feed(feed, after),
+        media_type="text/event-stream",
+        headers={"cache-control": "no-cache", "x-accel-buffering": "no"},
+    )
 
 
 _REWRITE_STYLES = {

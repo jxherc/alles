@@ -63,6 +63,39 @@ class FilesMetaTests(ApiTest):
         self.assertIn("c.txt", starred)
         self.assertNotIn("a.txt", starred)
 
+    def test_the_phones_everyday_token_moves_a_file_into_a_folder_with_rename(self):
+        # the ios app moves through rename; the operations queue stays admin only
+        import os
+
+        self._w("a.txt")
+        self._w("archive/keep.txt")
+        raw = self.client.post(
+            "/api/tokens",
+            json={"name": "alles app on iphone", "scopes": ["read", "write", "models"]},
+        ).json()["token"]
+        headers = {"Authorization": f"Bearer {raw}"}
+        os.environ["AUTH_ENABLED"] = "true"
+        try:
+            queued = self.client.post(
+                "/api/files/operations",
+                headers=headers,
+                json={
+                    "action": "move",
+                    "source_path": "a.txt",
+                    "destination_path": "archive/a.txt",
+                },
+            )
+            self.assertEqual(queued.status_code, 401)
+            moved = self.client.post(
+                "/api/files/rename", headers=headers, json={"path": "a.txt", "to": "archive/a.txt"}
+            )
+        finally:
+            os.environ["AUTH_ENABLED"] = "false"
+        self.assertEqual(moved.status_code, 200, moved.text)
+        self.assertEqual(moved.json()["path"], "archive/a.txt")
+        self.assertFalse((self.root / "a.txt").exists())
+        self.assertTrue((self.root / "archive" / "a.txt").exists())
+
     def test_rename_onto_existing_is_400(self):
         self._w("a.txt")
         self._w("b.txt")

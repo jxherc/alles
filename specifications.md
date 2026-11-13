@@ -442,6 +442,22 @@ what it supports:
   only sends from its send button or Enter (never mid-composition, never empty); leaving the box
   sends nothing, and a changed draft survives switching tasks and, outside private tasks, a reload.
   the older edit route answers 410.
+- **a reply that outlives its listener**: a `/api/chat` request with `keep_running` runs its turn
+  in a task of its own, so a dropped connection (a phone that locked) doesn't end it and it's saved
+  complete. each event of that stream carries its place (an sse `id:`), and it starts with `asked`,
+  the question's words, which aren't stored until the turn ends; the ids come next.
+  `GET /api/chat/stream/{session_id}` (`turn_token`, `after`) streams a kept turn again from any
+  place: what was written comes at once, the rest as it's written. it answers 404
+  `turn_not_running` when the turn ended, wasn't kept or isn't the one named; the history's
+  `answering` and `answering_turn` say what runs. the stop route still stops a kept turn. while
+  nobody listens, a step that needs the owner's approval is turned down the way a background run's
+  is. a page doesn't send the flag: closing it ends its turn as before. private tasks and live-call
+  turns are never kept.
+- **history a few turns at a time**: `GET /api/sessions/{id}/history` answers every message of a
+  task. with `turns` it answers only the newest few (a turn is a question and what follows it up to
+  the next), with `before` (a message id) the ones older than that message, and `earlier` says
+  whether more are left. the phone app reads a long chat this way; pages ask for everything, as
+  before.
 - **cookbook**: a browser over **900+ open models** ranked against *your* actual hardware (what fits, at what quant, how fast), so you can pick + pull a local model that'll actually run
 - **usage**: a token dashboard: totals, a tokens-by-month chart, and a per-model breakdown, so you can see what you're spending
 - **skills**: write reusable procedures (a name, when-to-use, and the steps in markdown) that the agent discovers and loads on its own; it ranks your skills against each task and reaches for the right one. the built-in catalogue is installed on first launch. “start here” highlights six common tasks alongside pinned and custom skills; all skills remain available through search and categories.
@@ -1892,7 +1908,7 @@ the [complete endpoint inventory](#complete-endpoint-inventory) lists every regi
 
 json errors may contain `detail` and a stable `code`; legacy handlers also use normal fastapi errors. `401` means missing/invalid authentication, `403` means insufficient authority, `409` means a conflicting version/value/identity, and `410` marks a retired or deliberately deleted target. inspect the operation's response before deciding whether retry is safe.
 
-api tokens are stored as hashes and use explicit `read`, `write`, `models`, `agent`, `secrets`, `connections`, or `admin` scopes. admin grants every scope. an invalid recognized bearer token fails instead of falling back to a cookie. [core/api_tokens.py](core/api_tokens.py) contains the exact prefix-to-scope mapping; individual dependencies can impose more requirements.
+api tokens are stored as hashes and use explicit `read`, `write`, `models`, `agent`, `secrets`, `connections`, or `admin` scopes. admin grants every scope. an invalid recognized bearer token fails instead of falling back to a cookie. a token can remove itself with `DELETE /api/tokens/current` whatever its scopes (a device signing out); that request deletes the token it carries and nothing else, and removing any other token still takes a recent owner password. [core/api_tokens.py](core/api_tokens.py) contains the exact prefix-to-scope mapping; a prefix covers whole path segments, so docs (`/api/vault-md`) need `read` or `write`, not the password vault's `secrets`. individual dependencies can impose more requirements: naming the address a monitor fetches (`POST /api/watch`, `PATCH /api/watch/{mid}`) takes the owner's session or an `admin` token, because the server itself makes that request. aide's `watch_add` tool names one too, and a chat turn takes only `models`, so in `full_auto` it asks the owner first, like sending mail (answering takes a recent owner password). an address saved without a scheme gets `https://`; a site or health check takes only http or https, and one no check could reach is refused with a 400.
 
 `/api/signin` is the one sign-in surface: `GET providers`, `POST start`, `GET attempts/{attempt}`, `POST attempts/{attempt}/cancel`, `POST attempts/{attempt}/code`, `GET callback/{provider}`, `GET accounts`, `POST accounts/{id}/check` and `DELETE accounts/{id}`. errors use the same `detail`/`code` body; a provider that isn't set up answers 409 `not_ready`, and a provider refusal answers 502 `provider_error` with the provider's own words. not-ready reasons and attempt errors are plain `{code, text}` fields in a 200 answer. starting and signing out need a recent owner sign-in. the exact shapes are pinned by `tests/test_signin_contract.py`.
 
@@ -1984,7 +2000,7 @@ the main app runs on python 3.11 or newer with fastapi, uvicorn, sqlalchemy, and
 
 the optional actual integration is a separate node bridge pinned through [integrations/actual/package.json](integrations/actual/package.json) and its lockfile. it requires node 22.12.0 or newer and uses the official actual api, cli, and sync server at the versions recorded there.
 
-[mobile/](mobile) contains a capacitor wrapper with its own dependencies and platform build steps. it wraps the server-backed app; the fastapi backend still runs on the host. the chromium extension (logins, cards, addresses, andromeda search) has its own manifest and pairing boundary under [extension/](extension); what it receives is sealed to a key only it holds. `/opensearch.xml` is public like the pwa manifest: it names only the server's own address.
+[mobile/](mobile) contains a capacitor wrapper with its own dependencies and platform build steps. it wraps the server-backed app; the fastapi backend still runs on the host. the ios app, which has its own repo, is a native swiftui app for iphone and ipad (ios 26.1 or newer, liquid glass); its xcode project is generated from its project.yml with xcodegen and built with the owner's own apple team. signing in posts the owner password once on a connection of its own, mints a `read`, `write` and `models` token named for the device, and signs that password session out again. the app keeps only the token (in the keychain, on this device only, and never a cookie), because login sessions live in server memory and a restart would sign the phone out. the vault and the server app each get their own `secrets` or `admin` token the same way, and the keychain only gives those up after face id or the passcode. signing out removes the device's token from the server (`DELETE /api/tokens/current`), and a new token for the same job replaces the device's old one. home, aide (plain chat over `/api/chat` sse, no tool cards; a reply is asked for with `keep_running`, so it runs on when the phone locks or ios ends the app, and the app listens to it again when it's back; a long chat is read a few turns at a time), plan, andromeda search, docs, mail, files, the library, health, money, the vault and the server app are all native screens. andromeda's pictures load through `/api/andromeda/media`, as on the web, so a result's site never sees the phone, and a file move goes out as a rename (`POST /api/files/rename`), because `/api/files/operations` wants an `admin` token. the chromium extension (logins, cards, addresses, andromeda search) has its own manifest and pairing boundary under [extension/](extension); what it receives is sealed to a key only it holds. `/opensearch.xml` is public like the pwa manifest: it names only the server's own address.
 
 ## project layout
 
@@ -2094,10 +2110,10 @@ the registered http operations are grouped by handler source. use `/api/openapi.
 the registered http surface:
 
 - 90 included fastapi router modules
-- 1026 http method/path pairs
-- 990 `/api/*`, 2 `/v1/*`, and 34 non-api shell/public pairs
+- 1028 http method/path pairs
+- 992 `/api/*`, 2 `/v1/*`, and 34 non-api shell/public pairs
 
-the compatibility snapshot in [tests/test_route_compatibility.py](tests/test_route_compatibility.py) also counts the 20 code mode routes removed on nov 6 (and checks none of them is still registered), so it pins 1046 pairs with sha-256 `ae9f64815180ed1b16a0a4e3fc6d9db357fc16fcb85bce96c66148ceb994d50a`.
+the compatibility snapshot in [tests/test_route_compatibility.py](tests/test_route_compatibility.py) also counts the 20 code mode routes removed on nov 6 (and checks none of them is still registered), so it pins 1048 pairs with sha-256 `36e266532b3d8f2f70ba337947bcad71d079a16306e8846b5db56acd4931e069`.
 
 <details>
 <summary>app.py · 12 operations</summary>
@@ -2221,7 +2237,7 @@ the compatibility snapshot in [tests/test_route_compatibility.py](tests/test_rou
 </details>
 
 <details>
-<summary>routes/api_tokens.py · 3 operations</summary>
+<summary>routes/api_tokens.py · 4 operations</summary>
 
 [source](routes/api_tokens.py)
 
@@ -2229,6 +2245,7 @@ the compatibility snapshot in [tests/test_route_compatibility.py](tests/test_rou
 | --- | --- | --- |
 | `GET` | `/api/tokens` | `list_tokens` |
 | `POST` | `/api/tokens` | `create_token` |
+| `DELETE` | `/api/tokens/current` | `delete_current_token` |
 | `DELETE` | `/api/tokens/{tid}` | `delete_token` |
 
 </details>
@@ -2471,7 +2488,7 @@ the compatibility snapshot in [tests/test_route_compatibility.py](tests/test_rou
 </details>
 
 <details>
-<summary>routes/chat.py · 8 operations</summary>
+<summary>routes/chat.py · 9 operations</summary>
 
 [source](routes/chat.py)
 
@@ -2485,6 +2502,7 @@ the compatibility snapshot in [tests/test_route_compatibility.py](tests/test_rou
 | `GET` | `/api/chat/queue/{session_id}` | `get_queue` |
 | `POST` | `/api/chat/rewrite` | `rewrite_last` |
 | `POST` | `/api/chat/stop/{session_id}` | `stop_chat` |
+| `GET` | `/api/chat/stream/{session_id}` | `rejoin_chat` |
 
 </details>
 

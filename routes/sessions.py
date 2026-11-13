@@ -3,7 +3,7 @@ import json as _json
 import re as _re
 from datetime import date, timedelta
 
-from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query, Request
 from fastapi.responses import Response
 from pydantic import BaseModel
 from sqlalchemy.orm import Session as DbSession
@@ -180,14 +180,41 @@ def create_session(
     return _fmt_session(s)
 
 
+def _newest_turns(rows: list, turns: int, before: str) -> tuple[list, bool]:
+    """The newest `turns` turns, of those older than the message `before` when one is named, and
+    whether older messages are left. A turn is a question and what follows it up to the next."""
+    end = len(rows)
+    if before:
+        end = next((i for i, m in enumerate(rows) if m.id == before), -1)
+        if end < 0:
+            raise HTTPException(404, "message not found in this session")
+    start = end
+    while start > 0 and turns > 0:
+        start -= 1
+        if rows[start].role == "user":
+            turns -= 1
+    return rows[start:end], start > 0
+
+
 # GET /api/sessions/{id}/history
 @router.get("/sessions/{session_id}/history")
-def get_history(session_id: str, response: Response, db: DbSession = Depends(get_db)):
+def get_history(
+    session_id: str,
+    response: Response,
+    turns: int | None = Query(None, ge=1, le=200),
+    before: str = "",
+    db: DbSession = Depends(get_db),
+):
+    """Every message of a task, or with `turns` only its newest few (the phone app shows a long
+    chat a page at a time: `before` is the oldest message it holds, `earlier` says more are left)."""
     s = _session_or_404(session_id, db)
     if getattr(s, "incognito", False):
         response.headers["Cache-Control"] = "no-store"
+    rows, earlier = list(s.messages), False
+    if turns is not None:
+        rows, earlier = _newest_turns(rows, turns, before)
     msgs = []
-    for m in s.messages:
+    for m in rows:
         msgs.append(
             {
                 "id": m.id,
@@ -207,6 +234,7 @@ def get_history(session_id: str, response: Response, db: DbSession = Depends(get
         "queued": [] if getattr(s, "incognito", False) else queued_for(db, session_id),
         "answering": running is not None,
         "answering_turn": getattr(running, "turn_token", "") if running is not None else "",
+        "earlier": earlier,
     }
 
 

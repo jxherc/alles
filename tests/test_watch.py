@@ -1,9 +1,10 @@
 from datetime import datetime
 from types import SimpleNamespace
+from unittest import mock
 
 from core.database import Monitor, MonitorCheck
-from routes.watch import cert_days_left, check_passes
-from services.watch_checks import record_check, uptime_pct
+from routes.watch import cert_days_left, check_passes, perform_check
+from services.watch_checks import monitor_address, record_check, uptime_pct
 from tests._client import ApiTest
 
 
@@ -113,6 +114,98 @@ class WatchApiTests(ApiTest):
         self.assertEqual(
             self.client.post("/api/watch", json={"name": "x", "url": ""}).status_code, 400
         )
+
+    def test_only_the_owner_or_an_admin_token_names_what_alles_fetches(self):
+        import os
+
+        def token(scopes):
+            made = self.client.post("/api/tokens", json={"name": "t", "scopes": scopes}).json()
+            return {"Authorization": f"Bearer {made['token']}"}
+
+        phone = token(["read", "write", "models"])
+        admin = token(["admin"])
+        mid = self._create().json()["id"]
+        inside = {"name": "router", "url": "http://192.168.1.1/admin", "kind": "http"}
+        os.environ["AUTH_ENABLED"] = "true"
+        try:
+            made = self.client.post("/api/watch", headers=phone, json=inside)
+            self.assertEqual(made.status_code, 401, made.text)
+            moved = self.client.patch(
+                f"/api/watch/{mid}", headers=phone, json={"url": inside["url"]}
+            )
+            self.assertEqual(moved.status_code, 401, moved.text)
+            # reading, checking and deleting stay with the everyday scopes
+            seen = self.client.get("/api/watch", headers=phone).json()["monitors"]
+            self.assertEqual([m["url"] for m in seen], ["https://example.com"])
+            allowed = self.client.post("/api/watch", headers=admin, json=inside)
+            self.assertEqual(allowed.status_code, 200, allowed.text)
+            renamed = self.client.patch(f"/api/watch/{mid}", headers=admin, json={"name": "site"})
+            self.assertEqual(renamed.status_code, 200, renamed.text)
+            self.assertEqual(
+                self.client.delete(f"/api/watch/{mid}", headers=phone).status_code, 200
+            )
+        finally:
+            os.environ["AUTH_ENABLED"] = "false"
+
+    # a monitor is checked with httpx.get(its address): without a scheme that fails every time
+    def test_an_address_typed_without_a_scheme_is_saved_as_https(self):
+        for typed, kind, saved in (
+            ("example.com", "http", "https://example.com"),
+            ("  example.com:8443/health  ", "health", "https://example.com:8443/health"),
+            ("nas:8080", "http", "https://nas:8080"),
+            ("example.com", "cert", "https://example.com"),
+            ("http://192.168.1.20:6769/health", "health", "http://192.168.1.20:6769/health"),
+        ):
+            with self.subTest(typed=typed):
+                made = self._create(url=typed, kind=kind)
+                self.assertEqual(made.status_code, 200, made.text)
+                self.assertEqual(made.json()["url"], saved)
+
+    def test_an_address_no_check_could_reach_is_refused(self):
+        for typed in ("ftp://example.com", "not an address", "https://", "example.com:port"):
+            with self.subTest(typed=typed):
+                made = self._create(url=typed)
+                self.assertEqual(made.status_code, 400, made.text)
+                self.assertEqual(made.json()["detail"], "that doesn't look like a web address")
+        self.assertEqual(self.client.get("/api/watch").json()["monitors"], [])
+
+    def test_a_certificate_check_only_needs_a_host(self):
+        # it opens a tls connection to the host and port, whatever the scheme says
+        made = self._create(url="imaps://mail.example.com:993", kind="cert")
+        self.assertEqual(made.status_code, 200, made.text)
+        self.assertEqual(made.json()["url"], "imaps://mail.example.com:993")
+        # that address is no page a site check could fetch
+        moved = self.client.patch(f"/api/watch/{made.json()['id']}", json={"kind": "http"})
+        self.assertEqual(moved.status_code, 400, moved.text)
+
+    def test_patch_checks_the_address_like_create(self):
+        mid = self._create().json()["id"]
+        moved = self.client.patch(f"/api/watch/{mid}", json={"url": "example.org/status"})
+        self.assertEqual(moved.status_code, 200, moved.text)
+        self.assertEqual(moved.json()["url"], "https://example.org/status")
+        refused = self.client.patch(f"/api/watch/{mid}", json={"url": "ftp://example.org"})
+        self.assertEqual(refused.status_code, 400, refused.text)
+        kept = self.client.get("/api/watch").json()["monitors"][0]
+        self.assertEqual(kept["url"], "https://example.org/status")
+
+    def test_a_monitor_saved_without_a_scheme_is_still_checked(self):
+        # rows the web app and aide saved before the address was checked
+        asked = []
+
+        def get(url, **_):
+            asked.append(url)
+            return SimpleNamespace(status_code=200, text="")
+
+        with mock.patch("httpx.get", get):
+            old = Monitor(name="old", url="example.com", kind="http")
+            self.assertTrue(perform_check(old)["ok"])
+        self.assertEqual(asked, ["https://example.com"])
+
+    def test_monitor_address(self):
+        self.assertEqual(monitor_address("HTTPS://Example.com/a?b=1"), "HTTPS://Example.com/a?b=1")
+        self.assertEqual(monitor_address("[::1]:6769"), "https://[::1]:6769")
+        for bad in ("", "   ", None, "https://[::1", "file:///etc/passwd", "a b.com"):
+            self.assertEqual(monitor_address(bad), "", bad)
 
     def test_list_contains_created(self):
         self._create(name="Alpha")

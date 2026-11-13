@@ -1,10 +1,31 @@
 """Retained Watch checks and the snapshot shared by private and public views."""
 
 from datetime import timedelta
+from urllib.parse import urlsplit
 
 from core.database import MonitorCheck
 
 KEEP = 2200  # about 7.6 days at the default five-minute interval
+
+
+def monitor_address(url, kind="http") -> str:
+    """The address a check can reach, or "" when no check could.
+
+    "example.com" means https://example.com. A site or health check fetches a page, so it
+    takes http or https; a certificate check only needs a host, and a port when it isn't 443.
+    """
+    text = (url or "").strip()
+    if not text or any(ch.isspace() for ch in text):
+        return ""
+    full = text if "://" in text else "https://" + text
+    try:
+        parts = urlsplit(full)
+        parts.port  # a port that isn't a number raises here
+    except ValueError:
+        return ""
+    if not parts.hostname or (kind != "cert" and parts.scheme not in ("http", "https")):
+        return ""
+    return full
 
 
 def uptime_pct(checks):

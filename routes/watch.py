@@ -16,8 +16,9 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from sqlalchemy.orm import Session as DbSession
 
+from core.auth import require_auth
 from core.database import Monitor, MonitorCheck, SessionLocal, _now, get_db
-from services.watch_checks import KEEP, monitor_snapshot, record_check
+from services.watch_checks import KEEP, monitor_address, monitor_snapshot, record_check
 
 router = APIRouter(prefix="/api")
 log = logging.getLogger("alles.watch")
@@ -81,7 +82,9 @@ def perform_check(monitor):
     try:
         import httpx
 
-        r = httpx.get(monitor.url, timeout=10, follow_redirects=True)
+        # a monitor saved before addresses were checked can lack its scheme
+        address = monitor_address(monitor.url, monitor.kind) or monitor.url
+        r = httpx.get(address, timeout=10, follow_redirects=True)
         latency = int((_time.monotonic() - t0) * 1000)
         body = r.text if (monitor.expect_keyword or monitor.kind == "health") else ""
         ok, err = check_passes(
@@ -214,21 +217,34 @@ class MonitorBody(BaseModel):
     enabled: bool = True
 
 
+def _address(url, kind):
+    """the address as it's saved: "example.com" becomes https://example.com. one no check
+    could reach is refused, it would only be a monitor that is down for good."""
+    if not (url or "").strip():
+        raise HTTPException(400, "url required")
+    address = monitor_address(url, kind)
+    if not address:
+        raise HTTPException(400, "that doesn't look like a web address")
+    return address
+
+
 def _validate(name, url, kind):
     if not (name or "").strip():
         raise HTTPException(400, "name required")
-    if not (url or "").strip():
-        raise HTTPException(400, "url required")
     if kind not in KINDS:
         raise HTTPException(400, f"kind must be one of {', '.join(KINDS)}")
+    return _address(url, kind)
 
 
-@router.post("/watch")
+# alles itself fetches whatever address a monitor names, so naming one takes the owner's session
+# or an admin token (require_auth). a token with only `write`, like the phone's everyday one,
+# could otherwise point the server at its own network
+@router.post("/watch", dependencies=[Depends(require_auth)])
 def create_monitor(body: MonitorBody, db: DbSession = Depends(get_db)):
-    _validate(body.name, body.url, body.kind)
+    address = _validate(body.name, body.url, body.kind)
     m = Monitor(
         name=body.name.strip(),
-        url=body.url.strip(),
+        url=address,
         kind=body.kind,
         interval_secs=max(10, body.interval_secs),
         expect_status=body.expect_status,
@@ -253,20 +269,20 @@ class MonitorPatch(BaseModel):
     enabled: bool | None = None
 
 
-@router.patch("/watch/{mid}")
+@router.patch("/watch/{mid}", dependencies=[Depends(require_auth)])
 def update_monitor(mid: str, body: MonitorPatch, db: DbSession = Depends(get_db)):
     m = db.get(Monitor, mid)
     if not m:
         raise HTTPException(404)
     if body.name is not None and not body.name.strip():
         raise HTTPException(400, "name required")
-    if body.url is not None and not body.url.strip():
-        raise HTTPException(400, "url required")
     if body.kind is not None and body.kind not in KINDS:
         raise HTTPException(400, f"kind must be one of {', '.join(KINDS)}")
+    if body.url is not None or body.kind is not None:
+        # a new address, or the old one under a new kind, has to be one that kind can check
+        m.url = _address(m.url if body.url is None else body.url, body.kind or m.kind)
     for field in (
         "name",
-        "url",
         "kind",
         "interval_secs",
         "expect_status",
@@ -276,7 +292,7 @@ def update_monitor(mid: str, body: MonitorPatch, db: DbSession = Depends(get_db)
     ):
         v = getattr(body, field)
         if v is not None:
-            if field in ("name", "url", "expect_keyword"):
+            if field in ("name", "expect_keyword"):
                 v = v.strip()
             elif field == "interval_secs":
                 v = max(10, v)

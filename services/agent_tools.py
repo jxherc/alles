@@ -2965,6 +2965,7 @@ async def _read_list(a):
 
 async def _watch_add(a):
     from core.database import Monitor, SessionLocal
+    from services.watch_checks import monitor_address
 
     name = (a.get("name") or "").strip()
     url = (a.get("url") or "").strip()
@@ -2973,6 +2974,10 @@ async def _watch_add(a):
     kind = a.get("kind") or "http"
     if kind not in ("http", "health", "cert"):
         return {"output": "kind must be http, health or cert", "error": True}
+    # the same rule as the watch app's own form (routes/watch.py)
+    url = monitor_address(url, kind)
+    if not url:
+        return {"output": "that doesn't look like a web address", "error": True}
     db = SessionLocal()
     try:
         m = Monitor(name=name, url=url, kind=kind)
@@ -4903,6 +4908,8 @@ def delegated_action_details(name: str, args: dict, settings: dict | None = None
         raw_target = str(args.get("id") or args.get("calendar_id") or "calendar")
     elif name == "contact_add":
         raw_target = str(args.get("email") or args.get("name") or "contact")
+    elif name == "watch_add":
+        raw_target = str(args.get("url") or "monitor address")
     elif name == "project_create":
         raw_target = str(args.get("path") or "project folder")
     elif name.startswith("computer_"):
@@ -4976,6 +4983,8 @@ def decide_permission(name, args, mode, rules):
             "delete_file",
             "calendar_delete",
             "mail_send",
+            # alles itself keeps fetching the address a monitor names, its own network included
+            "watch_add",
             "mcp_call_tool",
             "github_create_issue",
             "github_create_pr",

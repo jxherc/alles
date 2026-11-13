@@ -2579,6 +2579,7 @@
     "the destination is not inside docs": "移動先がドキュメントの中にありません",
     "the docs folder itself cannot be changed": "ドキュメントフォルダ自体は変更できません",
     "the root is a folder": "ルートはフォルダです",
-    "service reload failed": "サービスの再読み込みに失敗しました"
+    "service reload failed": "サービスの再読み込みに失敗しました",
+    "no response is running in this task": "このタスクで実行中の返信はありません"
   }
 }

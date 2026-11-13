@@ -169,6 +169,78 @@ class SessionsApiTest(ApiTest):
         self.assertEqual(h["session"]["id"], sid)
         self.assertEqual([m["content"] for m in h["messages"]], ["hi there"])
 
+    def test_history_can_be_read_a_few_turns_at_a_time(self):
+        sid = self.client.post("/api/sessions", json={"name": "long"}).json()["id"]
+        # a line aide wrote by itself (a reminder), then three questions; the second got two rows
+        script = [
+            ("assistant", "reminder"),
+            ("user", "q1"),
+            ("assistant", "a1"),
+            ("user", "q2"),
+            ("assistant", "a2"),
+            ("assistant", "a2 more"),
+            ("user", "q3"),
+            ("assistant", "a3"),
+        ]
+        start = datetime(2026, 11, 1, 12, 0, 0)
+        with self.db() as d:
+            for i, (role, content) in enumerate(script):
+                d.add(
+                    Message(
+                        session_id=sid,
+                        role=role,
+                        content=content,
+                        timestamp=start + timedelta(minutes=i),
+                    )
+                )
+            d.commit()
+
+        def page(**params):
+            r = self.client.get(f"/api/sessions/{sid}/history", params=params)
+            self.assertEqual(r.status_code, 200, r.text)
+            return r.json()
+
+        def said(data):
+            return [m["content"] for m in data["messages"]]
+
+        # asked the way a page asks: everything, as before
+        whole = page()
+        self.assertEqual(said(whole), [content for _, content in script])
+        self.assertFalse(whole["earlier"])
+
+        newest = page(turns=2)
+        self.assertEqual(said(newest), ["q2", "a2", "a2 more", "q3", "a3"])
+        self.assertTrue(newest["earlier"])
+        self.assertEqual(newest["session"], whole["session"])
+
+        older = page(turns=2, before=newest["messages"][0]["id"])
+        self.assertEqual(said(older), ["reminder", "q1", "a1"])
+        self.assertFalse(older["earlier"])
+        self.assertEqual(older["messages"] + newest["messages"], whole["messages"])
+
+        one = page(turns=1, before=newest["messages"][0]["id"])
+        self.assertEqual(said(one), ["q1", "a1"])
+        self.assertTrue(one["earlier"], "the line before the first question was left out")
+
+        self.assertEqual(said(page(turns=50)), said(whole))
+        self.assertFalse(page(turns=50)["earlier"])
+
+        gone = self.client.get(f"/api/sessions/{sid}/history", params={"turns": 2, "before": "x"})
+        self.assertEqual(gone.status_code, 404, gone.text)
+        none = self.client.get(f"/api/sessions/{sid}/history", params={"turns": 0})
+        self.assertEqual(none.status_code, 422, none.text)
+
+    def test_a_private_task_pages_the_same_way(self):
+        sid = self.client.post("/api/sessions", json={"name": "p", "incognito": True}).json()["id"]
+        from services import incognito
+
+        self.addCleanup(incognito.clear_for_tests)
+        for n in (1, 2, 3):
+            incognito.append_turn(sid, f"q{n}", f"a{n}", "{}")
+        newest = self.client.get(f"/api/sessions/{sid}/history", params={"turns": 1}).json()
+        self.assertEqual([m["content"] for m in newest["messages"]], ["q3", "a3"])
+        self.assertTrue(newest["earlier"])
+
     def test_patch_rename(self):
         sid = self.client.post("/api/sessions", json={"name": "old"}).json()["id"]
         r = self.client.patch(f"/api/sessions/{sid}", json={"name": "new name", "starred": True})

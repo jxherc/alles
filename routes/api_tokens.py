@@ -1,7 +1,7 @@
 import json
 import secrets
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session as DbSession
 
@@ -48,6 +48,22 @@ def create_token(body: TokenBody, db: DbSession = Depends(get_db)):
     db.commit()
     db.refresh(token)
     return _fmt(token, raw)
+
+
+# before /tokens/{tid}, which would take "current" for an id
+@router.delete("/tokens/current")
+def delete_current_token(request: Request, db: DbSession = Depends(get_db)):
+    """the token a request carries removes itself, and only itself: what a device does when
+    it signs out. no password session can stand in for it, so nothing else is ever deleted."""
+    kind, _, raw = request.headers.get("authorization", "").partition(" ")
+    token = None
+    if kind == "Bearer" and raw.startswith(("alles_", "aide_")):
+        token = db.query(ApiToken).filter(ApiToken.token_hash == hash_token(raw)).first()
+    if not token:
+        raise HTTPException(404)
+    db.delete(token)
+    db.commit()
+    return {"ok": True}
 
 
 @router.delete("/tokens/{tid}", dependencies=[Depends(require_recent_owner)])

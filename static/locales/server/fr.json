@@ -2579,6 +2579,7 @@
     "the destination is not inside docs": "la destination n’est pas dans docs",
     "the docs folder itself cannot be changed": "le dossier docs lui-même ne peut pas être modifié",
     "the root is a folder": "la racine est un dossier",
-    "service reload failed": "le rechargement du service a échoué"
+    "service reload failed": "le rechargement du service a échoué",
+    "no response is running in this task": "aucune réponse n’est en cours dans cette tâche"
   }
 }

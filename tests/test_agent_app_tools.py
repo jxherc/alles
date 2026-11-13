@@ -377,6 +377,14 @@ class AgentAppToolsTests(ApiTest):
         s = self.ex("watch_status", {})
         self.assertIn("mysite", s["output"])
 
+    def test_watch_add_checks_the_address_like_the_watch_app(self):
+        r = self.ex("watch_add", {"name": "bare", "url": "example.com"})
+        self.assertFalse(r.get("error"), r)
+        refused = self.ex("watch_add", {"name": "files", "url": "ftp://example.com"})
+        self.assertEqual(refused, {"output": "that doesn't look like a web address", "error": True})
+        saved = self.client.get("/api/watch").json()["monitors"]
+        self.assertEqual([m["url"] for m in saved], ["https://example.com"])
+
     # ── registration / wiring ──────────────────────────────────────────────
     def test_new_tools_are_registered_and_mutating_flagged(self):
         names = {d["function"]["name"] for d in at.APP_TOOL_DEFS}

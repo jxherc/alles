@@ -46,7 +46,8 @@ Server. Compatibility routes may keep older internal view names while migrations
 - FastAPI, SQLite/SQLAlchemy, vanilla JavaScript, and plain CSS remain;
 - no frontend framework migration or build step;
 - no remote font, image, or cloud dependency is required;
-- no visible browser- or OS-native choice controls;
+- no visible browser- or OS-native choice controls in the web app (the native ios app, in its
+  own repo, uses the system's own controls);
 - owner data, credentials, vaults, databases, and normal `ALLES_DATA` never become test fixtures;
 - standalone KOKUEN HTML starters are optional design tools, not approval gates; when one helps, keep
   it local, fake-data-only, and subordinate to real-application verification;

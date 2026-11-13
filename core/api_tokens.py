@@ -38,6 +38,10 @@ _MODEL_PREFIXES = (
 _AGENT_PREFIXES = ("/api/agent", "/api/mcp/rpc", "/api/mcp/call")
 _SECRET_PREFIXES = ("/api/vault",)
 _CONNECTION_PREFIXES = ("/api/connections", "/api/mcp", "/api/caldav", "/api/carddav")
+# a token removing itself (a device signing out). it sits under /api/tokens, which is admin
+# only, but any token that still works may do this one thing, whatever its scopes
+SELF_REVOKE_PATH = "/api/tokens/current"
+ANY_SCOPE = ""
 
 
 def hash_token(raw: str) -> str:
@@ -67,16 +71,23 @@ def normalize_scopes(values: list[str]) -> tuple[str, ...]:
     return tuple(scope for scope in KNOWN_SCOPES if scope in values)
 
 
+def _under(path: str, prefixes: tuple[str, ...]) -> bool:
+    # whole path segments only: /api/vault-md (docs) is not under /api/vault (passwords)
+    return any(path == p.rstrip("/") or path.startswith(p.rstrip("/") + "/") for p in prefixes)
+
+
 def required_scope(method: str, path: str) -> str:
-    if any(path.startswith(prefix) for prefix in _ADMIN_PREFIXES):
+    if method.upper() == "DELETE" and path == SELF_REVOKE_PATH:
+        return ANY_SCOPE
+    if _under(path, _ADMIN_PREFIXES):
         return "admin"
-    if any(path.startswith(prefix) for prefix in _AGENT_PREFIXES):
+    if _under(path, _AGENT_PREFIXES):
         return "agent"
-    if any(path.startswith(prefix) for prefix in _SECRET_PREFIXES):
+    if _under(path, _SECRET_PREFIXES):
         return "secrets"
-    if any(path.startswith(prefix) for prefix in _CONNECTION_PREFIXES):
+    if _under(path, _CONNECTION_PREFIXES):
         return "connections"
-    if any(path.startswith(prefix) for prefix in _MODEL_PREFIXES):
+    if _under(path, _MODEL_PREFIXES):
         return "models"
     return "read" if method.upper() in {"GET", "HEAD", "OPTIONS"} else "write"
 
@@ -86,7 +97,7 @@ def token_access(raw: str, db: DbSession, scope: str) -> str:
     if not token:
         return "invalid"
     scopes = token_scopes(token)
-    if scope not in scopes and "admin" not in scopes:
+    if scope != ANY_SCOPE and scope not in scopes and "admin" not in scopes:
         return "forbidden"
     token.last_used_at = datetime.now(UTC).replace(tzinfo=None)
     db.commit()
