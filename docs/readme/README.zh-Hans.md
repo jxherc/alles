@@ -9,7 +9,7 @@ alles 是一套私有的 Google 全家桶替代方案。邮件、日历、文档
 
 它只为一个人设计。主要数据保存在你掌控的文件夹里，连接哪些外部服务也由你决定。另外还有 aide，一个 AI 助手：你批准它的操作后，它就能在各个应用里帮你做事。觉得有用就用；不接 AI 模型，本地工具也照样能用。
 
-每个应用的预览：[jxherc.github.io/alles](https://jxherc.github.io/alles/)
+每个应用的预览：[jxherc.github.io/alles-site](https://jxherc.github.io/alles-site/)
 
 [english](../../README.md) · [français](README.fr.md) · [español](README.es.md) · **简体中文** ·
 [繁體中文](README.zh-Hant.md) · [日本語](README.ja.md) · [한국어](README.ko.md) · [العربية](README.ar.md)
@@ -66,8 +66,6 @@ alles access domain alles.example.com
 ### 让 andromeda 成为浏览器的搜索
 
 设置 › andromeda › 默认搜索 可以下载一个给 chrome、brave、edge 和 helium 用的小扩展：解压后打开 `chrome://extensions`，开启开发者模式并加载这个文件夹，andromeda 就成了默认搜索。其他浏览器可以把那里显示的搜索地址加为自定义搜索引擎。
-
-iphone 和 ipad 上的 safari 只能选 apple 给的那几个搜索引擎，所以 `safari/` 里有一个带 safari 扩展的小 app：safari 的搜索引擎保持 google，扩展会把 google、bing、duckduckgo、yahoo、ecosia 或百度上的每次搜索都发到 andromeda。用你自己的 apple 开发者团队在 xcode 里编译，在 设置 › app › safari › 扩展 里打开它，允许它在所有网站上运行，再在它的弹窗里填上你的 alles 地址。
 
 ### 从源码运行
 

@@ -6,7 +6,7 @@ alles is a private replacement for the google ecosystem. your mail, calendar, do
 
 it's built for one person. your main data lives in a folder you control, and you decide which outside services to connect. there's also aide, an ai assistant that can work with the apps when you approve its actions. use it if it's helpful; the local tools work without an ai model.
 
-a quick look at every app: [jxherc.github.io/alles](https://jxherc.github.io/alles/)
+a quick look at every app: [jxherc.github.io/alles-site](https://jxherc.github.io/alles-site/)
 
 [français](docs/readme/README.fr.md) · [español](docs/readme/README.es.md) ·
 [简体中文](docs/readme/README.zh-Hans.md) · [繁體中文](docs/readme/README.zh-Hant.md) ·
@@ -65,8 +65,6 @@ every app then sits after a slash: `alles.example.com/docs`, `alles.example.com/
 ### make andromeda your browser's search
 
 settings › andromeda › default search downloads a small extension for chrome, brave, edge and helium: unzip it, open `chrome://extensions`, turn on developer mode and load the folder, and andromeda becomes the default search. any other browser can take the search address shown there as a custom engine.
-
-safari on an iphone or ipad only offers apple's own list of engines, so `safari/` holds a small app with a safari extension instead: keep google as safari's engine, and the extension sends every google, bing, duckduckgo, yahoo, ecosia or baidu search to andromeda. build it in xcode with your own apple developer team, turn it on in settings › apps › safari › extensions, allow it on every website, then enter your alles address in its popup.
 
 ### run it from source
 

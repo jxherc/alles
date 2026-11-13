@@ -9,7 +9,7 @@ alles는 Google 생태계를 대신하는 프라이빗한 대안입니다. 메�
 
 한 사람이 쓰도록 만들었습니다. 주요 데이터는 내가 관리하는 폴더에 저장되고, 어떤 외부 서비스를 연결할지도 직접 정합니다. AI 어시스턴트 aide도 들어 있어서, 작업을 승인하면 앱 안에서 일을 처리해 줍니다. 도움이 되면 쓰세요. 로컬 도구는 AI 모델 없이도 작동합니다.
 
-모든 앱 둘러보기: [jxherc.github.io/alles](https://jxherc.github.io/alles/)
+모든 앱 둘러보기: [jxherc.github.io/alles-site](https://jxherc.github.io/alles-site/)
 
 [english](../../README.md) · [français](README.fr.md) · [español](README.es.md) ·
 [简体中文](README.zh-Hans.md) · [繁體中文](README.zh-Hant.md) · [日本語](README.ja.md) · **한국어** ·
@@ -67,8 +67,6 @@ alles access domain alles.example.com
 ### andromeda를 브라우저 검색으로
 
 설정 › andromeda › 기본 검색에서 chrome, brave, edge, helium용 작은 확장 프로그램을 내려받을 수 있습니다. 압축을 풀고 `chrome://extensions`를 열어 개발자 모드를 켠 뒤 폴더를 불러오면 andromeda가 기본 검색이 됩니다. 다른 브라우저는 거기 나오는 검색 주소를 사용자 지정 검색 엔진으로 쓸 수 있습니다.
-
-iphone이나 ipad의 safari는 apple이 정한 검색 엔진만 고를 수 있어서, `safari/`에 safari 확장 프로그램이 들어 있는 작은 앱을 두었습니다. safari 검색 엔진은 google로 두면 확장 프로그램이 google, bing, duckduckgo, yahoo, ecosia, baidu 검색을 andromeda로 보냅니다. 자신의 apple 개발자 팀으로 xcode에서 빌드하고, 설정 › 앱 › safari › 확장 프로그램에서 켠 뒤 모든 웹사이트에서 허용하고, 팝업에 alles 주소를 입력하세요.
 
 ### 소스에서 실행하기
 

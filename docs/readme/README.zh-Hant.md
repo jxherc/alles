@@ -9,7 +9,7 @@ alles 是 Google 生態系的私人替代方案。郵件、行事曆、文件、
 
 它是為單一使用者打造的。主要資料存放在你掌控的資料夾中，要連接哪些外部服務也由你決定。另外還有 aide，一個 AI 助理：你核准它的操作後，它就能在各個應用程式中幫你做事。覺得有用就用；不接 AI 模型，本機工具也照樣能用。
 
-每個應用程式的預覽：[jxherc.github.io/alles](https://jxherc.github.io/alles/)
+每個應用程式的預覽：[jxherc.github.io/alles-site](https://jxherc.github.io/alles-site/)
 
 [english](../../README.md) · [français](README.fr.md) · [español](README.es.md) ·
 [简体中文](README.zh-Hans.md) · **繁體中文** · [日本語](README.ja.md) · [한국어](README.ko.md) ·
@@ -67,8 +67,6 @@ alles access domain alles.example.com
 ### 讓 andromeda 成為瀏覽器的搜尋
 
 設定 › andromeda › 預設搜尋 可以下載一個給 chrome、brave、edge 和 helium 用的小擴充功能：解壓縮後開啟 `chrome://extensions`，開啟開發人員模式並載入這個資料夾，andromeda 就成了預設搜尋。其他瀏覽器可以把那裡顯示的搜尋位址加為自訂搜尋引擎。
-
-iphone 和 ipad 上的 safari 只能選 apple 給的那幾個搜尋引擎，所以 `safari/` 裡有一個帶 safari 擴充功能的小 app：safari 的搜尋引擎維持 google，擴充功能會把 google、bing、duckduckgo、yahoo、ecosia 或百度上的每次搜尋都送到 andromeda。用你自己的 apple 開發者團隊在 xcode 裡編譯，在 設定 › app › safari › 延伸功能 裡開啟它，允許它在所有網站上執行，再在它的彈出視窗裡填上你的 alles 位址。
 
 ### 從原始碼執行
 

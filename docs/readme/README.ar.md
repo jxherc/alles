@@ -11,7 +11,7 @@
 
 صُمم alles لشخص واحد. تبقى بياناتك الأساسية في مجلد تتحكم فيه، وأنت من يقرر الخدمات الخارجية التي تتصل بها. وهناك أيضاً aide، وهو مساعد ذكاء اصطناعي يمكنه العمل مع التطبيقات عندما توافق على إجراءاته. استخدمه إن كان مفيداً لك؛ فالأدوات المحلية تعمل من دون نموذج ذكاء اصطناعي.
 
-نظرة سريعة على كل تطبيق: [jxherc.github.io/alles](https://jxherc.github.io/alles/)
+نظرة سريعة على كل تطبيق: [jxherc.github.io/alles-site](https://jxherc.github.io/alles-site/)
 
 [english](../../README.md) · [français](README.fr.md) · [español](README.es.md) ·
 [简体中文](README.zh-Hans.md) · [繁體中文](README.zh-Hant.md) · [日本語](README.ja.md) ·
@@ -77,8 +77,6 @@ alles access domain alles.example.com
 ### اجعل andromeda بحث متصفحك
 
 من الإعدادات › andromeda › البحث الافتراضي تنزّل إضافة صغيرة لـ chrome وbrave وedge وhelium: فك ضغطها، وافتح `chrome://extensions`، وشغّل وضع المطوّر، ثم حمّل المجلد، فيصبح andromeda البحث الافتراضي. وأي متصفح آخر يمكنه استخدام عنوان البحث الظاهر هناك كمحرك بحث مخصص.
-
-أما safari على iphone أو ipad فيعرض قائمة apple فقط، لذلك يحتوي `safari/` على تطبيق صغير فيه إضافة safari: أبقِ google محرك بحث safari، وسترسل الإضافة كل بحث على google أو bing أو duckduckgo أو yahoo أو ecosia أو baidu إلى andromeda. ابنِه في xcode بفريق مطوّري apple الخاص بك، وشغّله من الإعدادات › التطبيقات › safari › الامتدادات، واسمح له على كل المواقع، ثم أدخل عنوان alles في نافذته.
 
 ### تشغيله من الشفرة المصدرية
 

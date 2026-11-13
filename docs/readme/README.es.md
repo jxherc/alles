@@ -9,7 +9,7 @@ alles es una alternativa privada al ecosistema de Google. tu correo, calendario,
 
 alles está pensado para una sola persona. tus datos principales se guardan en una carpeta que tú controlas, y tú decides qué servicios externos conectar. también incluye aide, un asistente de IA que puede trabajar con las apps cuando apruebas sus acciones. úsalo si te resulta útil; las herramientas locales funcionan sin un modelo de IA.
 
-un vistazo a cada app: [jxherc.github.io/alles](https://jxherc.github.io/alles/)
+un vistazo a cada app: [jxherc.github.io/alles-site](https://jxherc.github.io/alles-site/)
 
 [english](../../README.md) · [français](README.fr.md) · **español** · [简体中文](README.zh-Hans.md) ·
 [繁體中文](README.zh-Hant.md) · [日本語](README.ja.md) · [한국어](README.ko.md) · [العربية](README.ar.md)
@@ -66,8 +66,6 @@ cada app queda después de una barra: `alles.example.com/docs`, `alles.example.c
 ### andromeda como buscador de tu navegador
 
 ajustes › andromeda › búsqueda predeterminada descarga una extensión pequeña para chrome, brave, edge y helium: descomprímela, abre `chrome://extensions`, activa el modo de desarrollador y carga la carpeta, y andromeda pasa a ser el buscador predeterminado. cualquier otro navegador puede usar como buscador personalizado la dirección de búsqueda que aparece ahí.
-
-safari en un iphone o ipad solo ofrece la lista de buscadores de apple, así que `safari/` tiene una app pequeña con una extensión de safari: deja google como buscador de safari y la extensión manda cada búsqueda de google, bing, duckduckgo, yahoo, ecosia o baidu a andromeda. compílala en xcode con tu propio equipo de desarrollador de apple, actívala en ajustes › apps › safari › extensiones, permítela en todos los sitios web y escribe la dirección de tu alles en su ventana.
 
 ### ejecutarlo desde el código fuente
 

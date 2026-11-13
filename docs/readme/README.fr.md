@@ -9,7 +9,7 @@ alles est une alternative privée à l’écosystème Google. e-mails, agenda, d
 
 alles est conçu pour une seule personne. vos données principales restent dans un dossier que vous contrôlez, et c’est vous qui décidez quels services externes connecter. il y a aussi Aide, un assistant IA qui peut travailler avec les apps quand vous approuvez ses actions. servez-vous-en s’il vous est utile ; les outils locaux fonctionnent sans modèle d’IA.
 
-un aperçu de chaque app : [jxherc.github.io/alles](https://jxherc.github.io/alles/)
+un aperçu de chaque app : [jxherc.github.io/alles-site](https://jxherc.github.io/alles-site/)
 
 [english](../../README.md) · **français** · [español](README.es.md) · [简体中文](README.zh-Hans.md) ·
 [繁體中文](README.zh-Hant.md) · [日本語](README.ja.md) · [한국어](README.ko.md) · [العربية](README.ar.md)
@@ -66,8 +66,6 @@ chaque app se trouve alors après une barre : `alles.example.com/docs`, `alles.e
 ### andromeda comme moteur de recherche du navigateur
 
 réglages › andromeda › recherche par défaut télécharge une petite extension pour chrome, brave, edge et helium : décompressez-la, ouvrez `chrome://extensions`, activez le mode développeur et chargez le dossier, et andromeda devient le moteur par défaut. tout autre navigateur peut utiliser l’adresse de recherche affichée là comme moteur personnalisé.
-
-safari sur iphone ou ipad ne propose que la liste de moteurs d’apple, alors `safari/` contient une petite app avec une extension safari : gardez google comme moteur de safari, et l’extension envoie chaque recherche google, bing, duckduckgo, yahoo, ecosia ou baidu vers andromeda. compilez-la dans xcode avec votre propre équipe développeur apple, activez-la dans réglages › apps › safari › extensions, autorisez-la sur tous les sites, puis saisissez l’adresse de votre alles dans sa fenêtre.
 
 ### le lancer depuis les sources
 
